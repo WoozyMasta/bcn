@@ -70,6 +70,22 @@ if err != nil {
 _ = ktx.Write(out)
 ```
 
+### Use with standard image.Decode
+
+Import the subpackages to register DDS and KTX with the `image` package;
+then `image.Decode` and `image.DecodeConfig` work as usual:
+
+```go
+import (
+  _ "github.com/woozymasta/bcn/dds"
+  _ "github.com/woozymasta/bcn/ktx"
+)
+
+// ...
+img, _, _ := image.Decode(f)       // decodes first face/mip to NRGBA
+cfg, _, _ := image.DecodeConfig(f) // width, height only
+```
+
 ## Notes
 
 * Only compressed KTX v1 is supported (no arrays/3D).

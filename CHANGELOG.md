@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
+## [0.1.1][] - 2026-02-04
+
+### Added
+
+* `DecodeKTX` decode first face/mip of KTX to `*image.NRGBA`
+* Subpackages `bcn/dds` and `bcn/ktx` registers DDS/KTX with
+  `image.RegisterFormat` for use with `image.Decode` / `image.DecodeConfig`
+
+[0.1.1]: https://github.com/WoozyMasta/bcn/compare/v0.1.0...v0.1.1
+
 ## [0.1.0][] - 2026-02-04
 
 ### Added

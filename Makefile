@@ -1,5 +1,3 @@
-# Minimal Makefile for library checks
-
 GO ?= go
 LINTER  ?= golangci-lint
 ALIGNER ?= betteralign

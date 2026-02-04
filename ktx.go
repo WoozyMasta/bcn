@@ -105,6 +105,26 @@ func ReadKTX(r io.Reader) (*KTX, error) {
 	return &KTX{Format: format, Width: int(header.PixelWidth), Height: int(header.PixelHeight), Faces: faces}, nil
 }
 
+// DecodeKTX decodes the first face/mip level of a KTX into an image.
+// This is a convenience wrapper around ReadKTX + DecodeImage.
+func DecodeKTX(r io.Reader) (*KTX, *image.NRGBA, error) {
+	k, err := ReadKTX(r)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(k.Faces) == 0 || len(k.Faces[0].Mipmaps) == 0 {
+		return k, nil, ErrNoMipmaps
+	}
+
+	img, err := DecodeImage(k.Faces[0].Mipmaps[0], k.Width, k.Height, k.Format)
+	if err != nil {
+		return k, nil, err
+	}
+
+	return k, img, nil
+}
+
 // Write serializes the KTX to a stream.
 // The caller must populate Faces and Mipmaps consistently.
 func (k *KTX) Write(w io.Writer) error {
