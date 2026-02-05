@@ -76,23 +76,24 @@ func encodeBlockDXT1WithOptions(block [16]rgba8, opts EncodeOptions) [8]byte {
 		}
 	}
 
+	rw, gw, bw := getRGBWeights(&opts, blockConstantR(block))
 	var c0, c1 uint16
 	switch opts.Quality {
 	case QualityFast:
 		c0, c1 = dxt1EndpointsFast(block)
 	case QualityBalanced:
 		c0, c1 = dxt1EndpointsPCA(block)
-		c0, c1 = dxt1Refine(block, c0, c1, hasAlpha, opts.AlphaThreshold, 1, 64)
+		c0, c1 = dxt1Refine(block, c0, c1, hasAlpha, opts.AlphaThreshold, 1, 64, rw, gw, bw)
 	case QualityBest:
 		c0, c1 = dxt1EndpointsPCA(block)
-		c0, c1 = dxt1Refine(block, c0, c1, hasAlpha, opts.AlphaThreshold, 2, 256)
+		c0, c1 = dxt1Refine(block, c0, c1, hasAlpha, opts.AlphaThreshold, 2, 256, rw, gw, bw)
 	default:
 		c0, c1 = dxt1EndpointsFast(block)
 	}
 
 	c0, c1 = orderDXT1(c0, c1, hasAlpha)
 	palette := dxt1Palette(c0, c1)
-	indices := packDXT1Indices(block, palette, hasAlpha, opts.AlphaThreshold)
+	indices := packDXT1IndicesWeighted(block, palette, hasAlpha, opts.AlphaThreshold, rw, gw, bw)
 
 	var out [8]byte
 	binary.LittleEndian.PutUint16(out[0:2], c0)
@@ -133,14 +134,28 @@ func orderDXT1(c0, c1 uint16, hasAlpha bool) (uint16, uint16) {
 	return c0, c1
 }
 
+func blockConstantR(block [16]rgba8) bool {
+	r := block[0].r
+	for i := 1; i < 16; i++ {
+		if block[i].r != r {
+			return false
+		}
+	}
+	return true
+}
+
 func packDXT1Indices(block [16]rgba8, palette [4]rgba8, hasAlpha bool, alphaThreshold uint8) uint32 {
+	return packDXT1IndicesWeighted(block, palette, hasAlpha, alphaThreshold, 0.3, 0.6, 0.1)
+}
+
+func packDXT1IndicesWeighted(block [16]rgba8, palette [4]rgba8, hasAlpha bool, alphaThreshold uint8, rw, gw, bw float64) uint32 {
 	indices := uint32(0)
 	for i := 15; i >= 0; i-- {
 		var idx uint8
 		if hasAlpha && block[i].a < alphaThreshold {
 			idx = 3
 		} else {
-			idx = bestIndexWeighted(palette, block[i], 0.3, 0.6, 0.1, hasAlpha)
+			idx = bestIndexWeighted(palette, block[i], rw, gw, bw, hasAlpha)
 		}
 
 		indices = (indices << 2) | uint32(idx)
@@ -174,9 +189,9 @@ func bestIndexWeighted(palette [4]rgba8, c rgba8, rw, gw, bw float64, hasAlpha b
 	return clampU8(best)
 }
 
-func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, step, maxTries int) (uint16, uint16) {
+func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, step, maxTries int, rw, gw, bw float64) (uint16, uint16) {
 	bestC0, bestC1 := orderDXT1(c0, c1, hasAlpha)
-	bestErr := dxt1BlockError(block, bestC0, bestC1, hasAlpha, alphaThreshold)
+	bestErr := dxt1BlockError(block, bestC0, bestC1, hasAlpha, alphaThreshold, rw, gw, bw)
 	candidates0 := vary565(bestC0, step)
 	candidates1 := vary565(bestC1, step)
 
@@ -184,7 +199,7 @@ func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold ui
 	for _, a := range candidates0 {
 		for _, b := range candidates1 {
 			ca, cb := orderDXT1(a, b, hasAlpha)
-			err := dxt1BlockError(block, ca, cb, hasAlpha, alphaThreshold)
+			err := dxt1BlockError(block, ca, cb, hasAlpha, alphaThreshold, rw, gw, bw)
 			if err < bestErr {
 				bestErr = err
 				bestC0 = ca
@@ -201,7 +216,7 @@ func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold ui
 	return bestC0, bestC1
 }
 
-func dxt1BlockError(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8) float64 {
+func dxt1BlockError(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, rw, gw, bw float64) float64 {
 	palette := dxt1Palette(c0, c1)
 	err := 0.0
 	for i := 0; i < 16; i++ {
@@ -209,12 +224,12 @@ func dxt1BlockError(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshol
 			continue
 		}
 
-		idx := bestIndexWeighted(palette, block[i], 0.3, 0.6, 0.1, hasAlpha)
+		idx := bestIndexWeighted(palette, block[i], rw, gw, bw, hasAlpha)
 		p := palette[idx]
 		dr := float64(int(block[i].r) - int(p.r))
 		dg := float64(int(block[i].g) - int(p.g))
 		db := float64(int(block[i].b) - int(p.b))
-		err += dr*dr*0.3 + dg*dg*0.6 + db*db*0.1
+		err += dr*dr*rw + dg*dg*gw + db*db*bw
 	}
 
 	return err

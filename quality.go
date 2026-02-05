@@ -3,15 +3,16 @@ package bcn
 import "math"
 
 func dxt1ColorEndpoints(block [16]rgba8, opts EncodeOptions) (uint16, uint16) {
+	rw, gw, bw := getRGBWeights(&opts, blockConstantR(block))
 	switch opts.Quality {
 	case QualityFast:
 		return dxt1EndpointsFast(block)
 	case QualityBalanced:
 		c0, c1 := dxt1EndpointsPCA(block)
-		return dxt1Refine(block, c0, c1, false, opts.AlphaThreshold, 1, 64)
+		return dxt1Refine(block, c0, c1, false, opts.AlphaThreshold, 1, 64, rw, gw, bw)
 	case QualityBest:
 		c0, c1 := dxt1EndpointsPCA(block)
-		return dxt1Refine(block, c0, c1, false, opts.AlphaThreshold, 2, 256)
+		return dxt1Refine(block, c0, c1, false, opts.AlphaThreshold, 2, 256, rw, gw, bw)
 	default:
 		return dxt1EndpointsFast(block)
 	}

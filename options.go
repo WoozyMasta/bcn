@@ -16,8 +16,26 @@ const (
 	QualityBest
 )
 
+// RGBWeights are used when choosing DXT1 palette indices (and in refinement).
+// R, G, B are relative weights; they are normalized when used.
+// Used to preserve channels that matter (e.g. blue in normal maps).
+type RGBWeights struct {
+	R, G, B float64
+}
+
+// Presets for RGBWeights when encoding DXT1/DXT5 RGB block.
+var (
+	// DefaultRGBWeights is luminance-oriented (green dominant). Use for typical photos/UI.
+	DefaultRGBWeights = RGBWeights{R: 0.3, G: 0.6, B: 0.1}
+	// BalancedRGBWeights treats R, G, B equally. Use when all channels matter (e.g. normal maps).
+	BalancedRGBWeights = RGBWeights{R: 1.0 / 3.0, G: 1.0 / 3.0, B: 1.0 / 3.0}
+)
+
 // EncodeOptions configures block encoding and mipmap generation.
 type EncodeOptions struct {
+	// RGBWeights overrides weights for DXT1 palette index selection (R, G, B). Nil = default;
+	// for DXT5, if nil and block has constant R (e.g. nohq), Balanced is used automatically.
+	RGBWeights *RGBWeights
 	// Quality selects the encoder mode. Defaults to QualityBalanced.
 	Quality Quality
 	// GenerateMipmaps enables mipmap generation from the input image.
@@ -42,4 +60,19 @@ func normalizeEncodeOptions(opts *EncodeOptions) EncodeOptions {
 	}
 
 	return out
+}
+
+// getRGBWeights returns (rw, gw, bw) for index selection. If opts.RGBWeights is set, uses it;
+// else when blockConstantR (e.g. DXT5 nohq with R=0) returns Balanced; else Default.
+func getRGBWeights(opts *EncodeOptions, blockConstantR bool) (rw, gw, bw float64) {
+	if opts != nil && opts.RGBWeights != nil {
+		w := opts.RGBWeights
+		return w.R, w.G, w.B
+	}
+
+	if blockConstantR {
+		return BalancedRGBWeights.R, BalancedRGBWeights.G, BalancedRGBWeights.B
+	}
+
+	return DefaultRGBWeights.R, DefaultRGBWeights.G, DefaultRGBWeights.B
 }

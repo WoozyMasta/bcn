@@ -68,6 +68,74 @@ func TestDXT5AlphaConstant(t *testing.T) {
 	}
 }
 
+// TestDXT5NohqStyle verifies that DXT5 preserves B when R is constant (nohq normal map case).
+func TestDXT5NohqStyle(t *testing.T) {
+	// One block: R=0, G and B varying so min/max B should be in the palette.
+	img := image.NewNRGBA(image.Rect(0, 0, 4, 4))
+	for i := 0; i < 16; i++ {
+		img.Pix[i*4+0] = 0
+		img.Pix[i*4+1] = uint8(i * 17)
+		img.Pix[i*4+2] = uint8(255 - i*17)
+		img.Pix[i*4+3] = 255
+	}
+	opts := &EncodeOptions{Quality: QualityFast}
+	data, _, _, err := EncodeImageWithOptions(img, FormatDXT5, opts)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	decoded, err := DecodeImage(data, 4, 4, FormatDXT5)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	// Input had B from 255 down to 0; decoded block must have non-zero B somewhere.
+	maxB := uint8(0)
+	for i := 0; i < 16; i++ {
+		b := decoded.Pix[i*4+2]
+		if b > maxB {
+			maxB = b
+		}
+	}
+	if maxB == 0 {
+		t.Fatalf("DXT5 nohq-style roundtrip: B channel is all zero after decode (input had varying B)")
+	}
+}
+
+// TestDXT5NohqStyleMultiBlock verifies that DXT5 with QualityBest preserves B for multi-block nohq-style (R=0).
+func TestDXT5NohqStyleMultiBlock(t *testing.T) {
+	const size = 16
+	img := image.NewNRGBA(image.Rect(0, 0, size, size))
+	for y := 0; y < size; y++ {
+		for x := 0; x < size; x++ {
+			i := y*size + x
+			img.Pix[i*4+0] = 0
+			img.Pix[i*4+1] = uint8((x * 255) / (size - 1))
+			img.Pix[i*4+2] = uint8((y * 255) / (size - 1))
+			img.Pix[i*4+3] = 255
+		}
+	}
+	opts := &EncodeOptions{Quality: QualityBest}
+	data, w, h, err := EncodeImageWithOptions(img, FormatDXT5, opts)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	if w != size || h != size {
+		t.Fatalf("encode size: got %dx%d", w, h)
+	}
+	decoded, err := DecodeImage(data, size, size, FormatDXT5)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	maxB := uint8(0)
+	for i := 0; i < size*size*4; i += 4 {
+		if decoded.Pix[i+2] > maxB {
+			maxB = decoded.Pix[i+2]
+		}
+	}
+	if maxB == 0 {
+		t.Fatalf("DXT5 nohq-style multi-block (QualityBest): B channel is all zero after decode")
+	}
+}
+
 func TestDDSRoundTrip(t *testing.T) {
 	img := SolidImage(8, 8, color.NRGBA{R: 180, G: 60, B: 220, A: 255})
 	ds, err := EncodeDDS(img, FormatDXT1)
