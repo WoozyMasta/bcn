@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
+## [0.1.2][] - 2026-02-05
+
+### Added
+
+* configurable RGB weights with
+  new `RGBWeights` type and option in `EncodeOptions`
+* more roundtrip tests
+
+[0.1.2]: https://github.com/WoozyMasta/bcn/compare/v0.1.1...v0.1.2
+
 ## [0.1.1][] - 2026-02-04
 
 ### Added
