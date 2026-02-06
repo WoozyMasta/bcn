@@ -78,7 +78,7 @@ func TestDXT5NohqStyle(t *testing.T) {
 		img.Pix[i*4+2] = uint8(255 - i*17)
 		img.Pix[i*4+3] = 255
 	}
-	opts := &EncodeOptions{Quality: QualityFast}
+	opts := &EncodeOptions{QualityLevel: QualityLevelFast}
 	data, _, _, err := EncodeImageWithOptions(img, FormatDXT5, opts)
 	if err != nil {
 		t.Fatalf("encode: %v", err)
@@ -100,7 +100,7 @@ func TestDXT5NohqStyle(t *testing.T) {
 	}
 }
 
-// TestDXT5NohqStyleMultiBlock verifies that DXT5 with QualityBest preserves B for multi-block nohq-style (R=0).
+// TestDXT5NohqStyleMultiBlock verifies that DXT5 with QualityLevelBest preserves B for multi-block nohq-style (R=0).
 func TestDXT5NohqStyleMultiBlock(t *testing.T) {
 	const size = 16
 	img := image.NewNRGBA(image.Rect(0, 0, size, size))
@@ -113,7 +113,7 @@ func TestDXT5NohqStyleMultiBlock(t *testing.T) {
 			img.Pix[i*4+3] = 255
 		}
 	}
-	opts := &EncodeOptions{Quality: QualityBest}
+	opts := &EncodeOptions{QualityLevel: QualityLevelBest}
 	data, w, h, err := EncodeImageWithOptions(img, FormatDXT5, opts)
 	if err != nil {
 		t.Fatalf("encode: %v", err)
@@ -132,7 +132,7 @@ func TestDXT5NohqStyleMultiBlock(t *testing.T) {
 		}
 	}
 	if maxB == 0 {
-		t.Fatalf("DXT5 nohq-style multi-block (QualityBest): B channel is all zero after decode")
+		t.Fatalf("DXT5 nohq-style multi-block (QualityLevelBest): B channel is all zero after decode")
 	}
 }
 
@@ -170,7 +170,7 @@ func TestDDSCubemapMipmaps(t *testing.T) {
 		SolidImage(8, 8, color.NRGBA{R: 255, G: 0, B: 255, A: 255}),
 		SolidImage(8, 8, color.NRGBA{R: 0, G: 255, B: 255, A: 255}),
 	}
-	opts := &EncodeOptions{GenerateMipmaps: true, Quality: QualityFast}
+	opts := &EncodeOptions{GenerateMipmaps: true, QualityLevel: QualityLevelFast}
 	ds, err := EncodeDDSWithOptions(images, FormatDXT1, opts)
 	if err != nil {
 		t.Fatalf("encode cubemap: %v", err)

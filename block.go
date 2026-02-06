@@ -36,6 +36,23 @@ func findMinMax(block [16]rgba8) (rgba8, rgba8) {
 
 func extractBlock(rgba []byte, width, height, bx, by int) [16]rgba8 {
 	var block [16]rgba8
+	baseX := bx * 4
+	baseY := by * 4
+	if baseX+3 < width && baseY+3 < height {
+		idx := 0
+		row := (baseY*width + baseX) * 4
+		stride := width * 4
+		for y := 0; y < 4; y++ {
+			off := row
+			for x := 0; x < 4; x++ {
+				block[idx] = rgbaFromNRGBA(rgba, off)
+				idx++
+				off += 4
+			}
+			row += stride
+		}
+		return block
+	}
 	idx := 0
 
 	for y := 0; y < 4; y++ {
@@ -59,6 +76,23 @@ func extractBlock(rgba []byte, width, height, bx, by int) [16]rgba8 {
 }
 
 func storeBlock(dst []byte, width, height, bx, by int, block [16]rgba8) {
+	baseX := bx * 4
+	baseY := by * 4
+	if baseX+3 < width && baseY+3 < height {
+		idx := 0
+		row := (baseY*width + baseX) * 4
+		stride := width * 4
+		for y := 0; y < 4; y++ {
+			off := row
+			for x := 0; x < 4; x++ {
+				rgbaToNRGBA(dst, off, block[idx])
+				idx++
+				off += 4
+			}
+			row += stride
+		}
+		return
+	}
 	idx := 0
 	for y := 0; y < 4; y++ {
 		py := by*4 + y

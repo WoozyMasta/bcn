@@ -13,6 +13,32 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
+## Unreleased
+
+### Added
+
+* Quality tuning with `QualityLevel` (1..10) and `RefinementOptions` overrides
+* Parallel encoding control via `EncodeOptions.Workers`
+  with worker pool/thresholds
+* Parallel decoding control via `DecodeOptions.Workers`
+  and `Decode*WithOptions`
+* Encode/decode benchmarks and Makefile targets
+  (`bench-encode`, `bench-decode`, baseline/compare)
+
+### Changed
+
+* DXT1/DXT5 encoding significantly faster with fewer allocations
+  (refinement, PCA, alpha paths)
+* Fast paths for block extract/store and other hot loops
+* Encoding/decoding can now run in parallel by default
+  (uses `GOMAXPROCS` for large images);
+  set `Workers=1` to force serial behavior
+
+### Removed (Breaking)
+
+* `Quality` enum and `EncodeOptions.Quality`
+  (use `QualityLevel` or `QualityLevelFast/Balanced/Best`)
+
 ## [0.1.2][] - 2026-02-05
 
 ### Added
@@ -22,6 +48,7 @@ and this project adheres to [Semantic Versioning][].
 * more roundtrip tests
 
 [0.1.2]: https://github.com/WoozyMasta/bcn/compare/v0.1.1...v0.1.2
+[Unreleased]: https://github.com/WoozyMasta/bcn/compare/v0.1.2...HEAD
 
 ## [0.1.1][] - 2026-02-04
 

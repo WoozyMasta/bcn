@@ -12,8 +12,13 @@ func DecodeDXT5(data []byte, width, height int) ([]byte, error) {
 	return decodeBlocks(data, width, height, FormatDXT5)
 }
 
+// DecodeDXT5WithOptions decodes DXT5 blocks with explicit options.
+func DecodeDXT5WithOptions(data []byte, width, height int, opts *DecodeOptions) ([]byte, error) {
+	return decodeBlocksWithOptions(data, width, height, FormatDXT5, opts)
+}
+
 // EncodeDXT5WithOptions encodes with explicit options.
-// Quality affects color endpoint selection; alpha is interpolated (BC3).
+// QualityLevel affects color endpoint selection; alpha is interpolated (BC3).
 func EncodeDXT5WithOptions(rgba []byte, width, height int, opts *EncodeOptions) ([]byte, error) {
 	return encodeBlocksWithOptions(rgba, width, height, FormatDXT5, opts)
 }
@@ -23,17 +28,15 @@ func encodeBlockDXT5WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 
 	a0 := maxC.a
 	a1 := minC.a
-	if a0 == a1 {
-		a1 = a0
-	}
-
-	alphaPalette := dxt5AlphaPalette(a0, a1)
 	alphaIdx := uint64(0)
-	for i := 15; i >= 0; i-- {
-		idx := bestAlphaIndex(alphaPalette, block[i].a)
-		alphaIdx = (alphaIdx << 3) | uint64(idx&0x7)
-		if i == 0 {
-			break
+	if a0 != a1 {
+		alphaPalette := dxt5AlphaPalette(a0, a1)
+		for i := 15; i >= 0; i-- {
+			idx := bestAlphaIndex(&alphaPalette, block[i].a)
+			alphaIdx = (alphaIdx << 3) | uint64(idx&0x7)
+			if i == 0 {
+				break
+			}
 		}
 	}
 
@@ -126,16 +129,23 @@ func alphaFromPalette(p [8]uint8, idx uint64) uint8 {
 	}
 }
 
-func bestAlphaIndex(palette [8]uint8, a uint8) uint8 {
+func bestAlphaIndex(palette *[8]uint8, a uint8) uint8 {
+	idx, _ := bestAlphaIndexErr(palette, a)
+	return idx
+}
+
+func bestAlphaIndexErr(palette *[8]uint8, a uint8) (uint8, int) {
 	best := 0
 	bestErr := 1<<31 - 1
+	av := int(a)
 	for i := 0; i < 8; i++ {
-		err := alphaError(a, palette[i])
+		d := av - int(palette[i])
+		err := d * d
 		if err < bestErr {
 			bestErr = err
 			best = i
 		}
 	}
 
-	return clampU8(best)
+	return clampU8(best), bestErr
 }

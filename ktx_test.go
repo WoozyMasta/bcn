@@ -10,7 +10,7 @@ import (
 
 func TestKTXRoundTrip(t *testing.T) {
 	img := SolidImage(8, 8, color.NRGBA{R: 120, G: 80, B: 200, A: 255})
-	ktx, err := EncodeKTXWithOptions([]image.Image{img}, FormatDXT1, &EncodeOptions{Quality: QualityFast})
+	ktx, err := EncodeKTXWithOptions([]image.Image{img}, FormatDXT1, &EncodeOptions{QualityLevel: QualityLevelFast})
 	if err != nil {
 		t.Fatalf("encode ktx: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestKTXCubemapMipmaps(t *testing.T) {
 		SolidImage(8, 8, color.NRGBA{R: 255, G: 0, B: 255, A: 255}),
 		SolidImage(8, 8, color.NRGBA{R: 0, G: 255, B: 255, A: 255}),
 	}
-	ktx, err := EncodeKTXWithOptions(images, FormatDXT1, &EncodeOptions{GenerateMipmaps: true, Quality: QualityFast})
+	ktx, err := EncodeKTXWithOptions(images, FormatDXT1, &EncodeOptions{GenerateMipmaps: true, QualityLevel: QualityLevelFast})
 	if err != nil {
 		t.Fatalf("encode cubemap: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestKTXCubemapMipmaps(t *testing.T) {
 
 func TestKTXBC5RoundTrip(t *testing.T) {
 	img := SolidImage(8, 8, color.NRGBA{R: 40, G: 210, B: 10, A: 255})
-	ktx, err := EncodeKTXWithOptions([]image.Image{img}, FormatBC5, &EncodeOptions{Quality: QualityFast})
+	ktx, err := EncodeKTXWithOptions([]image.Image{img}, FormatBC5, &EncodeOptions{QualityLevel: QualityLevelFast})
 	if err != nil {
 		t.Fatalf("encode ktx: %v", err)
 	}
