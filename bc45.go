@@ -79,7 +79,7 @@ func encodeAlphaBlock(alpha [16]uint8, quality Quality) [8]byte {
 	bestA0, bestA1 := a0, a1
 	bestErr := alphaBlockError(alpha, bestA0, bestA1)
 
-	if quality != QualityFast {
+	if quality != QualityFast && bestErr != 0 {
 		step := 1
 		tries := 64
 
@@ -102,7 +102,7 @@ func encodeAlphaBlock(alpha [16]uint8, quality Quality) [8]byte {
 	palette := dxt5AlphaPalette(bestA0, bestA1)
 	var idx uint64
 	for i := 15; i >= 0; i-- {
-		best := bestAlphaIndex(palette, alpha[i])
+		best := bestAlphaIndex(&palette, alpha[i])
 		idx = (idx << 3) | uint64(best&0x7)
 		if i == 0 {
 			break
@@ -146,10 +146,8 @@ func alphaBlockError(alpha [16]uint8, a0, a1 uint8) int {
 	palette := dxt5AlphaPalette(a0, a1)
 	err := 0
 	for i := 0; i < 16; i++ {
-		// #nosec G602 -- bestAlphaIndex returns 0..7.
-		best := palette[int(bestAlphaIndex(palette, alpha[i]))]
-		derr := int(alpha[i]) - int(best)
-		err += derr * derr
+		_, bestErr := bestAlphaIndexErr(&palette, alpha[i])
+		err += bestErr
 	}
 
 	return err

@@ -19,15 +19,17 @@ func dxt1ColorEndpoints(block [16]rgba8, opts EncodeOptions) (uint16, uint16) {
 }
 
 func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {
-	var mean [3]float64
+	var sumR, sumG, sumB int
 	for _, px := range block {
-		mean[0] += float64(px.r)
-		mean[1] += float64(px.g)
-		mean[2] += float64(px.b)
+		sumR += int(px.r)
+		sumG += int(px.g)
+		sumB += int(px.b)
 	}
-	mean[0] /= 16
-	mean[1] /= 16
-	mean[2] /= 16
+	mean := [3]float64{
+		float64(sumR) / 16.0,
+		float64(sumG) / 16.0,
+		float64(sumB) / 16.0,
+	}
 
 	var cov [3][3]float64
 	for _, px := range block {
@@ -37,13 +39,13 @@ func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {
 		cov[0][0] += r * r
 		cov[0][1] += r * g
 		cov[0][2] += r * b
-		cov[1][0] += g * r
 		cov[1][1] += g * g
 		cov[1][2] += g * b
-		cov[2][0] += b * r
-		cov[2][1] += b * g
 		cov[2][2] += b * b
 	}
+	cov[1][0] = cov[0][1]
+	cov[2][0] = cov[0][2]
+	cov[2][1] = cov[1][2]
 
 	// Power iteration to approximate the principal axis of the covariance matrix.
 	axis := [3]float64{1, 1, 1}
@@ -56,9 +58,15 @@ func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {
 			break
 		}
 
-		axis[0] = x / axisLen
-		axis[1] = y / axisLen
-		axis[2] = z / axisLen
+		nx := x / axisLen
+		ny := y / axisLen
+		nz := z / axisLen
+		if nx == axis[0] && ny == axis[1] && nz == axis[2] {
+			break
+		}
+		axis[0] = nx
+		axis[1] = ny
+		axis[2] = nz
 	}
 
 	minDot := math.MaxFloat64
@@ -83,12 +91,11 @@ func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {
 	return minC, maxC
 }
 
-func vary565(c uint16, step int) []uint16 {
+func vary565Into(c uint16, step int, out *[125]uint16) int {
 	r := int((c >> 11) & 0x1F)
 	g := int((c >> 5) & 0x3F)
 	b := int(c & 0x1F)
-	seen := make(map[uint16]struct{})
-	out := make([]uint16, 0, (2*step+1)*(2*step+1)*(2*step+1))
+	n := 0
 	for dr := -step; dr <= step; dr++ {
 		rr := r + dr
 		if rr < 0 || rr > 0x1F {
@@ -109,15 +116,11 @@ func vary565(c uint16, step int) []uint16 {
 
 				// #nosec G115 -- rr/gg/bb are range-checked.
 				v := uint16((rr << 11) | (gg << 5) | bb)
-				if _, ok := seen[v]; ok {
-					continue
-				}
-
-				seen[v] = struct{}{}
-				out = append(out, v)
+				out[n] = v
+				n++
 			}
 		}
 	}
 
-	return out
+	return n
 }

@@ -44,6 +44,9 @@ type EncodeOptions struct {
 	UseSRGB bool
 	// AlphaThreshold controls DXT1 1-bit alpha cutout (0..255). Default 128.
 	AlphaThreshold uint8
+	// Workers controls parallel block encoding. 0 = auto (GOMAXPROCS), 1 = disable parallelism,
+	// N > 1 = use N workers. Defaults to 0.
+	Workers int
 }
 
 func normalizeEncodeOptions(opts *EncodeOptions) EncodeOptions {

@@ -1,5 +1,10 @@
 package bcn
 
+import (
+	"runtime"
+	"sync"
+)
+
 func decodeBlocks(data []byte, width, height int, format Format) ([]byte, error) {
 	if width <= 0 || height <= 0 {
 		return nil, ErrInvalidDimensions
@@ -114,6 +119,43 @@ func encodeBlocksWithOptions(rgba []byte, width, height int, format Format, opts
 	bx := (width + 3) / 4
 	by := (height + 3) / 4
 	out := make([]byte, bx*by*blockSize)
+	totalBlocks := bx * by
+
+	workers := options.Workers
+	if workers == 0 {
+		workers = runtime.GOMAXPROCS(0)
+	}
+	if workers > totalBlocks {
+		workers = totalBlocks
+	}
+
+	parallelMinBlocks := 256 * workers
+	if totalBlocks >= parallelMinBlocks && workers > 1 {
+		pool := getEncodePool(workers)
+		var wg sync.WaitGroup
+		wg.Add(workers)
+		for w := 0; w < workers; w++ {
+			start := (totalBlocks * w) / workers
+			end := (totalBlocks * (w + 1)) / workers
+			pool.jobs <- encodeJob{
+				start:     start,
+				end:       end,
+				bx:        bx,
+				width:     width,
+				height:    height,
+				blockSize: blockSize,
+				format:    format,
+				options:   options,
+				rgba:      rgba,
+				out:       out,
+				wg:        &wg,
+			}
+		}
+
+		wg.Wait()
+		return out, nil
+	}
+
 	pos := 0
 
 	for y := 0; y < by; y++ {

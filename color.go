@@ -44,11 +44,6 @@ func clampU8(v int) uint8 {
 	return uint8(v)
 }
 
-func alphaError(a, b uint8) int {
-	d := int(a) - int(b)
-	return d * d
-}
-
 func insetMinMax(minC, maxC rgba8) (rgba8, rgba8) {
 	rangeR := int(maxC.r) - int(minC.r)
 	rangeG := int(maxC.g) - int(minC.g)
