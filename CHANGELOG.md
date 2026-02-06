@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
-## Unreleased
+## [0.1.3][] - 2026-02-06
 
 ### Added
 
@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning][].
 * `Quality` enum and `EncodeOptions.Quality`
   (use `QualityLevel` or `QualityLevelFast/Balanced/Best`)
 
+[0.1.3]: https://github.com/WoozyMasta/bcn/compare/v0.1.2...v0.1.3
+
 ## [0.1.2][] - 2026-02-05
 
 ### Added
@@ -48,7 +50,6 @@ and this project adheres to [Semantic Versioning][].
 * more roundtrip tests
 
 [0.1.2]: https://github.com/WoozyMasta/bcn/compare/v0.1.1...v0.1.2
-[Unreleased]: https://github.com/WoozyMasta/bcn/compare/v0.1.2...HEAD
 
 ## [0.1.1][] - 2026-02-04
 
