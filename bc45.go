@@ -11,6 +11,11 @@ func DecodeBC4(data []byte, width, height int) ([]byte, error) {
 	return decodeBlocks(data, width, height, FormatBC4)
 }
 
+// DecodeBC4WithOptions decodes BC4 blocks with explicit options.
+func DecodeBC4WithOptions(data []byte, width, height int, opts *DecodeOptions) ([]byte, error) {
+	return decodeBlocksWithOptions(data, width, height, FormatBC4, opts)
+}
+
 // EncodeBC5 encodes an RGBA image into BC5 blocks using red/green channels.
 // Blue/alpha are ignored.
 func EncodeBC5(rgba []byte, width, height int) ([]byte, error) {
@@ -20,6 +25,11 @@ func EncodeBC5(rgba []byte, width, height int) ([]byte, error) {
 // DecodeBC5 decodes BC5 blocks into an RGBA image (R/G from block, B=0, A=255).
 func DecodeBC5(data []byte, width, height int) ([]byte, error) {
 	return decodeBlocks(data, width, height, FormatBC5)
+}
+
+// DecodeBC5WithOptions decodes BC5 blocks with explicit options.
+func DecodeBC5WithOptions(data []byte, width, height int, opts *DecodeOptions) ([]byte, error) {
+	return decodeBlocksWithOptions(data, width, height, FormatBC5, opts)
 }
 
 func encodeBlockBC4(block [16]rgba8, opts EncodeOptions, channel func(rgba8) uint8) [8]byte {

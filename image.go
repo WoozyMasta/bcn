@@ -44,6 +44,19 @@ func DecodeImage(data []byte, width, height int, format Format) (*image.NRGBA, e
 	return img, nil
 }
 
+// DecodeImageWithOptions decodes BCn blocks into a new image.NRGBA with options.
+func DecodeImageWithOptions(data []byte, width, height int, format Format, opts *DecodeOptions) (*image.NRGBA, error) {
+	rgba, err := decodeBlocksWithOptions(data, width, height, format, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	img := image.NewNRGBA(image.Rect(0, 0, width, height))
+	copy(img.Pix, rgba)
+
+	return img, nil
+}
+
 // AsNRGBA converts a slice of RGBA bytes into an image.NRGBA without copying.
 // The caller must ensure the slice length is width*height*4.
 func AsNRGBA(rgba []byte, width, height int) *image.NRGBA {

@@ -12,6 +12,11 @@ func DecodeDXT3(data []byte, width, height int) ([]byte, error) {
 	return decodeBlocks(data, width, height, FormatDXT3)
 }
 
+// DecodeDXT3WithOptions decodes DXT3 blocks with explicit options.
+func DecodeDXT3WithOptions(data []byte, width, height int, opts *DecodeOptions) ([]byte, error) {
+	return decodeBlocksWithOptions(data, width, height, FormatDXT3, opts)
+}
+
 // EncodeDXT3WithOptions encodes with explicit options.
 // QualityLevel affects color endpoint selection; alpha is explicit 4-bit.
 func EncodeDXT3WithOptions(rgba []byte, width, height int, opts *EncodeOptions) ([]byte, error) {

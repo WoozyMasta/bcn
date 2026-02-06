@@ -6,6 +6,10 @@ import (
 )
 
 func decodeBlocks(data []byte, width, height int, format Format) ([]byte, error) {
+	return decodeBlocksWithOptions(data, width, height, format, nil)
+}
+
+func decodeBlocksWithOptions(data []byte, width, height int, format Format, opts *DecodeOptions) ([]byte, error) {
 	if width <= 0 || height <= 0 {
 		return nil, ErrInvalidDimensions
 	}
@@ -46,6 +50,44 @@ func decodeBlocks(data []byte, width, height int, format Format) ([]byte, error)
 	}
 
 	out := make([]byte, width*height*4)
+	totalBlocks := bx * by
+
+	workers := runtime.GOMAXPROCS(0)
+	if opts != nil {
+		workers = opts.Workers
+		if workers == 0 {
+			workers = runtime.GOMAXPROCS(0)
+		}
+	}
+	if workers > totalBlocks {
+		workers = totalBlocks
+	}
+
+	parallelMinBlocks := 256 * workers
+	if totalBlocks >= parallelMinBlocks && workers > 1 {
+		pool := getDecodePool(workers)
+		var wg sync.WaitGroup
+		wg.Add(workers)
+		for w := 0; w < workers; w++ {
+			start := (totalBlocks * w) / workers
+			end := (totalBlocks * (w + 1)) / workers
+			pool.jobs <- decodeJob{
+				start:     start,
+				end:       end,
+				bx:        bx,
+				width:     width,
+				height:    height,
+				blockSize: blockSize,
+				format:    format,
+				data:      data,
+				out:       out,
+				wg:        &wg,
+			}
+		}
+		wg.Wait()
+		return out, nil
+	}
+
 	pos := 0
 	for y := 0; y < by; y++ {
 		for x := 0; x < bx; x++ {

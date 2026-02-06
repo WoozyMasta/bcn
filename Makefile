@@ -2,7 +2,10 @@ GO ?= go
 LINTER  ?= golangci-lint
 ALIGNER ?= betteralign
 
-.PHONY: test bench bench-baseline bench-compare verify vet fmt fmt-check lint align align-fix check tidy download tools release-notes
+.PHONY: bench bench-encode bench-decode bench-baseline bench-compare \
+	bench-encode-baseline bench-decode-baseline bench-encode-compare bench-decode-compare \
+	test verify vet fmt fmt-check lint align align-fix check tidy download \
+	tools release-notes
 
 check: fmt-check vet lint align test
 
@@ -22,20 +25,6 @@ vet:
 test:
 	$(GO) test ./...
 
-bench:
-	$(GO) test -test.fullpath=true -run=^$$ -bench '^BenchmarkEncodeBlock(DXT1|DXT5)$$' -benchmem
-	BCN_BENCH_LARGE=1 $(GO) test -test.fullpath=true -run=^$$ -bench '^BenchmarkEncodeImage(DXT1|DXT5)$$' -benchmem
-
-bench-baseline:
-	GOMAXPROCS=1 BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench . -benchmem -count=6 2>&1 | tee bench-baseline-1.txt
-	BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench . -benchmem -count=6 2>&1 | tee bench-baseline.txt
-
-bench-compare:
-	GOMAXPROCS=1 BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench . -benchmem -count=6 2>&1 | tee bench-new-1.txt
-	benchstat bench-baseline-1.txt bench-new-1.txt
-	BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench . -benchmem -count=6 2>&1 | tee bench-new.txt
-	benchstat bench-baseline.txt bench-new.txt
-
 verify:
 	$(GO) mod verify
 
@@ -53,6 +42,40 @@ align:
 
 align-fix:
 	$(ALIGNER) -apply ./...
+
+bench-encode:
+	$(GO) test -test.fullpath=true -run=^$$ -bench '^BenchmarkEncodeBlock(DXT1|DXT5)$$' -benchmem
+	BCN_BENCH_LARGE=1 $(GO) test -test.fullpath=true -run=^$$ -bench '^BenchmarkEncodeImage(DXT1|DXT5)$$' -benchmem
+
+bench-decode:
+	$(GO) test -test.fullpath=true -run=^$$ -bench '^BenchmarkDecodeBlock(DXT1|DXT5)$$' -benchmem
+	BCN_BENCH_LARGE=1 $(GO) test -test.fullpath=true -run=^$$ -bench '^BenchmarkDecodeImage(DXT1|DXT5)$$' -benchmem
+
+bench: bench-encode bench-decode
+
+bench-encode-baseline:
+	GOMAXPROCS=1 BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkEncode' -benchmem -count=6 2>&1 | tee bench-baseline-1.txt
+	BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkEncode' -benchmem -count=6 2>&1 | tee bench-baseline.txt
+
+bench-decode-baseline:
+	GOMAXPROCS=1 BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkDecode' -benchmem -count=6 2>&1 | tee bench-decode-baseline-1.txt
+	BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkDecode' -benchmem -count=6 2>&1 | tee bench-decode-baseline.txt
+
+bench-baseline: bench-encode-baseline bench-decode-baseline
+
+bench-encode-compare:
+	GOMAXPROCS=1 BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkEncode' -benchmem -count=6 2>&1 | tee bench-new-1.txt
+	benchstat bench-baseline-1.txt bench-new-1.txt
+	BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkEncode' -benchmem -count=6 2>&1 | tee bench-new.txt
+	benchstat bench-baseline.txt bench-new.txt
+
+bench-decode-compare:
+	GOMAXPROCS=1 BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkDecode' -benchmem -count=6 2>&1 | tee bench-decode-new-1.txt
+	benchstat bench-decode-baseline-1.txt bench-decode-new-1.txt
+	BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkDecode' -benchmem -count=6 2>&1 | tee bench-decode-new.txt
+	benchstat bench-decode-baseline.txt bench-decode-new.txt
+
+bench-compare: bench-encode-compare bench-decode-compare
 
 tools:
 	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest

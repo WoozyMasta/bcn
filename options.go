@@ -50,6 +50,13 @@ type EncodeOptions struct {
 	AlphaThreshold uint8
 }
 
+// DecodeOptions configures block decoding.
+type DecodeOptions struct {
+	// Workers controls parallel block decoding. 0 = auto (GOMAXPROCS), 1 = disable parallelism,
+	// N > 1 = use N workers. Defaults to 0 (auto) when options are omitted.
+	Workers int
+}
+
 // RefinementOptions allows overriding quality behavior derived from QualityLevel.
 // Nil fields mean "use defaults".
 type RefinementOptions struct {

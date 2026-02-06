@@ -13,6 +13,11 @@ func DecodeDXT1(data []byte, width, height int) ([]byte, error) {
 	return decodeBlocks(data, width, height, FormatDXT1)
 }
 
+// DecodeDXT1WithOptions decodes DXT1 blocks with explicit options.
+func DecodeDXT1WithOptions(data []byte, width, height int, opts *DecodeOptions) ([]byte, error) {
+	return decodeBlocksWithOptions(data, width, height, FormatDXT1, opts)
+}
+
 // EncodeDXT1WithOptions encodes with explicit options.
 // QualityLevel and AlphaThreshold influence endpoint selection and 1-bit alpha mode.
 func EncodeDXT1WithOptions(rgba []byte, width, height int, opts *EncodeOptions) ([]byte, error) {

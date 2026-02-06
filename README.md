@@ -16,6 +16,7 @@ and read/write DDS/KTX with mipmaps and cubemaps.
 * Mipmap generation with optional sRGB-aware downscale
 * Quality levels (1..10) with refinement overrides (`Refinement`)
 * Parallel encoding control via `EncodeOptions.Workers` (0=auto, 1=off)
+* Parallel decoding control via `DecodeOptions.Workers` (0=auto, 1=off)
 
 > [!NOTE]  
 > For large images or one‑by‑one encoding, use internal parallelism (default).  
