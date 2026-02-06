@@ -14,7 +14,7 @@ func EncodeImage(img image.Image, format Format) ([]byte, int, int, error) {
 
 // EncodeImageWithOptions encodes an image.Image into BCn blocks with options.
 //
-// This is the main entry point for quality and mipmap behavior.
+// This is the main entry point for quality level and mipmap behavior.
 func EncodeImageWithOptions(img image.Image, format Format, opts *EncodeOptions) ([]byte, int, int, error) {
 	nrgba := toNRGBA(img)
 	b := nrgba.Bounds()

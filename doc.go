@@ -8,7 +8,7 @@ The package focuses on practical texture workflows:
 
 The core encode/decode APIs operate on NRGBA byte layout (R,G,B,A per pixel).
 For best results, ensure inputs are in the expected color space (typically sRGB)
-and pick an appropriate Quality in EncodeOptions.
+and pick an appropriate QualityLevel in EncodeOptions.
 
 DDS BGRA pixels are converted to RGBA on decode. Uncompressed DDS supports
 RGBA and BGRA input when writing.

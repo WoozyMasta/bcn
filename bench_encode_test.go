@@ -14,10 +14,10 @@ var (
 
 func BenchmarkEncodeBlockDXT1(b *testing.B) {
 	block := benchmarkBlockOpaque()
-	for _, q := range benchmarkQualities() {
-		q := q
-		b.Run(qualityName(q), func(b *testing.B) {
-			opts := EncodeOptions{Quality: q, AlphaThreshold: 128}
+	for _, level := range benchmarkQualityLevels() {
+		level := level
+		b.Run(qualityName(level), func(b *testing.B) {
+			opts := normalizeEncodeOptions(&EncodeOptions{QualityLevel: level, AlphaThreshold: 128})
 			b.SetBytes(16 * 4)
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -30,10 +30,10 @@ func BenchmarkEncodeBlockDXT1(b *testing.B) {
 
 func BenchmarkEncodeBlockDXT5(b *testing.B) {
 	block := benchmarkBlockAlpha()
-	for _, q := range benchmarkQualities() {
-		q := q
-		b.Run(qualityName(q), func(b *testing.B) {
-			opts := EncodeOptions{Quality: q, AlphaThreshold: 128}
+	for _, level := range benchmarkQualityLevels() {
+		level := level
+		b.Run(qualityName(level), func(b *testing.B) {
+			opts := normalizeEncodeOptions(&EncodeOptions{QualityLevel: level, AlphaThreshold: 128})
 			b.SetBytes(16 * 4)
 			b.ReportAllocs()
 			b.ResetTimer()
@@ -50,10 +50,10 @@ func BenchmarkEncodeImageDXT1(b *testing.B) {
 		size := size
 		rgba := benchmarkRGBAOpaque(size, size)
 		b.Run(fmt.Sprintf("%dx%d", size, size), func(b *testing.B) {
-			for _, q := range benchmarkQualities() {
-				q := q
-				opts := &EncodeOptions{Quality: q, AlphaThreshold: 128}
-				b.Run(qualityName(q), func(b *testing.B) {
+			for _, level := range benchmarkQualityLevels() {
+				level := level
+				opts := &EncodeOptions{QualityLevel: level, AlphaThreshold: 128}
+				b.Run(qualityName(level), func(b *testing.B) {
 					b.SetBytes(int64(len(rgba)))
 					b.ReportAllocs()
 					b.ResetTimer()
@@ -73,10 +73,10 @@ func BenchmarkEncodeImageDXT5(b *testing.B) {
 		size := size
 		rgba := benchmarkRGBATranslucent(size, size)
 		b.Run(fmt.Sprintf("%dx%d", size, size), func(b *testing.B) {
-			for _, q := range benchmarkQualities() {
-				q := q
-				opts := &EncodeOptions{Quality: q, AlphaThreshold: 128}
-				b.Run(qualityName(q), func(b *testing.B) {
+			for _, level := range benchmarkQualityLevels() {
+				level := level
+				opts := &EncodeOptions{QualityLevel: level, AlphaThreshold: 128}
+				b.Run(qualityName(level), func(b *testing.B) {
 					b.SetBytes(int64(len(rgba)))
 					b.ReportAllocs()
 					b.ResetTimer()
@@ -90,8 +90,8 @@ func BenchmarkEncodeImageDXT5(b *testing.B) {
 	}
 }
 
-func benchmarkQualities() []Quality {
-	return []Quality{QualityFast, QualityBalanced, QualityBest}
+func benchmarkQualityLevels() []int {
+	return []int{QualityLevelFast, QualityLevelBalanced, QualityLevelBest}
 }
 
 func benchmarkSizes() []int {
@@ -102,16 +102,16 @@ func benchmarkSizes() []int {
 	return sizes
 }
 
-func qualityName(q Quality) string {
-	switch q {
-	case QualityFast:
+func qualityName(level int) string {
+	switch level {
+	case QualityLevelFast:
 		return "fast"
-	case QualityBalanced:
+	case QualityLevelBalanced:
 		return "balanced"
-	case QualityBest:
+	case QualityLevelBest:
 		return "best"
 	default:
-		return "unknown"
+		return fmt.Sprintf("q%d", level)
 	}
 }
 

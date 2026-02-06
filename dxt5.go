@@ -13,7 +13,7 @@ func DecodeDXT5(data []byte, width, height int) ([]byte, error) {
 }
 
 // EncodeDXT5WithOptions encodes with explicit options.
-// Quality affects color endpoint selection; alpha is interpolated (BC3).
+// QualityLevel affects color endpoint selection; alpha is interpolated (BC3).
 func EncodeDXT5WithOptions(rgba []byte, width, height int, opts *EncodeOptions) ([]byte, error) {
 	return encodeBlocksWithOptions(rgba, width, height, FormatDXT5, opts)
 }

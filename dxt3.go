@@ -13,7 +13,7 @@ func DecodeDXT3(data []byte, width, height int) ([]byte, error) {
 }
 
 // EncodeDXT3WithOptions encodes with explicit options.
-// Quality affects color endpoint selection; alpha is explicit 4-bit.
+// QualityLevel affects color endpoint selection; alpha is explicit 4-bit.
 func EncodeDXT3WithOptions(rgba []byte, width, height int, opts *EncodeOptions) ([]byte, error) {
 	return encodeBlocksWithOptions(rgba, width, height, FormatDXT3, opts)
 }

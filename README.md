@@ -14,7 +14,7 @@ and read/write DDS/KTX with mipmaps and cubemaps.
 * DDS read/write (2D + cubemap, mipmaps, uncompressed RGBA/BGRA)
 * KTX v1 read/write (2D + cubemap, mipmaps)
 * Mipmap generation with optional sRGB-aware downscale
-* Quality presets: `fast`, `balanced`, `best`
+* Quality levels (1..10) with refinement overrides (`Refinement`)
 * Parallel encoding control via `EncodeOptions.Workers` (0=auto, 1=off)
 
 > [!NOTE]  
@@ -30,7 +30,7 @@ and read/write DDS/KTX with mipmaps and cubemaps.
 ```go
 img, _, _ := image.Decode(in)
 opts := &bcn.EncodeOptions{
-  Quality: bcn.QualityBalanced,
+  QualityLevel: bcn.QualityLevelBalanced,
   GenerateMipmaps: true,
   UseSRGB: true,
 }
@@ -70,7 +70,7 @@ _ = dx10
 ### Encode to KTX
 
 ```go
-ktx, err := bcn.EncodeKTXWithOptions([]image.Image{img}, bcn.FormatBC5, &bcn.EncodeOptions{Quality: bcn.QualityFast})
+ktx, err := bcn.EncodeKTXWithOptions([]image.Image{img}, bcn.FormatBC5, &bcn.EncodeOptions{QualityLevel: bcn.QualityLevelFast})
 if err != nil {
   /* handle */
 }
@@ -99,6 +99,7 @@ cfg, _, _ := image.DecodeConfig(f) // width, height only
 * DDS DX10 header is read for BC1/3/5 and BC4/5; writing uses legacy FourCC.
 * BC4 uses red channel; BC5 uses red/green.
 * DDS BGRA is converted to RGBA on decode; RGBA/BGRA are supported for uncompressed DDS.
+* `Refinement` overrides `QualityLevel` when set.
 
 ## Performance
 
@@ -117,6 +118,7 @@ Single-thread, `BCN_BENCH_LARGE=1`, Ryzen 9 5950X
 These are rough single-thread reference numbers to compare quality modes.
 Multi-threaded encoding can be significantly faster on large images
 see `EncodeOptions.Workers`.
+Fast/Balanced/Best correspond to `QualityLevelFast`, `QualityLevelBalanced`, `QualityLevelBest`.
 
 Multi-thread, `Workers=auto` (`GOMAXPROCS=32`), `BCN_BENCH_LARGE=1`
 (approximate averages across 256–2048):

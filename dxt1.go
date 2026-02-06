@@ -14,7 +14,7 @@ func DecodeDXT1(data []byte, width, height int) ([]byte, error) {
 }
 
 // EncodeDXT1WithOptions encodes with explicit options.
-// Quality and AlphaThreshold influence endpoint selection and 1-bit alpha mode.
+// QualityLevel and AlphaThreshold influence endpoint selection and 1-bit alpha mode.
 func EncodeDXT1WithOptions(rgba []byte, width, height int, opts *EncodeOptions) ([]byte, error) {
 	return encodeBlocksWithOptions(rgba, width, height, FormatDXT1, opts)
 }
@@ -77,18 +77,15 @@ func encodeBlockDXT1WithOptions(block [16]rgba8, opts EncodeOptions) [8]byte {
 	}
 
 	rw, gw, bw := getRGBWeights(&opts, blockConstantR(block))
+	settings := qualitySettingsForOpts(opts)
 	var c0, c1 uint16
-	switch opts.Quality {
-	case QualityFast:
-		c0, c1 = dxt1EndpointsFast(block)
-	case QualityBalanced:
+	if settings.usePCA {
 		c0, c1 = dxt1EndpointsPCA(block)
-		c0, c1 = dxt1Refine(block, c0, c1, hasAlpha, opts.AlphaThreshold, 1, 64, rw, gw, bw)
-	case QualityBest:
-		c0, c1 = dxt1EndpointsPCA(block)
-		c0, c1 = dxt1Refine(block, c0, c1, hasAlpha, opts.AlphaThreshold, 2, 256, rw, gw, bw)
-	default:
+	} else {
 		c0, c1 = dxt1EndpointsFast(block)
+	}
+	if settings.colorTries > 0 {
+		c0, c1 = dxt1Refine(block, c0, c1, hasAlpha, opts.AlphaThreshold, settings.colorStep, settings.colorTries, rw, gw, bw)
 	}
 
 	c0, c1 = orderDXT1(c0, c1, hasAlpha)

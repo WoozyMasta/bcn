@@ -28,7 +28,8 @@ func encodeBlockBC4(block [16]rgba8, opts EncodeOptions, channel func(rgba8) uin
 		alpha[i] = channel(block[i])
 	}
 
-	return encodeAlphaBlock(alpha, opts.Quality)
+	settings := qualitySettingsForOpts(opts)
+	return encodeAlphaBlock(alpha, settings.alphaTries)
 }
 
 func decodeBlockBC4(data []byte) [16]uint8 {
@@ -56,7 +57,7 @@ func decodeBlockBC5(data []byte) [16]rgba8 {
 	return out
 }
 
-func encodeAlphaBlock(alpha [16]uint8, quality Quality) [8]byte {
+func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
 	// BC4/BC5 use the same 8-byte alpha block layout as DXT5 alpha.
 	minA, maxA := alpha[0], alpha[0]
 	for i := 1; i < 16; i++ {
@@ -79,13 +80,9 @@ func encodeAlphaBlock(alpha [16]uint8, quality Quality) [8]byte {
 	bestA0, bestA1 := a0, a1
 	bestErr := alphaBlockError(alpha, bestA0, bestA1)
 
-	if quality != QualityFast && bestErr != 0 {
+	if alphaTries > 0 && bestErr != 0 {
 		step := 1
-		tries := 64
-
-		if quality == QualityBest {
-			tries = 256
-		}
+		tries := alphaTries
 
 		for i := 0; i < tries; i++ {
 			cand0 := clampU8(int(a0) + (i%3-1)*step)

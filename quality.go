@@ -4,18 +4,20 @@ import "math"
 
 func dxt1ColorEndpoints(block [16]rgba8, opts EncodeOptions) (uint16, uint16) {
 	rw, gw, bw := getRGBWeights(&opts, blockConstantR(block))
-	switch opts.Quality {
-	case QualityFast:
-		return dxt1EndpointsFast(block)
-	case QualityBalanced:
-		c0, c1 := dxt1EndpointsPCA(block)
-		return dxt1Refine(block, c0, c1, false, opts.AlphaThreshold, 1, 64, rw, gw, bw)
-	case QualityBest:
-		c0, c1 := dxt1EndpointsPCA(block)
-		return dxt1Refine(block, c0, c1, false, opts.AlphaThreshold, 2, 256, rw, gw, bw)
-	default:
-		return dxt1EndpointsFast(block)
+	settings := qualitySettingsForOpts(opts)
+
+	var c0, c1 uint16
+	if settings.usePCA {
+		c0, c1 = dxt1EndpointsPCA(block)
+	} else {
+		c0, c1 = dxt1EndpointsFast(block)
 	}
+
+	if settings.colorTries > 0 {
+		c0, c1 = dxt1Refine(block, c0, c1, false, opts.AlphaThreshold, settings.colorStep, settings.colorTries, rw, gw, bw)
+	}
+
+	return c0, c1
 }
 
 func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {

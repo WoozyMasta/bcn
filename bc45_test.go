@@ -9,7 +9,7 @@ import (
 
 func TestBC4RoundTrip(t *testing.T) {
 	img := SolidImage(8, 8, color.NRGBA{R: 10, G: 20, B: 30, A: 255})
-	data, _, _, err := EncodeImageWithOptions(img, FormatBC4, &EncodeOptions{Quality: QualityBalanced})
+	data, _, _, err := EncodeImageWithOptions(img, FormatBC4, &EncodeOptions{QualityLevel: QualityLevelBalanced})
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
@@ -26,7 +26,7 @@ func TestBC4RoundTrip(t *testing.T) {
 
 func TestBC5RoundTrip(t *testing.T) {
 	img := SolidImage(8, 8, color.NRGBA{R: 10, G: 200, B: 30, A: 255})
-	data, _, _, err := EncodeImageWithOptions(img, FormatBC5, &EncodeOptions{Quality: QualityBalanced})
+	data, _, _, err := EncodeImageWithOptions(img, FormatBC5, &EncodeOptions{QualityLevel: QualityLevelBalanced})
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
@@ -43,7 +43,7 @@ func TestBC5RoundTrip(t *testing.T) {
 
 func TestDDSBC4BC5(t *testing.T) {
 	img := SolidImage(8, 8, color.NRGBA{R: 100, G: 150, B: 200, A: 255})
-	dds, err := EncodeDDSWithOptions([]image.Image{img}, FormatBC4, &EncodeOptions{Quality: QualityFast})
+	dds, err := EncodeDDSWithOptions([]image.Image{img}, FormatBC4, &EncodeOptions{QualityLevel: QualityLevelFast})
 	if err != nil {
 		t.Fatalf("encode dds: %v", err)
 	}
