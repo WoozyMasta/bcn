@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
+## [0.1.4][] - 2026-02-10
+
+### Added
+
+* `DecodeDDSWithOptions` and `DecodeKTXWithOptions` to decode first
+  face/mip with `DecodeOptions` (e.g. `Workers`)
+* KTX uncompressed support read/write RGBA8 and BGRA8 (parity with DDS)
+* KTX GL constants for uncompressed format
+  `KTXGLUnsignedByte`, `KTXGLBGRA`, `KTXGLRGBA8`
+* `ktxHeaderFormats` and helpers for KTX uncompressed layout
+  (row stride, bottom-up <-> tight top-down)
+* Round-trip test for uncompressed KTX (`TestKTXUncompressedRoundTrip`)
+
+### Changed
+
+* `DecodeDDS` / `DecodeKTX` now delegate to
+  `DecodeDDSWithOptions` / `DecodeKTXWithOptions` with nil options
+* KTX `ErrUnsupportedKTXCompressed` renamed to `ErrUnsupportedKTXUncompressed`
+  (used for unsupported uncompressed formats)
+* KTX write accepts `FormatRGBA8` and `FormatBGRA8`;
+  header uses `ktxHeaderFormats` for both compressed and uncompressed
+
+[0.1.4]: https://github.com/WoozyMasta/bcn/compare/v0.1.3...v0.1.4
+
 ## [0.1.3][] - 2026-02-06
 
 ### Added
