@@ -85,5 +85,16 @@ tools:
 release-notes:
 	@awk '\
 	/^<!--/,/^-->/ { next } \
-	/^## \[[0-9]+\.[0-9]+\.[0-9]+\]/ { if (found) exit; found=1; next } found { print } \
+	/^## \[[0-9]+\.[0-9]+\.[0-9]+\]/ { if (found) exit; found=1; next } \
+	found { \
+		if (/^## \[/) { exit } \
+		if (/^$$/) { flush(); print; next } \
+		if (/^\* / || /^- /) { flush(); buf=$$0; next } \
+		if (/^###/ || /^\[/) { flush(); print; next } \
+		sub(/^[ \t]+/, ""); sub(/[ \t]+$$/, ""); \
+		if (buf != "") { buf = buf " " $$0 } else { buf = $$0 } \
+		next \
+	} \
+	function flush() { if (buf != "") { print buf; buf = "" } } \
+	END { flush() } \
 	' CHANGELOG.md
