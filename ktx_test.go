@@ -78,6 +78,34 @@ func TestKTXBC5RoundTrip(t *testing.T) {
 	}
 }
 
+func TestKTXUncompressedRoundTrip(t *testing.T) {
+	img := SolidImage(4, 4, color.NRGBA{R: 255, G: 128, B: 64, A: 255})
+	for _, format := range []Format{FormatRGBA8, FormatBGRA8} {
+		ktx, err := EncodeKTXWithOptions([]image.Image{img}, format, nil)
+		if err != nil {
+			t.Fatalf("encode ktx %s: %v", format, err)
+		}
+		buf := &bytes.Buffer{}
+		if err := ktx.Write(buf); err != nil {
+			t.Fatalf("write ktx %s: %v", format, err)
+		}
+		read, err := ReadKTX(bytes.NewReader(buf.Bytes()))
+		if err != nil {
+			t.Fatalf("read ktx %s: %v", format, err)
+		}
+		if read.Format != format || read.Width != 4 || read.Height != 4 {
+			t.Fatalf("ktx %s header mismatch: got format %v %dx%d", format, read.Format, read.Width, read.Height)
+		}
+		_, decoded, err := DecodeKTX(bytes.NewReader(buf.Bytes()))
+		if err != nil {
+			t.Fatalf("decode ktx %s: %v", format, err)
+		}
+		if decoded == nil || decoded.Bounds().Dx() != 4 || decoded.Bounds().Dy() != 4 {
+			t.Fatalf("ktx %s decode size mismatch", format)
+		}
+	}
+}
+
 func TestKTXRejectArrays(t *testing.T) {
 	header := KTXHeader{
 		Identifier:            KTXIdentifier,

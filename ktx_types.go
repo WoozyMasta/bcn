@@ -9,14 +9,20 @@ const (
 	// KTXEndianness is the canonical little-endian marker.
 	KTXEndianness = 0x04030201
 
+	// KTXGLUnsignedByte is GL_UNSIGNED_BYTE.
+	KTXGLUnsignedByte = 0x1401
 	// KTXGLRGB is GL_RGB.
 	KTXGLRGB = 0x1907
 	// KTXGLRGBA is GL_RGBA.
 	KTXGLRGBA = 0x1908
+	// KTXGLBGRA is GL_BGRA (extension).
+	KTXGLBGRA = 0x80E1
 	// KTXGLRed is GL_RED.
 	KTXGLRed = 0x1903
 	// KTXGLRG is GL_RG.
 	KTXGLRG = 0x8227
+	// KTXGLRGBA8 is GL_RGBA8 (sized internal format).
+	KTXGLRGBA8 = 0x8058
 
 	// KTXGLCompressedRGBS3TCDXT1 is GL_COMPRESSED_RGB_S3TC_DXT1_EXT.
 	KTXGLCompressedRGBS3TCDXT1 = 0x83F0

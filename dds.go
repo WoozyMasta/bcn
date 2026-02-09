@@ -309,8 +309,14 @@ func mipSize(format Format, width, height int) int {
 }
 
 // DecodeDDS decodes the first face/mip level of a DDS into an image.
-// This is a convenience wrapper around ReadDDS + DecodeImage.
+// This is a convenience wrapper around ReadDDS + DecodeImageWithOptions with nil options.
 func DecodeDDS(r io.Reader) (*DDS, *image.NRGBA, error) {
+	return DecodeDDSWithOptions(r, nil)
+}
+
+// DecodeDDSWithOptions decodes the first face/mip level of a DDS into an image with options.
+// This is a convenience wrapper around ReadDDS + DecodeImageWithOptions.
+func DecodeDDSWithOptions(r io.Reader, opts *DecodeOptions) (*DDS, *image.NRGBA, error) {
 	d, err := ReadDDS(r)
 	if err != nil {
 		return nil, nil, err
@@ -320,7 +326,7 @@ func DecodeDDS(r io.Reader) (*DDS, *image.NRGBA, error) {
 		return d, nil, ErrNoMipmaps
 	}
 
-	img, err := DecodeImage(d.Faces[0].Mipmaps[0], d.Width, d.Height, d.Format)
+	img, err := DecodeImageWithOptions(d.Faces[0].Mipmaps[0], d.Width, d.Height, d.Format, opts)
 	if err != nil {
 		return d, nil, err
 	}

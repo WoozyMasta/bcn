@@ -15,10 +15,10 @@ const (
 //
 // Faces is 1 for 2D textures or 6 for cubemaps.
 type KTX struct {
-	Faces  []Face
-	Format Format
-	Width  int
-	Height int
+	Faces  []Face // Faces of the texture.
+	Format Format // Format of the texture.
+	Width  int    // Width of the texture.
+	Height int    // Height of the texture.
 }
 
 // IsCubemap reports whether the KTX contains six faces.
@@ -26,7 +26,7 @@ func (k *KTX) IsCubemap() bool {
 	return len(k.Faces) == 6
 }
 
-// ReadKTX parses a KTX v1 stream with BCn payload.
+// ReadKTX parses a KTX v1 stream with BCn or uncompressed RGBA/BGRA payload.
 // Arrays and 3D textures are rejected.
 func ReadKTX(r io.Reader) (*KTX, error) {
 	var header KTXHeader
@@ -69,6 +69,9 @@ func ReadKTX(r io.Reader) (*KTX, error) {
 	if faceCount < 1 {
 		faceCount = 1
 	}
+	width := int(header.PixelWidth)
+	height := int(header.PixelHeight)
+	uncompressed := !format.isCompressed()
 
 	faces := make([]Face, faceCount)
 	for face := 0; face < faceCount; face++ {
@@ -81,13 +84,35 @@ func ReadKTX(r io.Reader) (*KTX, error) {
 			return nil, err
 		}
 
+		mipW := width
+		if mip > 0 {
+			for i := 0; i < mip && mipW > 1; i++ {
+				mipW >>= 1
+			}
+		}
+		mipH := height
+		if mip > 0 {
+			for i := 0; i < mip && mipH > 1; i++ {
+				mipH >>= 1
+			}
+		}
+
+		if uncompressed && imageSize == 0 {
+			imageSize = ktxUncompressedMipSize(mipW, mipH)
+		}
+
 		for face := 0; face < faceCount; face++ {
 			buf := make([]byte, imageSize)
 			if _, err := io.ReadFull(r, buf); err != nil {
 				return nil, err
 			}
 
-			faces[face].Mipmaps[mip] = buf
+			if uncompressed {
+				faces[face].Mipmaps[mip] = ktxUncompressedToTight(buf, mipW, mipH)
+			} else {
+				faces[face].Mipmaps[mip] = buf
+			}
+
 			if faceCount == 6 {
 				pad := padding4(imageSize)
 				if _, err := io.CopyN(io.Discard, r, int64(pad)); err != nil {
@@ -102,12 +127,18 @@ func ReadKTX(r io.Reader) (*KTX, error) {
 		}
 	}
 
-	return &KTX{Format: format, Width: int(header.PixelWidth), Height: int(header.PixelHeight), Faces: faces}, nil
+	return &KTX{Format: format, Width: width, Height: height, Faces: faces}, nil
 }
 
 // DecodeKTX decodes the first face/mip level of a KTX into an image.
-// This is a convenience wrapper around ReadKTX + DecodeImage.
+// This is a convenience wrapper around ReadKTX + DecodeImageWithOptions with nil options.
 func DecodeKTX(r io.Reader) (*KTX, *image.NRGBA, error) {
+	return DecodeKTXWithOptions(r, nil)
+}
+
+// DecodeKTXWithOptions decodes the first face/mip level of a KTX into an image with options.
+// This is a convenience wrapper around ReadKTX + DecodeImageWithOptions.
+func DecodeKTXWithOptions(r io.Reader, opts *DecodeOptions) (*KTX, *image.NRGBA, error) {
 	k, err := ReadKTX(r)
 	if err != nil {
 		return nil, nil, err
@@ -117,7 +148,7 @@ func DecodeKTX(r io.Reader) (*KTX, *image.NRGBA, error) {
 		return k, nil, ErrNoMipmaps
 	}
 
-	img, err := DecodeImage(k.Faces[0].Mipmaps[0], k.Width, k.Height, k.Format)
+	img, err := DecodeImageWithOptions(k.Faces[0].Mipmaps[0], k.Width, k.Height, k.Format, opts)
 	if err != nil {
 		return k, nil, err
 	}
@@ -137,7 +168,11 @@ func (k *KTX) Write(w io.Writer) error {
 	}
 
 	if !k.Format.isCompressed() {
-		return ErrUnsupportedFormat
+		switch k.Format {
+		case FormatRGBA8, FormatBGRA8:
+		default:
+			return ErrUnsupportedFormat
+		}
 	}
 
 	if len(k.Faces) == 0 {
@@ -159,7 +194,7 @@ func (k *KTX) Write(w io.Writer) error {
 		}
 	}
 
-	internal, base, err := ktxInternalFormat(k.Format)
+	glType, glTypeSize, glFormat, internal, base, err := ktxHeaderFormats(k.Format)
 	if err != nil {
 		return err
 	}
@@ -167,9 +202,9 @@ func (k *KTX) Write(w io.Writer) error {
 	header := KTXHeader{
 		Identifier:            KTXIdentifier,
 		Endianness:            ktxEndianness,
-		GlType:                0,
-		GlTypeSize:            1,
-		GlFormat:              0,
+		GlType:                glType,
+		GlTypeSize:            glTypeSize,
+		GlFormat:              glFormat,
 		GlInternalFormat:      internal,
 		GlBaseInternalFormat:  base,
 		PixelWidth:            u32(k.Width),
@@ -186,18 +221,50 @@ func (k *KTX) Write(w io.Writer) error {
 	}
 
 	for mip := 0; mip < mipCount; mip++ {
-		imageSize := u32len(len(k.Faces[0].Mipmaps[mip]))
-		if err := binary.Write(w, binary.LittleEndian, imageSize); err != nil {
-			return err
+		mipData := k.Faces[0].Mipmaps[mip]
+		imageSize := u32len(len(mipData))
+		if k.Format.isCompressed() {
+			if err := binary.Write(w, binary.LittleEndian, imageSize); err != nil {
+				return err
+			}
+		} else {
+			mipW := k.Width
+			for i := 0; i < mip && mipW > 1; i++ {
+				mipW >>= 1
+			}
+			mipH := k.Height
+			for i := 0; i < mip && mipH > 1; i++ {
+				mipH >>= 1
+			}
+
+			imageSize = ktxUncompressedMipSize(mipW, mipH)
+			if err := binary.Write(w, binary.LittleEndian, imageSize); err != nil {
+				return err
+			}
 		}
 
 		for face := 0; face < len(k.Faces); face++ {
-			if u32len(len(k.Faces[face].Mipmaps[mip])) != imageSize {
-				return ErrMipmapSizeMismatch
-			}
+			faceMip := k.Faces[face].Mipmaps[mip]
+			if k.Format.isCompressed() {
+				if u32len(len(faceMip)) != imageSize {
+					return ErrMipmapSizeMismatch
+				}
+				if _, err := w.Write(faceMip); err != nil {
+					return err
+				}
+			} else {
+				mipW := k.Width
+				for i := 0; i < mip && mipW > 1; i++ {
+					mipW >>= 1
+				}
+				mipH := k.Height
+				for i := 0; i < mip && mipH > 1; i++ {
+					mipH >>= 1
+				}
 
-			if _, err := w.Write(k.Faces[face].Mipmaps[mip]); err != nil {
-				return err
+				if err := ktxWriteUncompressedMip(w, faceMip, mipW, mipH); err != nil {
+					return err
+				}
 			}
 
 			if len(k.Faces) == 6 {
@@ -266,27 +333,44 @@ func EncodeKTXWithOptions(images []image.Image, format Format, opts *EncodeOptio
 	return &KTX{Format: format, Width: width, Height: height, Faces: faces}, nil
 }
 
-func ktxInternalFormat(format Format) (uint32, uint32, error) {
+// ktxHeaderFormats returns GlType, GlTypeSize, GlFormat, GlInternalFormat, GlBaseInternalFormat for the KTX header.
+func ktxHeaderFormats(format Format) (glType, glTypeSize, glFormat, glInternalFormat, glBaseInternalFormat uint32, err error) {
 	switch format {
 	case FormatDXT1:
-		return KTXGLCompressedRGBAS3TCDXT1, KTXGLRGBA, nil
+		return 0, 1, 0, KTXGLCompressedRGBAS3TCDXT1, KTXGLRGBA, nil
 	case FormatDXT3:
-		return KTXGLCompressedRGBAS3TCDXT3, KTXGLRGBA, nil
+		return 0, 1, 0, KTXGLCompressedRGBAS3TCDXT3, KTXGLRGBA, nil
 	case FormatDXT5:
-		return KTXGLCompressedRGBAS3TCDXT5, KTXGLRGBA, nil
+		return 0, 1, 0, KTXGLCompressedRGBAS3TCDXT5, KTXGLRGBA, nil
 	case FormatBC4:
-		return KTXGLCompressedRedRGTC1, KTXGLRed, nil
+		return 0, 1, 0, KTXGLCompressedRedRGTC1, KTXGLRed, nil
 	case FormatBC5:
-		return KTXGLCompressedRGRGTC2, KTXGLRG, nil
+		return 0, 1, 0, KTXGLCompressedRGRGTC2, KTXGLRG, nil
+	case FormatRGBA8:
+		return KTXGLUnsignedByte, 1, KTXGLRGBA, KTXGLRGBA8, KTXGLRGBA, nil
+	case FormatBGRA8:
+		return KTXGLUnsignedByte, 1, KTXGLBGRA, KTXGLRGBA8, KTXGLRGBA, nil
 	default:
-		return 0, 0, ErrUnsupportedKTXFormat
+		return 0, 0, 0, 0, 0, ErrUnsupportedKTXFormat
 	}
 }
 
 func ktxFormatFromHeader(header *KTXHeader) (Format, error) {
 	if header.GlType != 0 || header.GlFormat != 0 {
-		return FormatUnknown, ErrUnsupportedKTXCompressed
+		if header.GlType == KTXGLUnsignedByte && header.GlTypeSize == 1 {
+			switch header.GlFormat {
+			case KTXGLRGBA:
+				return FormatRGBA8, nil
+			case KTXGLBGRA:
+				return FormatBGRA8, nil
+			default:
+				return FormatUnknown, ErrUnsupportedKTXUncompressed
+			}
+		}
+
+		return FormatUnknown, ErrUnsupportedKTXUncompressed
 	}
+
 	switch header.GlInternalFormat {
 	case KTXGLCompressedRGBS3TCDXT1, KTXGLCompressedRGBAS3TCDXT1:
 		return FormatDXT1, nil
@@ -301,6 +385,60 @@ func ktxFormatFromHeader(header *KTXHeader) (Format, error) {
 	default:
 		return FormatUnknown, ErrUnsupportedKTXInternalFormat
 	}
+}
+
+// ktxUncompressedMipSize returns the byte size of an uncompressed mip level (row stride 4, then * height).
+func ktxUncompressedMipSize(width, height int) uint32 {
+	if width < 1 {
+		width = 1
+	}
+	if height < 1 {
+		height = 1
+	}
+
+	rowStride := (width*4 + 3) & ^3
+	return u32len(rowStride * height)
+}
+
+// ktxUncompressedToTight converts KTX uncompressed data (bottom-up, row-padded) to tight top-down RGBA.
+func ktxUncompressedToTight(buf []byte, width, height int) []byte {
+	rowStride := (width*4 + 3) & ^3
+	tight := make([]byte, width*height*4)
+
+	for y := height - 1; y >= 0; y-- {
+		src := buf[(height-1-y)*rowStride:]
+		dst := tight[y*width*4:]
+		copy(dst[:width*4], src[:width*4])
+	}
+
+	return tight
+}
+
+// ktxWriteUncompressedMip writes tight RGBA/BGRA data as KTX uncompressed (bottom-up, row stride 4).
+func ktxWriteUncompressedMip(w io.Writer, tight []byte, width, height int) error {
+	if width < 1 {
+		width = 1
+	}
+	if height < 1 {
+		height = 1
+	}
+
+	rowStride := (width*4 + 3) & ^3
+	for y := height - 1; y >= 0; y-- {
+		row := tight[y*width*4:]
+		if _, err := w.Write(row[:width*4]); err != nil {
+			return err
+		}
+
+		if pad := rowStride - width*4; pad > 0 {
+			var zeros [4]byte
+			if _, err := w.Write(zeros[:pad]); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // padding4 returns the number of bytes needed to align to 4 bytes.

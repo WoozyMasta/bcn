@@ -70,6 +70,6 @@ var (
 	ErrUnsupportedKTXFormat = errors.New("unsupported KTX format")
 	// ErrUnsupportedKTXInternalFormat indicates an unsupported KTX internal format.
 	ErrUnsupportedKTXInternalFormat = errors.New("unsupported KTX internal format")
-	// ErrUnsupportedKTXCompressed indicates unexpected uncompressed KTX.
-	ErrUnsupportedKTXCompressed = errors.New("unsupported KTX format (expected compressed)")
+	// ErrUnsupportedKTXUncompressed indicates an unsupported uncompressed KTX format (only RGBA8/BGRA8 are supported).
+	ErrUnsupportedKTXUncompressed = errors.New("unsupported KTX uncompressed format")
 )
