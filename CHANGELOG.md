@@ -17,8 +17,10 @@ and this project adheres to [Semantic Versioning][].
 
 ### Changed
 
-* Internal refactor of DDS/KTX encoding pipeline (shared face/mipmap encoding path).
-* Codebase cleanup for stricter lint rules (modernized loops, safer indexing patterns).
+* Internal refactor of DDS/KTX encoding pipeline
+  (shared face/mipmap encoding path).
+* Codebase cleanup for stricter lint rules
+  (modernized loops, safer indexing patterns).
 * Build/CI maintenance: updated linter/tooling setup and benchmark targets.
 * Added SPDX file headers across package sources.
 
