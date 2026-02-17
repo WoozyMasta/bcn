@@ -6,6 +6,7 @@ package bcn
 
 import "math"
 
+// dxt1ColorEndpoints chooses initial endpoints using quality settings and optional refinement.
 func dxt1ColorEndpoints(block [16]rgba8, opts EncodeOptions) (uint16, uint16) {
 	rw, gw, bw := getRGBWeights(&opts, blockConstantR(block))
 	settings := qualitySettingsForOpts(opts)
@@ -24,6 +25,7 @@ func dxt1ColorEndpoints(block [16]rgba8, opts EncodeOptions) (uint16, uint16) {
 	return c0, c1
 }
 
+// pcaMinMax approximates principal-axis color extremes for better endpoint initialization.
 func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {
 	var sumR, sumG, sumB int
 	for _, px := range block {
@@ -37,6 +39,7 @@ func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {
 		float64(sumB) / 16.0,
 	}
 
+	// Calculate the covariance matrix.
 	var cov [3][3]float64
 	for _, px := range block {
 		r := float64(px.r) - mean[0]
@@ -81,6 +84,7 @@ func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {
 	maxC := rgba8{}
 	hasExtremes := false
 
+	// Iterate over the block to find the principal axis extremes.
 	for _, px := range block {
 		r := float64(px.r)
 		g := float64(px.g)
@@ -109,23 +113,28 @@ func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {
 	return minC, maxC
 }
 
+// vary565Into writes neighboring RGB565 endpoint candidates into out and returns count.
 func vary565Into(c uint16, step int, out *[125]uint16) int {
 	r := int((c >> 11) & 0x1F)
 	g := int((c >> 5) & 0x3F)
 	b := int(c & 0x1F)
 	n := 0
+
+	// Iterate over the neighboring RGB565 values (red).
 	for dr := -step; dr <= step; dr++ {
 		rr := r + dr
 		if rr < 0 || rr > 0x1F {
 			continue
 		}
 
+		// Iterate over the neighboring RGB565 values (green).
 		for dg := -step; dg <= step; dg++ {
 			gg := g + dg
 			if gg < 0 || gg > 0x3F {
 				continue
 			}
 
+			// Iterate over the neighboring RGB565 values (blue).
 			for db := -step; db <= step; db++ {
 				bb := b + db
 				if bb < 0 || bb > 0x1F {

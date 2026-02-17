@@ -4,14 +4,17 @@
 
 package bcn
 
+// rgba8 is a compact RGBA pixel used internally in 4x4 block operations.
 type rgba8 struct {
 	r, g, b, a uint8
 }
 
+// rgbaFromNRGBA reads one pixel from a flat NRGBA byte buffer.
 func rgbaFromNRGBA(p []byte, i int) rgba8 {
 	return rgba8{p[i], p[i+1], p[i+2], p[i+3]}
 }
 
+// rgbaToNRGBA writes one pixel into a flat NRGBA byte buffer.
 func rgbaToNRGBA(p []byte, i int, c rgba8) {
 	p[i] = c.r
 	p[i+1] = c.g
@@ -19,6 +22,7 @@ func rgbaToNRGBA(p []byte, i int, c rgba8) {
 	p[i+3] = c.a
 }
 
+// rgb565 quantizes an 8-bit RGB pixel into the packed 5:6:5 layout.
 func rgb565(c rgba8) uint16 {
 	r := uint16(c.r) >> 3
 	g := uint16(c.g) >> 2
@@ -26,6 +30,7 @@ func rgb565(c rgba8) uint16 {
 	return (r << 11) | (g << 5) | b
 }
 
+// rgbaFrom565 expands a packed RGB565 value back to 8-bit channels.
 func rgbaFrom565(v uint16) rgba8 {
 	r := int((v >> 11) & 0x1F)
 	g := int((v >> 5) & 0x3F)
@@ -38,6 +43,7 @@ func rgbaFrom565(v uint16) rgba8 {
 	}
 }
 
+// clampU8 clamps an integer into the uint8 range [0, 255].
 func clampU8(v int) uint8 {
 	if v < 0 {
 		return 0
@@ -48,6 +54,7 @@ func clampU8(v int) uint8 {
 	return uint8(v)
 }
 
+// insetMinMax shrinks endpoint range slightly to reduce interpolation outliers.
 func insetMinMax(minC, maxC rgba8) (rgba8, rgba8) {
 	rangeR := int(maxC.r) - int(minC.r)
 	rangeG := int(maxC.g) - int(minC.g)

@@ -229,6 +229,7 @@ func (d *DDS) Write(w io.Writer) error {
 	return nil
 }
 
+// ddsFormatFromHeader resolves BCn/uncompressed format from classic or DX10 DDS headers.
 func ddsFormatFromHeader(r io.Reader, header *DDSHeader) (Format, *DDSHeaderDX10, error) {
 	pf := header.PixelFormat
 	if pf.Flags&DDSPFFourCC == 0 {
@@ -287,10 +288,12 @@ func ddsFormatFromHeader(r io.Reader, header *DDSHeader) (Format, *DDSHeaderDX10
 	}
 }
 
+// makeFourCC packs four ASCII bytes into DDS little-endian FOURCC form.
 func makeFourCC(a, b, c, d byte) uint32 {
 	return uint32(a) | uint32(b)<<8 | uint32(c)<<16 | uint32(d)<<24
 }
 
+// mipSize computes byte size for one mip level for compressed or raw pixel formats.
 func mipSize(format Format, width, height int) int {
 	if width < 1 {
 		width = 1

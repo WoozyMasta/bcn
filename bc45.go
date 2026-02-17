@@ -36,6 +36,7 @@ func DecodeBC5WithOptions(data []byte, width, height int, opts *DecodeOptions) (
 	return decodeBlocksWithOptions(data, width, height, FormatBC5, opts)
 }
 
+// encodeBlockBC4 encodes one 4x4 block using a selected channel source.
 func encodeBlockBC4(block [16]rgba8, opts EncodeOptions, channel func(rgba8) uint8) [8]byte {
 	var alpha [16]uint8
 
@@ -51,10 +52,12 @@ func encodeBlockBC4(block [16]rgba8, opts EncodeOptions, channel func(rgba8) uin
 	return encodeAlphaBlock(alpha, settings.alphaTries)
 }
 
+// decodeBlockBC4 decodes one BC4 block into 16 scalar samples.
 func decodeBlockBC4(data []byte) [16]uint8 {
 	return decodeAlphaBlock(data)
 }
 
+// encodeBlockBC5 encodes BC5 as two BC4 blocks (R then G).
 func encodeBlockBC5(block [16]rgba8, opts EncodeOptions) [16]byte {
 	var out [16]byte
 	red := encodeBlockBC4(block, opts, func(c rgba8) uint8 { return c.r })
@@ -65,6 +68,7 @@ func encodeBlockBC5(block [16]rgba8, opts EncodeOptions) [16]byte {
 	return out
 }
 
+// decodeBlockBC5 decodes BC5 into RG with fixed B=0 and A=255.
 func decodeBlockBC5(data []byte) [16]rgba8 {
 	red := decodeAlphaBlock(data[0:8])
 	green := decodeAlphaBlock(data[8:16])
@@ -83,6 +87,7 @@ func decodeBlockBC5(data []byte) [16]rgba8 {
 	return out
 }
 
+// encodeAlphaBlock packs 16 alpha samples into DXT5/BC4 alpha layout (8 bytes).
 func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
 	// BC4/BC5 use the same 8-byte alpha block layout as DXT5 alpha.
 	minA, maxA := alpha[0], alpha[0]
@@ -145,6 +150,7 @@ func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
 	return out
 }
 
+// decodeAlphaBlock unpacks one DXT5/BC4 alpha payload to 16 samples.
 func decodeAlphaBlock(data []byte) [16]uint8 {
 	a0 := data[0]
 	a1 := data[1]
@@ -162,6 +168,7 @@ func decodeAlphaBlock(data []byte) [16]uint8 {
 	return out
 }
 
+// alphaBlockError computes total squared error for a candidate alpha endpoint pair.
 func alphaBlockError(alpha [16]uint8, a0, a1 uint8) int {
 	palette := dxt5AlphaPalette(a0, a1)
 	err := 0

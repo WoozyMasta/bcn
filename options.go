@@ -70,6 +70,7 @@ type RefinementOptions struct {
 	ColorStep  *int  // ColorStep overrides quality behavior derived from QualityLevel.
 }
 
+// normalizeEncodeOptions applies defaults, bounds and cached derived settings.
 func normalizeEncodeOptions(opts *EncodeOptions) EncodeOptions {
 	if opts == nil {
 		out := EncodeOptions{QualityLevel: QualityLevelBalanced, AlphaThreshold: 128}
@@ -102,6 +103,7 @@ func normalizeEncodeOptions(opts *EncodeOptions) EncodeOptions {
 	return out
 }
 
+// qualitySettings stores resolved low-level encoder tuning knobs.
 type qualitySettings struct {
 	usePCA     bool
 	colorTries int
@@ -109,6 +111,7 @@ type qualitySettings struct {
 	alphaTries int
 }
 
+// qualitySettingsForOpts returns cached settings when available, otherwise resolves them.
 func qualitySettingsForOpts(opts EncodeOptions) qualitySettings {
 	if opts.qualitySettings != nil {
 		return *opts.qualitySettings
@@ -116,6 +119,7 @@ func qualitySettingsForOpts(opts EncodeOptions) qualitySettings {
 	return resolveQualitySettings(opts)
 }
 
+// resolveQualitySettings combines QualityLevel and optional Refinement overrides.
 func resolveQualitySettings(opts EncodeOptions) qualitySettings {
 	var settings qualitySettings
 	if opts.QualityLevel == 0 {
@@ -151,6 +155,7 @@ func resolveQualitySettings(opts EncodeOptions) qualitySettings {
 	return settings
 }
 
+// qualitySettingsFromLevel maps a 1..10 quality level to concrete search settings.
 func qualitySettingsFromLevel(level int) qualitySettings {
 	switch level {
 	case 1:
@@ -178,6 +183,7 @@ func qualitySettingsFromLevel(level int) qualitySettings {
 	}
 }
 
+// normalizeRefinement clamps refinement override fields to valid ranges in place.
 func normalizeRefinement(ref *RefinementOptions) {
 	if ref.ColorTries != nil {
 		*ref.ColorTries = clampNonNegative(*ref.ColorTries)
@@ -190,6 +196,7 @@ func normalizeRefinement(ref *RefinementOptions) {
 	}
 }
 
+// clampNonNegative clamps integer values below zero to zero.
 func clampNonNegative(v int) int {
 	if v < 0 {
 		return 0

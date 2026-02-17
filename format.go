@@ -54,6 +54,7 @@ func (f Format) String() string {
 	}
 }
 
+// blockSize returns bytes per block (compressed) or per pixel (uncompressed).
 func (f Format) blockSize() int {
 	switch f {
 	case FormatDXT1:
@@ -71,6 +72,7 @@ func (f Format) blockSize() int {
 	}
 }
 
+// isCompressed reports whether the format uses BCn block compression.
 func (f Format) isCompressed() bool {
 	switch f {
 	case FormatDXT1, FormatDXT3, FormatDXT5, FormatBC4, FormatBC5:

@@ -28,6 +28,7 @@ func EncodeDXT1WithOptions(rgba []byte, width, height int, opts *EncodeOptions) 
 	return encodeBlocksWithOptions(rgba, width, height, FormatDXT1, opts)
 }
 
+// decodeBlockDXT1 decodes one BC1/DXT1 block (8 bytes) to 16 RGBA pixels.
 func decodeBlockDXT1(data []byte) [16]rgba8 {
 	c0 := binary.LittleEndian.Uint16(data[0:2])
 	c1 := binary.LittleEndian.Uint16(data[2:4])
@@ -43,6 +44,7 @@ func decodeBlockDXT1(data []byte) [16]rgba8 {
 	return out
 }
 
+// dxt1Palette builds the 4-entry BC1 palette from two RGB565 endpoints.
 func dxt1Palette(c0, c1 uint16) [4]rgba8 {
 	p0 := rgbaFrom565(c0)
 	p1 := rgbaFrom565(c1)
@@ -75,6 +77,7 @@ func dxt1Palette(c0, c1 uint16) [4]rgba8 {
 	return palette
 }
 
+// encodeBlockDXT1WithOptions encodes one 4x4 block using endpoint search + index packing.
 func encodeBlockDXT1WithOptions(block [16]rgba8, opts EncodeOptions) [8]byte {
 	// If any pixel falls below AlphaThreshold, force 3-color mode (with 1-bit alpha).
 	hasAlpha := false
@@ -109,6 +112,7 @@ func encodeBlockDXT1WithOptions(block [16]rgba8, opts EncodeOptions) [8]byte {
 	return out
 }
 
+// dxt1EndpointsFast picks endpoints from axis-aligned min/max with inset.
 func dxt1EndpointsFast(block [16]rgba8) (uint16, uint16) {
 	minC, maxC := findMinMax(block)
 	minC, maxC = insetMinMax(minC, maxC)
@@ -118,6 +122,7 @@ func dxt1EndpointsFast(block [16]rgba8) (uint16, uint16) {
 	return c0, c1
 }
 
+// dxt1EndpointsPCA picks endpoints from a PCA-estimated principal color axis.
 func dxt1EndpointsPCA(block [16]rgba8) (uint16, uint16) {
 	minC, maxC := pcaMinMax(block)
 	minC, maxC = insetMinMax(minC, maxC)
@@ -125,6 +130,7 @@ func dxt1EndpointsPCA(block [16]rgba8) (uint16, uint16) {
 	return rgb565(maxC), rgb565(minC)
 }
 
+// orderDXT1 enforces BC1 endpoint ordering rules for opaque vs alpha mode.
 func orderDXT1(c0, c1 uint16, hasAlpha bool) (uint16, uint16) {
 	if hasAlpha {
 		if c0 > c1 {
@@ -140,6 +146,7 @@ func orderDXT1(c0, c1 uint16, hasAlpha bool) (uint16, uint16) {
 	return c0, c1
 }
 
+// blockConstantR reports whether all pixels have identical red channel.
 func blockConstantR(block [16]rgba8) bool {
 	r := block[0].r
 	for i := 1; i < 16; i++ {
@@ -150,10 +157,12 @@ func blockConstantR(block [16]rgba8) bool {
 	return true
 }
 
+// packDXT1Indices packs palette indices with default perceptual RGB weights.
 func packDXT1Indices(block [16]rgba8, palette [4]rgba8, hasAlpha bool, alphaThreshold uint8) uint32 {
 	return packDXT1IndicesWeighted(block, palette, hasAlpha, alphaThreshold, 0.3, 0.6, 0.1)
 }
 
+// packDXT1IndicesWeighted maps each pixel to the best palette entry and bit-packs indices.
 func packDXT1IndicesWeighted(block [16]rgba8, palette [4]rgba8, hasAlpha bool, alphaThreshold uint8, rw, gw, bw float64) uint32 {
 	pf := paletteToFloat(palette)
 	indices := uint32(0)
@@ -175,10 +184,12 @@ func packDXT1IndicesWeighted(block [16]rgba8, palette [4]rgba8, hasAlpha bool, a
 	return indices
 }
 
+// rgbf stores RGB channels as float64 for weighted error evaluation.
 type rgbf struct {
 	r, g, b float64
 }
 
+// paletteToFloat converts integer palette entries to float form once per block.
 func paletteToFloat(palette [4]rgba8) [4]rgbf {
 	var out [4]rgbf
 
@@ -198,16 +209,19 @@ func paletteToFloat(palette [4]rgba8) [4]rgbf {
 	return out
 }
 
+// bestIndexWeightedFloat returns the best palette entry index under weighted RGB SSE.
 func bestIndexWeightedFloat(palette [4]rgbf, c rgba8, rw, gw, bw float64, limit int) uint8 {
 	idx, _ := bestIndexWeightedFloatErr(palette, c, rw, gw, bw, limit)
 	return idx
 }
 
+// bestErrorWeightedFloat returns only the minimal weighted error for a pixel.
 func bestErrorWeightedFloat(palette [4]rgbf, c rgba8, rw, gw, bw float64, limit int) float64 {
 	_, err := bestIndexWeightedFloatErr(palette, c, rw, gw, bw, limit)
 	return err
 }
 
+// bestIndexWeightedFloatErr computes best palette index and weighted RGB SSE together.
 func bestIndexWeightedFloatErr(palette [4]rgbf, c rgba8, rw, gw, bw float64, limit int) (uint8, float64) {
 	best := 0
 	bestErr := 1e30
@@ -228,6 +242,7 @@ func bestIndexWeightedFloatErr(palette [4]rgbf, c rgba8, rw, gw, bw float64, lim
 	return clampU8(best), bestErr
 }
 
+// dxt1Refine performs local endpoint search around an initial candidate pair.
 func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, step, maxTries int, rw, gw, bw float64) (uint16, uint16) {
 	bestC0, bestC1 := orderDXT1(c0, c1, hasAlpha)
 	bestErr := dxt1BlockError(block, bestC0, bestC1, hasAlpha, alphaThreshold, rw, gw, bw)
@@ -260,6 +275,7 @@ func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold ui
 	return bestC0, bestC1
 }
 
+// dxt1BlockError measures total weighted color error for one candidate block encoding.
 func dxt1BlockError(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, rw, gw, bw float64) float64 {
 	palette := dxt1Palette(c0, c1)
 	pf := paletteToFloat(palette)

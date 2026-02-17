@@ -6,6 +6,7 @@ package bcn
 
 import "sync"
 
+// encodeJob carries a contiguous block range for parallel encoding.
 type encodeJob struct {
 	wg        *sync.WaitGroup
 	rgba      []byte
@@ -20,10 +21,12 @@ type encodeJob struct {
 	format    Format
 }
 
+// encodePool keeps long-lived workers to avoid per-call goroutine churn.
 type encodePool struct {
 	jobs chan encodeJob
 }
 
+// newEncodePool starts a fixed worker set for one worker-count bucket.
 func newEncodePool(workers int) *encodePool {
 	pool := &encodePool{
 		jobs: make(chan encodeJob, workers),
@@ -34,6 +37,7 @@ func newEncodePool(workers int) *encodePool {
 	return pool
 }
 
+// worker encodes its assigned block range and signals completion via WaitGroup.
 func (p *encodePool) worker() {
 	for job := range p.jobs {
 		for idx := job.start; idx < job.end; idx++ {
@@ -65,10 +69,13 @@ func (p *encodePool) worker() {
 }
 
 var (
+	// encodePoolsMu protects encodePools map by worker-count key.
 	encodePoolsMu sync.Mutex
-	encodePools   = map[int]*encodePool{}
+	// encodePools reuses worker pools across calls with the same worker count.
+	encodePools = map[int]*encodePool{}
 )
 
+// getEncodePool returns (or creates) a reusable pool for the requested worker count.
 func getEncodePool(workers int) *encodePool {
 	encodePoolsMu.Lock()
 	defer encodePoolsMu.Unlock()

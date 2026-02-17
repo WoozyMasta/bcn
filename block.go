@@ -4,6 +4,7 @@
 
 package bcn
 
+// findMinMax returns per-channel min and max colors inside a 4x4 block.
 func findMinMax(block [16]rgba8) (rgba8, rgba8) {
 	minC := rgba8{255, 255, 255, 255}
 	maxC := rgba8{0, 0, 0, 0}
@@ -37,6 +38,7 @@ func findMinMax(block [16]rgba8) (rgba8, rgba8) {
 	return minC, maxC
 }
 
+// extractBlock reads a 4x4 block from linear RGBA data with edge replication.
 func extractBlock(rgba []byte, width, height, bx, by int) [16]rgba8 {
 	var block [16]rgba8
 	baseX := bx * 4
@@ -74,6 +76,7 @@ func extractBlock(rgba []byte, width, height, bx, by int) [16]rgba8 {
 	return block
 }
 
+// storeBlock writes a decoded 4x4 block back to destination RGBA data.
 func storeBlock(dst []byte, width, height, bx, by int, block [16]rgba8) {
 	baseX := bx * 4
 	baseY := by * 4

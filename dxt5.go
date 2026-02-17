@@ -27,6 +27,7 @@ func EncodeDXT5WithOptions(rgba []byte, width, height int, opts *EncodeOptions) 
 	return encodeBlocksWithOptions(rgba, width, height, FormatDXT5, opts)
 }
 
+// encodeBlockDXT5WithOptions encodes one BC3/DXT5 block with interpolated alpha.
 func encodeBlockDXT5WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	minC, maxC := findMinMax(block)
 
@@ -66,6 +67,7 @@ func encodeBlockDXT5WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	return out
 }
 
+// decodeBlockDXT5 decodes one BC3/DXT5 block into 16 RGBA pixels.
 func decodeBlockDXT5(data []byte) [16]rgba8 {
 	a0 := data[0]
 	a1 := data[1]
@@ -89,6 +91,7 @@ func decodeBlockDXT5(data []byte) [16]rgba8 {
 	return out
 }
 
+// dxt5AlphaPalette builds the 8-entry alpha palette defined by BC3 rules.
 func dxt5AlphaPalette(a0, a1 uint8) [8]uint8 {
 	var p [8]uint8
 	p[0] = a0
@@ -112,6 +115,7 @@ func dxt5AlphaPalette(a0, a1 uint8) [8]uint8 {
 	return p
 }
 
+// alphaFromPalette reads the current 3-bit alpha index and resolves it to value.
 func alphaFromPalette(p [8]uint8, idx uint64) uint8 {
 	switch idx & 0x7 {
 	case 0:
@@ -133,11 +137,13 @@ func alphaFromPalette(p [8]uint8, idx uint64) uint8 {
 	}
 }
 
+// bestAlphaIndex returns the nearest alpha palette index for one sample.
 func bestAlphaIndex(palette *[8]uint8, a uint8) uint8 {
 	idx, _ := bestAlphaIndexErr(palette, a)
 	return idx
 }
 
+// bestAlphaIndexErr returns nearest alpha index and squared error.
 func bestAlphaIndexErr(palette *[8]uint8, a uint8) (uint8, int) {
 	best := 0
 	bestErr := 1<<31 - 1

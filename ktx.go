@@ -241,6 +241,7 @@ func (k *KTX) Write(w io.Writer) error {
 			}
 		}
 
+		// Encode each face/mipmap
 		for face := 0; face < len(k.Faces); face++ {
 			faceMip := k.Faces[face].Mipmaps[mip]
 			if k.Format.isCompressed() {
@@ -320,6 +321,7 @@ func ktxHeaderFormats(format Format) (glType, glTypeSize, glFormat, glInternalFo
 	}
 }
 
+// ktxFormatFromHeader maps KTX header GL fields to internal BCn/uncompressed format.
 func ktxFormatFromHeader(header *KTXHeader) (Format, error) {
 	if header.GlType != 0 || header.GlFormat != 0 {
 		if header.GlType == KTXGLUnsignedByte && header.GlTypeSize == 1 {
@@ -411,6 +413,7 @@ func padding4(size uint32) uint32 {
 	return (4 - (size % 4)) % 4
 }
 
+// writePadding emits up to 3 zero bytes to maintain 4-byte KTX alignment.
 func writePadding(w io.Writer, pad uint32) error {
 	if pad == 0 {
 		return nil

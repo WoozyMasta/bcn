@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning][].
   (modernized loops, safer indexing patterns).
 * Build/CI maintenance: updated linter/tooling setup and benchmark targets.
 * Added SPDX file headers across package sources.
+* Improved code documentation with more detailed comments.
 
 [0.1.5]: https://github.com/WoozyMasta/bcn/compare/v0.1.4...v0.1.5
 

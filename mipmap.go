@@ -107,6 +107,7 @@ func downscaleNRGBA(src *image.NRGBA, dstW, dstH int, useSRGB bool) *image.NRGBA
 	return dst
 }
 
+// atNRGBA fetches one pixel with clamp-to-edge semantics.
 func atNRGBA(img *image.NRGBA, x, y int) color.NRGBA {
 	if x >= img.Rect.Dx() {
 		x = img.Rect.Dx() - 1
@@ -125,11 +126,15 @@ func atNRGBA(img *image.NRGBA, x, y int) color.NRGBA {
 }
 
 var (
-	gammaOnce    sync.Once
+	// gammaOnce initializes conversion lookup tables once per process.
+	gammaOnce sync.Once
+	// srgbToLinear maps 8-bit sRGB to linear intensity.
 	srgbToLinear [256]float32
+	// linearToSRGB maps linear intensity to nearest 8-bit sRGB via 12-bit index.
 	linearToSRGB [4096]uint8
 )
 
+// initGamma precomputes sRGB<->linear lookup tables used by mip generation.
 func initGamma() {
 	gammaOnce.Do(func() {
 		for i := range 256 {
@@ -161,6 +166,7 @@ func initGamma() {
 	})
 }
 
+// clampIndex maps normalized linear value to linearToSRGB lookup table index.
 func clampIndex(v float64) int {
 	if v <= 0 {
 		return 0

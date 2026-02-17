@@ -27,6 +27,7 @@ func EncodeDXT3WithOptions(rgba []byte, width, height int, opts *EncodeOptions) 
 	return encodeBlocksWithOptions(rgba, width, height, FormatDXT3, opts)
 }
 
+// encodeBlockDXT3WithOptions encodes one BC2/DXT3 block (explicit 4-bit alpha + BC1 color).
 func encodeBlockDXT3WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	alphaBits := uint64(0)
 	for i, px := range block {
@@ -47,6 +48,7 @@ func encodeBlockDXT3WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	return out
 }
 
+// decodeBlockDXT3 decodes one BC2/DXT3 block into 16 RGBA pixels.
 func decodeBlockDXT3(data []byte) [16]rgba8 {
 	alphaBits := binary.LittleEndian.Uint64(data[0:8])
 	c0 := binary.LittleEndian.Uint16(data[8:10])

@@ -6,7 +6,8 @@ package bcn
 
 import "image"
 
-// encodeFacesWithOptions encodes 1 image (2D) or 6 images (cubemap) into faces and mip data.
+// encodeFacesWithOptions validates face dimensions and produces encoded face mip payloads.
+// It is shared by DDS and KTX container encoders to keep container behavior identical.
 func encodeFacesWithOptions(images []image.Image, format Format, opts *EncodeOptions) ([]Face, int, int, error) {
 	if len(images) != 1 && len(images) != 6 {
 		return nil, 0, 0, ErrExpectedOneOrSixImages

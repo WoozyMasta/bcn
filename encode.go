@@ -9,10 +9,12 @@ import (
 	"sync"
 )
 
+// decodeBlocks is a convenience wrapper that decodes with default options.
 func decodeBlocks(data []byte, width, height int, format Format) ([]byte, error) {
 	return decodeBlocksWithOptions(data, width, height, format, nil)
 }
 
+// decodeBlocksWithOptions decodes compressed or uncompressed payload into tight RGBA.
 func decodeBlocksWithOptions(data []byte, width, height int, format Format, opts *DecodeOptions) ([]byte, error) {
 	if width <= 0 || height <= 0 {
 		return nil, ErrInvalidDimensions
@@ -69,6 +71,7 @@ func decodeBlocksWithOptions(data []byte, width, height int, format Format, opts
 
 	parallelMinBlocks := 256 * workers
 	if totalBlocks >= parallelMinBlocks && workers > 1 {
+		// Split block-space into contiguous ranges to keep writes non-overlapping.
 		pool := getDecodePool(workers)
 		var wg sync.WaitGroup
 		wg.Add(workers)
@@ -127,6 +130,7 @@ func decodeBlocksWithOptions(data []byte, width, height int, format Format, opts
 	return out, nil
 }
 
+// encodeBlocksWithOptions encodes tight RGBA pixels into the selected BCn format.
 func encodeBlocksWithOptions(rgba []byte, width, height int, format Format, opts *EncodeOptions) ([]byte, error) {
 	if width <= 0 || height <= 0 {
 		return nil, ErrInvalidDimensions
@@ -177,6 +181,7 @@ func encodeBlocksWithOptions(rgba []byte, width, height int, format Format, opts
 
 	parallelMinBlocks := 256 * workers
 	if totalBlocks >= parallelMinBlocks && workers > 1 {
+		// Encode worker ranges directly into preallocated output block slices.
 		pool := getEncodePool(workers)
 		var wg sync.WaitGroup
 		wg.Add(workers)

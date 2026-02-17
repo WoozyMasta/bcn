@@ -13,10 +13,12 @@ import (
 	"github.com/woozymasta/bcn"
 )
 
+// init registers KTX decoder hooks in the standard image package.
 func init() {
 	image.RegisterFormat("ktx", string(bcn.KTXIdentifier[:]), decode, decodeConfig)
 }
 
+// decode reads full KTX payload and returns the top-level image.
 func decode(r io.Reader) (image.Image, error) {
 	_, img, err := bcn.DecodeKTX(r)
 	if err != nil {
@@ -26,6 +28,7 @@ func decode(r io.Reader) (image.Image, error) {
 	return img, nil
 }
 
+// decodeConfig reads dimensions from KTX header without full payload decode.
 func decodeConfig(r io.Reader) (image.Config, error) {
 	h, err := bcn.ReadKTXHeader(r)
 	if err != nil {
