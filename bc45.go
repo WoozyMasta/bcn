@@ -38,8 +38,13 @@ func DecodeBC5WithOptions(data []byte, width, height int, opts *DecodeOptions) (
 
 func encodeBlockBC4(block [16]rgba8, opts EncodeOptions, channel func(rgba8) uint8) [8]byte {
 	var alpha [16]uint8
-	for i, px := range block {
-		alpha[i] = channel(px)
+
+	blockView := block[:]
+	alphaView := alpha[:]
+	for len(alphaView) > 0 {
+		alphaView[0] = channel(blockView[0])
+		alphaView = alphaView[1:]
+		blockView = blockView[1:]
 	}
 
 	settings := qualitySettingsForOpts(opts)
@@ -64,13 +69,15 @@ func decodeBlockBC5(data []byte) [16]rgba8 {
 	red := decodeAlphaBlock(data[0:8])
 	green := decodeAlphaBlock(data[8:16])
 	var out [16]rgba8
-	for i, r := range red {
-		out[i].r = r
-		out[i].a = 255
-	}
 
-	for i, g := range green {
-		out[i].g = g
+	redView := red[:]
+	greenView := green[:]
+	outView := out[:]
+	for len(outView) > 0 {
+		outView[0] = rgba8{r: redView[0], g: greenView[0], b: 0, a: 255}
+		outView = outView[1:]
+		redView = redView[1:]
+		greenView = greenView[1:]
 	}
 
 	return out

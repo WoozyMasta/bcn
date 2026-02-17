@@ -181,13 +181,20 @@ type rgbf struct {
 
 func paletteToFloat(palette [4]rgba8) [4]rgbf {
 	var out [4]rgbf
-	for i, c := range palette {
-		out[i] = rgbf{
+
+	paletteView := palette[:]
+	outView := out[:]
+	for len(outView) > 0 {
+		c := paletteView[0]
+		outView[0] = rgbf{
 			r: float64(c.r),
 			g: float64(c.g),
 			b: float64(c.b),
 		}
+		outView = outView[1:]
+		paletteView = paletteView[1:]
 	}
+
 	return out
 }
 
