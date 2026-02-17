@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 import "math"
@@ -51,7 +55,7 @@ func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {
 
 	// Power iteration to approximate the principal axis of the covariance matrix.
 	axis := [3]float64{1, 1, 1}
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		x := cov[0][0]*axis[0] + cov[0][1]*axis[1] + cov[0][2]*axis[2] // #nosec G602 -- fixed-size 3x3 matrix.
 		y := cov[1][0]*axis[0] + cov[1][1]*axis[1] + cov[1][2]*axis[2] // #nosec G602 -- fixed-size 3x3 matrix.
 		z := cov[2][0]*axis[0] + cov[2][1]*axis[1] + cov[2][2]*axis[2] // #nosec G602 -- fixed-size 3x3 matrix.
@@ -73,13 +77,25 @@ func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {
 
 	minDot := math.MaxFloat64
 	maxDot := -math.MaxFloat64
-	minC := block[0]
-	maxC := block[0]
+	minC := rgba8{}
+	maxC := rgba8{}
+	hasExtremes := false
+
 	for _, px := range block {
 		r := float64(px.r)
 		g := float64(px.g)
 		b := float64(px.b)
 		dot := r*axis[0] + g*axis[1] + b*axis[2]
+
+		if !hasExtremes {
+			minDot = dot
+			maxDot = dot
+			minC = px
+			maxC = px
+			hasExtremes = true
+			continue
+		}
+
 		if dot < minDot {
 			minDot = dot
 			minC = px

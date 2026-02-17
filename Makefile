@@ -1,13 +1,18 @@
-GO ?= go
-LINTER  ?= golangci-lint
-ALIGNER ?= betteralign
+GO          ?= go
+LINTER      ?= golangci-lint
+ALIGNER     ?= betteralign
+BENCHSTAT   ?= benchstat
+BENCH_COUNT ?= 6
 
-.PHONY: bench bench-encode bench-decode bench-baseline bench-compare \
-	bench-encode-baseline bench-decode-baseline bench-encode-compare bench-decode-compare \
-	test verify vet fmt fmt-check lint align align-fix check tidy download \
-	tools release-notes
+BENCH_REF_MULTI  ?= bench_baseline_multi_thread.txt
+BENCH_REF_SINGLE ?= bench_baseline_single_thread.txt
 
-check: fmt-check vet lint align test
+.PHONY: test bench bench-single-thread bench-fast verify vet check \
+	fmt fmt-check lint lint-fix align align-fix \
+	tidy download tools tool-golangci-lint tool-betteralign tool-benchstat \
+	release-notes
+
+check: verify fmt-check vet lint align test
 
 fmt:
 	gofmt -w .
@@ -25,6 +30,29 @@ vet:
 test:
 	$(GO) test ./...
 
+bench:
+	@tmp=$$(mktemp); \
+	BCN_BENCH_LARGE=1 $(GO) test ./... -run=^$$ -bench 'Benchmark' -benchmem -count=$(BENCH_COUNT) | tee "$$tmp"; \
+	if [ -f "$(BENCH_REF_MULTI)" ]; then \
+		$(BENCHSTAT) "$(BENCH_REF_MULTI)" "$$tmp"; \
+	else \
+		cp "$$tmp" "$(BENCH_REF_MULTI)" && echo "Baseline multi-thread saved to $(BENCH_REF_MULTI)"; \
+	fi; \
+	rm -f "$$tmp"
+
+bench-single-thread:
+	@tmp=$$(mktemp); \
+	GOMAXPROCS=1 $(GO) test ./... -run=^$$ -bench 'Benchmark' -benchmem -count=$(BENCH_COUNT) | tee "$$tmp"; \
+	if [ -f "$(BENCH_REF_SINGLE)" ]; then \
+		$(BENCHSTAT) "$(BENCH_REF_SINGLE)" "$$tmp"; \
+	else \
+		cp "$$tmp" "$(BENCH_REF_SINGLE)" && echo "Baseline single-thread saved to $(BENCH_REF_SINGLE)"; \
+	fi; \
+	rm -f "$$tmp"
+
+bench-fast:
+	$(GO) test ./... -run=^$$ -bench 'Benchmark' -benchmem
+
 verify:
 	$(GO) mod verify
 
@@ -37,49 +65,24 @@ download:
 lint:
 	$(LINTER) run ./...
 
+lint-fix:
+	$(LINTER) run --fix ./...
+
 align:
 	$(ALIGNER) ./...
 
 align-fix:
 	$(ALIGNER) -apply ./...
 
-bench-encode:
-	$(GO) test -test.fullpath=true -run=^$$ -bench '^BenchmarkEncodeBlock(DXT1|DXT5)$$' -benchmem
-	BCN_BENCH_LARGE=1 $(GO) test -test.fullpath=true -run=^$$ -bench '^BenchmarkEncodeImage(DXT1|DXT5)$$' -benchmem
+tools: tool-golangci-lint tool-betteralign tool-benchstat
 
-bench-decode:
-	$(GO) test -test.fullpath=true -run=^$$ -bench '^BenchmarkDecodeBlock(DXT1|DXT5)$$' -benchmem
-	BCN_BENCH_LARGE=1 $(GO) test -test.fullpath=true -run=^$$ -bench '^BenchmarkDecodeImage(DXT1|DXT5)$$' -benchmem
-
-bench: bench-encode bench-decode
-
-bench-encode-baseline:
-	GOMAXPROCS=1 BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkEncode' -benchmem -count=6 2>&1 | tee bench-baseline-1.txt
-	BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkEncode' -benchmem -count=6 2>&1 | tee bench-baseline.txt
-
-bench-decode-baseline:
-	GOMAXPROCS=1 BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkDecode' -benchmem -count=6 2>&1 | tee bench-decode-baseline-1.txt
-	BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkDecode' -benchmem -count=6 2>&1 | tee bench-decode-baseline.txt
-
-bench-baseline: bench-encode-baseline bench-decode-baseline
-
-bench-encode-compare:
-	GOMAXPROCS=1 BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkEncode' -benchmem -count=6 2>&1 | tee bench-new-1.txt
-	benchstat bench-baseline-1.txt bench-new-1.txt
-	BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkEncode' -benchmem -count=6 2>&1 | tee bench-new.txt
-	benchstat bench-baseline.txt bench-new.txt
-
-bench-decode-compare:
-	GOMAXPROCS=1 BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkDecode' -benchmem -count=6 2>&1 | tee bench-decode-new-1.txt
-	benchstat bench-decode-baseline-1.txt bench-decode-new-1.txt
-	BCN_BENCH_LARGE=1 $(GO) test -run=^$$ -bench 'BenchmarkDecode' -benchmem -count=6 2>&1 | tee bench-decode-new.txt
-	benchstat bench-decode-baseline.txt bench-decode-new.txt
-
-bench-compare: bench-encode-compare bench-decode-compare
-
-tools:
+tool-golangci-lint:
 	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
+tool-betteralign:
 	$(GO) install github.com/dkorunic/betteralign/cmd/betteralign@latest
+
+tool-benchstat:
 	$(GO) install golang.org/x/perf/cmd/benchstat@latest
 
 release-notes:

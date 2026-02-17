@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 import "encoding/binary"
@@ -25,12 +29,9 @@ func EncodeDXT3WithOptions(rgba []byte, width, height int, opts *EncodeOptions) 
 
 func encodeBlockDXT3WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	alphaBits := uint64(0)
-	for i := 15; i >= 0; i-- {
-		q := clampU8((int(block[i].a) + 8) / 17)
-		alphaBits = (alphaBits << 4) | uint64(q&0xF)
-		if i == 0 {
-			break
-		}
+	for i, px := range block {
+		q := clampU8((int(px.a) + 8) / 17)
+		alphaBits |= uint64(q&0xF) << (4 * i)
 	}
 
 	c0, c1 := dxt1ColorEndpoints(block, opts)
@@ -53,13 +54,13 @@ func decodeBlockDXT3(data []byte) [16]rgba8 {
 	palette := dxt1Palette(c0, c1)
 	idx := binary.LittleEndian.Uint32(data[12:16])
 	var out [16]rgba8
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		// #nosec G602 -- index masked to 0..3.
 		c := palette[int(idx&0x3)]
 		// #nosec G115 -- value is in 0..255 after masking.
 		alpha := clampU8(int((alphaBits & 0xF) * 17))
 		c.a = alpha
-		out[i] = c
+		out[i] = c // #nosec G602 -- i comes from range over fixed-size output block.
 		idx >>= 2
 		alphaBits >>= 4
 	}

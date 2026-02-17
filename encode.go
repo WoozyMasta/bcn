@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 import (
@@ -89,8 +93,8 @@ func decodeBlocksWithOptions(data []byte, width, height int, format Format, opts
 	}
 
 	pos := 0
-	for y := 0; y < by; y++ {
-		for x := 0; x < bx; x++ {
+	for y := range by {
+		for x := range bx {
 			var block [16]rgba8
 
 			switch format {
@@ -106,7 +110,7 @@ func decodeBlocksWithOptions(data []byte, width, height int, format Format, opts
 			case FormatBC4:
 				alpha := decodeBlockBC4(data[pos : pos+8])
 				pos += 8
-				for i := 0; i < 16; i++ {
+				for i := range 16 {
 					block[i] = rgba8{r: alpha[i], g: alpha[i], b: alpha[i], a: 255}
 				}
 			case FormatBC5:
@@ -200,8 +204,8 @@ func encodeBlocksWithOptions(rgba []byte, width, height int, format Format, opts
 
 	pos := 0
 
-	for y := 0; y < by; y++ {
-		for x := 0; x < bx; x++ {
+	for y := range by {
+		for x := range bx {
 			block := extractBlock(rgba, width, height, x, y)
 			switch format {
 			case FormatDXT1:

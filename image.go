@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 import (
@@ -21,7 +25,7 @@ func EncodeImageWithOptions(img image.Image, format Format, opts *EncodeOptions)
 	width := b.Dx()
 	height := b.Dy()
 	rgba := make([]byte, width*height*4)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		src := nrgba.Pix[nrgba.PixOffset(b.Min.X, b.Min.Y+y):]
 		copy(rgba[y*width*4:(y+1)*width*4], src[:width*4])
 	}
@@ -71,8 +75,8 @@ func AsNRGBA(rgba []byte, width, height int) *image.NRGBA {
 func SolidImage(width, height int, c color.NRGBA) *image.NRGBA {
 	img := image.NewNRGBA(image.Rect(0, 0, width, height))
 
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
+	for y := range height {
+		for x := range width {
 			i := y*img.Stride + x*4
 			img.Pix[i+0] = c.R
 			img.Pix[i+1] = c.G

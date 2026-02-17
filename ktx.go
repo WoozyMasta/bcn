@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 import (
@@ -61,24 +65,18 @@ func ReadKTX(r io.Reader) (*KTX, error) {
 		}
 	}
 
-	mipCount := int(header.NumberOfMipmapLevels)
-	if mipCount < 1 {
-		mipCount = 1
-	}
-	faceCount := int(header.NumberOfFaces)
-	if faceCount < 1 {
-		faceCount = 1
-	}
+	mipCount := max(int(header.NumberOfMipmapLevels), 1)
+	faceCount := max(int(header.NumberOfFaces), 1)
 	width := int(header.PixelWidth)
 	height := int(header.PixelHeight)
 	uncompressed := !format.isCompressed()
 
 	faces := make([]Face, faceCount)
-	for face := 0; face < faceCount; face++ {
+	for face := range faceCount {
 		faces[face].Mipmaps = make([][]byte, mipCount)
 	}
 
-	for mip := 0; mip < mipCount; mip++ {
+	for mip := range mipCount {
 		var imageSize uint32
 		if err := binary.Read(r, binary.LittleEndian, &imageSize); err != nil {
 			return nil, err
@@ -101,7 +99,7 @@ func ReadKTX(r io.Reader) (*KTX, error) {
 			imageSize = ktxUncompressedMipSize(mipW, mipH)
 		}
 
-		for face := 0; face < faceCount; face++ {
+		for face := range faceCount {
 			buf := make([]byte, imageSize)
 			if _, err := io.ReadFull(r, buf); err != nil {
 				return nil, err
@@ -220,7 +218,7 @@ func (k *KTX) Write(w io.Writer) error {
 		return err
 	}
 
-	for mip := 0; mip < mipCount; mip++ {
+	for mip := range mipCount {
 		mipData := k.Faces[0].Mipmaps[mip]
 		imageSize := u32len(len(mipData))
 		if k.Format.isCompressed() {
@@ -292,42 +290,9 @@ func EncodeKTX(img image.Image, format Format) (*KTX, error) {
 // EncodeKTXWithOptions encodes 1 image (2D) or 6 images (cubemap) into a KTX.
 // Mipmaps are generated when EncodeOptions.GenerateMipmaps is true.
 func EncodeKTXWithOptions(images []image.Image, format Format, opts *EncodeOptions) (*KTX, error) {
-	if len(images) != 1 && len(images) != 6 {
-		return nil, ErrExpectedOneOrSixImages
-	}
-
-	options := normalizeEncodeOptions(opts)
-	width := images[0].Bounds().Dx()
-	height := images[0].Bounds().Dy()
-	for i := 1; i < len(images); i++ {
-		// #nosec G602 -- bounds are checked by loop condition.
-		if images[i].Bounds().Dx() != width || images[i].Bounds().Dy() != height {
-			return nil, ErrFacesDifferentDimensions
-		}
-	}
-
-	faces := make([]Face, len(images))
-	for i, img := range images {
-		if options.GenerateMipmaps {
-			mips := GenerateMipmaps(img, options.UseSRGB)
-			mipData := make([][]byte, len(mips))
-			for level := range mips {
-				data, _, _, err := EncodeImageWithOptions(mips[level], format, &options)
-				if err != nil {
-					return nil, err
-				}
-
-				mipData[level] = data
-			}
-			faces[i] = Face{Mipmaps: mipData}
-		} else {
-			data, _, _, err := EncodeImageWithOptions(img, format, &options)
-			if err != nil {
-				return nil, err
-			}
-
-			faces[i] = Face{Mipmaps: [][]byte{data}}
-		}
+	faces, width, height, err := encodeFacesWithOptions(images, format, opts)
+	if err != nil {
+		return nil, err
 	}
 
 	return &KTX{Format: format, Width: width, Height: height, Faces: faces}, nil

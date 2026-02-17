@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 /*
 Package bcn provides BCn/DXT block compression encode/decode and container I/O.
 

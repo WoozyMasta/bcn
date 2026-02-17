@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 // EncodeBC4 encodes an RGBA image into BC4 blocks using the red channel.
@@ -34,8 +38,8 @@ func DecodeBC5WithOptions(data []byte, width, height int, opts *DecodeOptions) (
 
 func encodeBlockBC4(block [16]rgba8, opts EncodeOptions, channel func(rgba8) uint8) [8]byte {
 	var alpha [16]uint8
-	for i := 0; i < 16; i++ {
-		alpha[i] = channel(block[i])
+	for i, px := range block {
+		alpha[i] = channel(px)
 	}
 
 	settings := qualitySettingsForOpts(opts)
@@ -60,8 +64,13 @@ func decodeBlockBC5(data []byte) [16]rgba8 {
 	red := decodeAlphaBlock(data[0:8])
 	green := decodeAlphaBlock(data[8:16])
 	var out [16]rgba8
-	for i := 0; i < 16; i++ {
-		out[i] = rgba8{r: red[i], g: green[i], b: 0, a: 255}
+	for i, r := range red {
+		out[i].r = r
+		out[i].a = 255
+	}
+
+	for i, g := range green {
+		out[i].g = g
 	}
 
 	return out
@@ -94,7 +103,7 @@ func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
 		step := 1
 		tries := alphaTries
 
-		for i := 0; i < tries; i++ {
+		for i := range tries {
 			cand0 := clampU8(int(a0) + (i%3-1)*step)
 			cand1 := clampU8(int(a1) + ((i/3)%3-1)*step)
 			err := alphaBlockError(alpha, cand0, cand1)
@@ -136,12 +145,9 @@ func decodeAlphaBlock(data []byte) [16]uint8 {
 	idx := uint64(data[2]) | uint64(data[3])<<8 | uint64(data[4])<<16 | uint64(data[5])<<24 | uint64(data[6])<<32 | uint64(data[7])<<40
 
 	var out [16]uint8
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		// #nosec G115 -- masked to 0..7 before conversion.
-		pi := int(idx & 0x7)
-		if pi > 7 {
-			pi = 7
-		}
+		pi := min(int(idx&0x7), 7)
 		out[i] = palette[pi]
 		idx >>= 3
 	}
@@ -152,8 +158,9 @@ func decodeAlphaBlock(data []byte) [16]uint8 {
 func alphaBlockError(alpha [16]uint8, a0, a1 uint8) int {
 	palette := dxt5AlphaPalette(a0, a1)
 	err := 0
-	for i := 0; i < 16; i++ {
-		_, bestErr := bestAlphaIndexErr(&palette, alpha[i])
+
+	for _, a := range alpha {
+		_, bestErr := bestAlphaIndexErr(&palette, a)
 		err += bestErr
 	}
 

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 const (
@@ -139,10 +143,7 @@ func resolveQualitySettings(opts EncodeOptions) qualitySettings {
 			settings.alphaTries = clampNonNegative(*ref.AlphaTries)
 		}
 		if ref.ColorStep != nil {
-			step := *ref.ColorStep
-			if step < 1 {
-				step = 1
-			}
+			step := max(*ref.ColorStep, 1)
 			settings.colorStep = step
 		}
 	}

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 import "sync"
@@ -23,7 +27,7 @@ func newDecodePool(workers int) *decodePool {
 	pool := &decodePool{
 		jobs: make(chan decodeJob, workers),
 	}
-	for i := 0; i < workers; i++ {
+	for range workers {
 		go pool.worker()
 	}
 	return pool
@@ -46,7 +50,7 @@ func (p *decodePool) worker() {
 				block = decodeBlockDXT5(job.data[pos : pos+16])
 			case FormatBC4:
 				alpha := decodeBlockBC4(job.data[pos : pos+8])
-				for i := 0; i < 16; i++ {
+				for i := range 16 {
 					block[i] = rgba8{r: alpha[i], g: alpha[i], b: alpha[i], a: 255}
 				}
 			case FormatBC5:

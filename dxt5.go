@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 import "encoding/binary"
@@ -72,7 +76,7 @@ func decodeBlockDXT5(data []byte) [16]rgba8 {
 	palette := dxt1Palette(c0, c1)
 	idx := binary.LittleEndian.Uint32(data[12:16])
 	var out [16]rgba8
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		// #nosec G602 -- index masked to 0..3.
 		c := palette[int(idx&0x3)]
 		alpha := alphaFromPalette(alphaPalette, alphaIdx)
@@ -138,7 +142,7 @@ func bestAlphaIndexErr(palette *[8]uint8, a uint8) (uint8, int) {
 	best := 0
 	bestErr := 1<<31 - 1
 	av := int(a)
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		d := av - int(palette[i])
 		err := d * d
 		if err < bestErr {

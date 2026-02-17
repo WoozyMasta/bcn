@@ -18,7 +18,7 @@ jobs:
           go-version: '1.25.5'
 
       - name: Install tools
-        run: make tools
+        run: make tool-golangci-lint tool-betteralign
 
       - name: Check
         run: make check

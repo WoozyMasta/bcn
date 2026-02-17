@@ -1,10 +1,13 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 func findMinMax(block [16]rgba8) (rgba8, rgba8) {
 	minC := rgba8{255, 255, 255, 255}
 	maxC := rgba8{0, 0, 0, 0}
-	for i := 0; i < 16; i++ {
-		c := block[i]
+	for _, c := range block {
 		if c.r < minC.r {
 			minC.r = c.r
 		}
@@ -39,36 +42,32 @@ func extractBlock(rgba []byte, width, height, bx, by int) [16]rgba8 {
 	baseX := bx * 4
 	baseY := by * 4
 	if baseX+3 < width && baseY+3 < height {
-		idx := 0
 		row := (baseY*width + baseX) * 4
 		stride := width * 4
-		for y := 0; y < 4; y++ {
-			off := row
-			for x := 0; x < 4; x++ {
-				block[idx] = rgbaFromNRGBA(rgba, off)
-				idx++
-				off += 4
+
+		for y := range 4 {
+			off := row + y*stride
+			for x := range 4 {
+				block[y*4+x] = rgbaFromNRGBA(rgba, off+x*4)
 			}
-			row += stride
 		}
+
 		return block
 	}
-	idx := 0
 
-	for y := 0; y < 4; y++ {
+	for y := range 4 {
 		py := by*4 + y
 		if py >= height {
 			py = height - 1
 		}
 
-		for x := 0; x < 4; x++ {
+		for x := range 4 {
 			px := bx*4 + x
 			if px >= width {
 				px = width - 1
 			}
 			off := (py*width + px) * 4
-			block[idx] = rgbaFromNRGBA(rgba, off)
-			idx++
+			block[y*4+x] = rgbaFromNRGBA(rgba, off)
 		}
 	}
 
@@ -79,30 +78,27 @@ func storeBlock(dst []byte, width, height, bx, by int, block [16]rgba8) {
 	baseX := bx * 4
 	baseY := by * 4
 	if baseX+3 < width && baseY+3 < height {
-		idx := 0
 		row := (baseY*width + baseX) * 4
 		stride := width * 4
-		for y := 0; y < 4; y++ {
-			off := row
-			for x := 0; x < 4; x++ {
-				rgbaToNRGBA(dst, off, block[idx])
-				idx++
-				off += 4
+
+		for y := range 4 {
+			off := row + y*stride
+			for x := range 4 {
+				rgbaToNRGBA(dst, off+x*4, block[y*4+x])
 			}
-			row += stride
 		}
+
 		return
 	}
-	idx := 0
-	for y := 0; y < 4; y++ {
+
+	for y := range 4 {
 		py := by*4 + y
-		for x := 0; x < 4; x++ {
+		for x := range 4 {
 			px := bx*4 + x
 			if py < height && px < width {
 				off := (py*width + px) * 4
-				rgbaToNRGBA(dst, off, block[idx])
+				rgbaToNRGBA(dst, off, block[y*4+x])
 			}
-			idx++
 		}
 	}
 }

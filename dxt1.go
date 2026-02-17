@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 import "encoding/binary"
@@ -30,7 +34,7 @@ func decodeBlockDXT1(data []byte) [16]rgba8 {
 	palette := dxt1Palette(c0, c1)
 	idx := binary.LittleEndian.Uint32(data[4:8])
 	var out [16]rgba8
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		// #nosec G602 -- index masked to 0..3.
 		out[i] = palette[int(idx&0x3)]
 		idx >>= 2
@@ -74,8 +78,8 @@ func dxt1Palette(c0, c1 uint16) [4]rgba8 {
 func encodeBlockDXT1WithOptions(block [16]rgba8, opts EncodeOptions) [8]byte {
 	// If any pixel falls below AlphaThreshold, force 3-color mode (with 1-bit alpha).
 	hasAlpha := false
-	for i := 0; i < 16; i++ {
-		if block[i].a < opts.AlphaThreshold {
+	for _, px := range block {
+		if px.a < opts.AlphaThreshold {
 			hasAlpha = true
 			break
 		}
@@ -153,28 +157,19 @@ func packDXT1Indices(block [16]rgba8, palette [4]rgba8, hasAlpha bool, alphaThre
 func packDXT1IndicesWeighted(block [16]rgba8, palette [4]rgba8, hasAlpha bool, alphaThreshold uint8, rw, gw, bw float64) uint32 {
 	pf := paletteToFloat(palette)
 	indices := uint32(0)
-	if hasAlpha {
-		for i := 15; i >= 0; i-- {
-			var idx uint8
-			if block[i].a < alphaThreshold {
-				idx = 3
-			} else {
-				idx = bestIndexWeightedFloat(pf, block[i], rw, gw, bw, 3)
-			}
 
-			indices = (indices << 2) | uint32(idx)
-			if i == 0 {
-				break
-			}
+	for i, px := range block {
+		var idx uint8
+		switch {
+		case hasAlpha && px.a < alphaThreshold:
+			idx = 3
+		case hasAlpha:
+			idx = bestIndexWeightedFloat(pf, px, rw, gw, bw, 3)
+		default:
+			idx = bestIndexWeightedFloat(pf, px, rw, gw, bw, 4)
 		}
-	} else {
-		for i := 15; i >= 0; i-- {
-			idx := bestIndexWeightedFloat(pf, block[i], rw, gw, bw, 4)
-			indices = (indices << 2) | uint32(idx)
-			if i == 0 {
-				break
-			}
-		}
+
+		indices |= uint32(idx) << (2 * i)
 	}
 
 	return indices
@@ -186,11 +181,11 @@ type rgbf struct {
 
 func paletteToFloat(palette [4]rgba8) [4]rgbf {
 	var out [4]rgbf
-	for i := 0; i < 4; i++ {
+	for i, c := range palette {
 		out[i] = rgbf{
-			r: float64(palette[i].r),
-			g: float64(palette[i].g),
-			b: float64(palette[i].b),
+			r: float64(c.r),
+			g: float64(c.g),
+			b: float64(c.b),
 		}
 	}
 	return out
@@ -212,10 +207,10 @@ func bestIndexWeightedFloatErr(palette [4]rgbf, c rgba8, rw, gw, bw float64, lim
 	cr := float64(c.r)
 	cg := float64(c.g)
 	cb := float64(c.b)
-	for i := 0; i < limit; i++ {
-		dr := cr - palette[i].r
-		dg := cg - palette[i].g
-		db := cb - palette[i].b
+	for i, p := range palette[:limit] {
+		dr := cr - p.r
+		dg := cg - p.g
+		db := cb - p.b
 		err := dr*dr*rw + dg*dg*gw + db*db*bw
 		if err < bestErr {
 			bestErr = err
@@ -238,10 +233,8 @@ func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold ui
 	n1 := vary565Into(bestC1, step, &candidates1)
 
 	tries := 0
-	for i := 0; i < n0; i++ {
-		a := candidates0[i]
-		for j := 0; j < n1; j++ {
-			b := candidates1[j]
+	for _, a := range candidates0[:n0] {
+		for _, b := range candidates1[:n1] {
 			ca, cb := orderDXT1(a, b, hasAlpha)
 			err := dxt1BlockError(block, ca, cb, hasAlpha, alphaThreshold, rw, gw, bw)
 			if err < bestErr {
@@ -265,16 +258,16 @@ func dxt1BlockError(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshol
 	pf := paletteToFloat(palette)
 	err := 0.0
 	if hasAlpha {
-		for i := 0; i < 16; i++ {
-			if block[i].a < alphaThreshold {
+		for _, px := range block {
+			if px.a < alphaThreshold {
 				continue
 			}
 
-			err += bestErrorWeightedFloat(pf, block[i], rw, gw, bw, 3)
+			err += bestErrorWeightedFloat(pf, px, rw, gw, bw, 3)
 		}
 	} else {
-		for i := 0; i < 16; i++ {
-			err += bestErrorWeightedFloat(pf, block[i], rw, gw, bw, 4)
+		for _, px := range block {
+			err += bestErrorWeightedFloat(pf, px, rw, gw, bw, 4)
 		}
 	}
 

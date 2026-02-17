@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
+## [0.1.5][] - 2026-02-17
+
+### Changed
+
+* Internal refactor of DDS/KTX encoding pipeline (shared face/mipmap encoding path).
+* Codebase cleanup for stricter lint rules (modernized loops, safer indexing patterns).
+* Build/CI maintenance: updated linter/tooling setup and benchmark targets.
+* Added SPDX file headers across package sources.
+
+[0.1.5]: https://github.com/WoozyMasta/bcn/compare/v0.1.4...v0.1.5
+
 ## [0.1.4][] - 2026-02-10
 
 ### Added

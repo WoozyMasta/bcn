@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 import "sync"
@@ -24,7 +28,7 @@ func newEncodePool(workers int) *encodePool {
 	pool := &encodePool{
 		jobs: make(chan encodeJob, workers),
 	}
-	for i := 0; i < workers; i++ {
+	for range workers {
 		go pool.worker()
 	}
 	return pool

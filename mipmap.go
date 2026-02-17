@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 import (
@@ -57,8 +61,8 @@ func downscaleNRGBA(src *image.NRGBA, dstW, dstH int, useSRGB bool) *image.NRGBA
 	dst := image.NewNRGBA(image.Rect(0, 0, dstW, dstH))
 	initGamma()
 
-	for y := 0; y < dstH; y++ {
-		for x := 0; x < dstW; x++ {
+	for y := range dstH {
+		for x := range dstW {
 			sx := x * 2
 			sy := y * 2
 			samples := [4]color.NRGBA{
@@ -70,7 +74,7 @@ func downscaleNRGBA(src *image.NRGBA, dstW, dstH int, useSRGB bool) *image.NRGBA
 
 			var r, g, b float64
 			var a int
-			for i := 0; i < 4; i++ {
+			for i := range 4 {
 				if useSRGB {
 					r += float64(srgbToLinear[samples[i].R])
 					g += float64(srgbToLinear[samples[i].G])
@@ -128,7 +132,7 @@ var (
 
 func initGamma() {
 	gammaOnce.Do(func() {
-		for i := 0; i < 256; i++ {
+		for i := range 256 {
 			v := float64(i) / 255.0
 			if v <= 0.04045 {
 				srgbToLinear[i] = float32(v / 12.92)
@@ -137,7 +141,7 @@ func initGamma() {
 			}
 		}
 
-		for i := 0; i < len(linearToSRGB); i++ {
+		for i := range len(linearToSRGB) {
 			v := float64(i) / float64(len(linearToSRGB)-1)
 			var s float64
 			if v <= 0.0031308 {

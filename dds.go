@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 WoozyMasta
+// Source: github.com/woozymasta/bcn
+
 package bcn
 
 import (
@@ -75,10 +79,7 @@ func ReadDDS(r io.Reader) (*DDS, error) {
 		}
 	}
 
-	mipCount := int(header.MipMapCount)
-	if mipCount < 1 {
-		mipCount = 1
-	}
+	mipCount := max(int(header.MipMapCount), 1)
 	width := int(header.Width)
 	height := int(header.Height)
 	faceCount := 1
@@ -92,7 +93,7 @@ func ReadDDS(r io.Reader) (*DDS, error) {
 		h := height
 		mips := make([][]byte, mipCount)
 
-		for i := 0; i < mipCount; i++ {
+		for i := range mipCount {
 			size := mipSize(format, w, h)
 			buf := make([]byte, size)
 			if _, err := io.ReadFull(r, buf); err != nil {
@@ -342,42 +343,9 @@ func EncodeDDS(img image.Image, format Format) (*DDS, error) {
 // EncodeDDSWithOptions encodes 1 image (2D) or 6 images (cubemap) into a DDS.
 // Mipmaps are generated when EncodeOptions.GenerateMipmaps is true.
 func EncodeDDSWithOptions(images []image.Image, format Format, opts *EncodeOptions) (*DDS, error) {
-	if len(images) != 1 && len(images) != 6 {
-		return nil, ErrExpectedOneOrSixImages
-	}
-
-	options := normalizeEncodeOptions(opts)
-	width := images[0].Bounds().Dx()
-	height := images[0].Bounds().Dy()
-	for i := 1; i < len(images); i++ {
-		// #nosec G602 -- bounds are checked by loop condition.
-		if images[i].Bounds().Dx() != width || images[i].Bounds().Dy() != height {
-			return nil, ErrFacesDifferentDimensions
-		}
-	}
-
-	faces := make([]Face, len(images))
-	for i, img := range images {
-		if options.GenerateMipmaps {
-			mips := GenerateMipmaps(img, options.UseSRGB)
-			mipData := make([][]byte, len(mips))
-			for level := range mips {
-				data, _, _, err := EncodeImageWithOptions(mips[level], format, &options)
-				if err != nil {
-					return nil, err
-				}
-
-				mipData[level] = data
-			}
-			faces[i] = Face{Mipmaps: mipData}
-		} else {
-			data, _, _, err := EncodeImageWithOptions(img, format, &options)
-			if err != nil {
-				return nil, err
-			}
-
-			faces[i] = Face{Mipmaps: [][]byte{data}}
-		}
+	faces, width, height, err := encodeFacesWithOptions(images, format, opts)
+	if err != nil {
+		return nil, err
 	}
 
 	return &DDS{Format: format, Width: width, Height: height, Faces: faces}, nil

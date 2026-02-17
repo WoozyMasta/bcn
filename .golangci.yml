@@ -3,6 +3,17 @@ run:
   tests: false
 linters:
   enable:
+    - modernize
+    - prealloc
+    # - tagalign
+    - tagliatelle
+    - perfsprint
+    - asciicheck
+    - bidichk
+    # - gocognit # cyclop
+    - decorder
+    - dupl
+    - gocritic
     - bodyclose
     - gosec
     - nilerr
@@ -14,6 +25,9 @@ linters:
     - unconvert
     - unparam
     - whitespace
+    - staticcheck
+    - zerologlint
+    - goheader
   exclusions:
     generated: lax
     presets:
@@ -22,6 +36,17 @@ linters:
       - third_party$
       - builtin$
       - examples$
+  settings:
+    goheader:
+      template: |-
+        SPDX-License-Identifier: MIT
+        Copyright (c) 2026 WoozyMasta
+        Source: github.com/woozymasta/bcn
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+          yaml: snake
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
