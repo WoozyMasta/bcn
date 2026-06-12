@@ -215,40 +215,73 @@ func bestIndexWeightedFloat(palette [4]rgbf, c rgba8, rw, gw, bw float64, limit 
 	return idx
 }
 
-// bestErrorWeightedFloat returns only the minimal weighted error for a pixel.
-func bestErrorWeightedFloat(palette [4]rgbf, c rgba8, rw, gw, bw float64, limit int) float64 {
-	_, err := bestIndexWeightedFloatErr(palette, c, rw, gw, bw, limit)
-	return err
+// weightedDistF computes weighted RGB SSE between a pixel and one palette entry.
+func weightedDistF(p rgbf, cr, cg, cb, rw, gw, bw float64) float64 {
+	dr := cr - p.r
+	dg := cg - p.g
+	db := cb - p.b
+
+	return dr*dr*rw + dg*dg*gw + db*db*bw
 }
 
-// bestIndexWeightedFloatErr computes best palette index and weighted RGB SSE together.
-func bestIndexWeightedFloatErr(palette [4]rgbf, c rgba8, rw, gw, bw float64, limit int) (uint8, float64) {
-	best := 0
-	bestErr := 1e30
+// bestErrorWeightedFloat returns only the minimal weighted error for a pixel.
+// Unrolled: ties keep the lower index, same as the indexed variant.
+func bestErrorWeightedFloat(palette [4]rgbf, c rgba8, rw, gw, bw float64, limit int) float64 {
 	cr := float64(c.r)
 	cg := float64(c.g)
 	cb := float64(c.b)
-	for i, p := range palette[:limit] {
-		dr := cr - p.r
-		dg := cg - p.g
-		db := cb - p.b
-		err := dr*dr*rw + dg*dg*gw + db*db*bw
-		if err < bestErr {
+
+	bestErr := weightedDistF(palette[0], cr, cg, cb, rw, gw, bw)
+	if err := weightedDistF(palette[1], cr, cg, cb, rw, gw, bw); err < bestErr {
+		bestErr = err
+	}
+	if err := weightedDistF(palette[2], cr, cg, cb, rw, gw, bw); err < bestErr {
+		bestErr = err
+	}
+	if limit == 4 {
+		if err := weightedDistF(palette[3], cr, cg, cb, rw, gw, bw); err < bestErr {
 			bestErr = err
-			best = i
 		}
 	}
 
-	return clampU8(best), bestErr
+	return bestErr
+}
+
+// bestIndexWeightedFloatErr computes best palette index and weighted RGB SSE together.
+// Unrolled over the 4 palette entries; strict < keeps the first minimum on ties.
+func bestIndexWeightedFloatErr(palette [4]rgbf, c rgba8, rw, gw, bw float64, limit int) (uint8, float64) {
+	cr := float64(c.r)
+	cg := float64(c.g)
+	cb := float64(c.b)
+
+	best := uint8(0)
+	bestErr := weightedDistF(palette[0], cr, cg, cb, rw, gw, bw)
+	if err := weightedDistF(palette[1], cr, cg, cb, rw, gw, bw); err < bestErr {
+		bestErr = err
+		best = 1
+	}
+	if err := weightedDistF(palette[2], cr, cg, cb, rw, gw, bw); err < bestErr {
+		bestErr = err
+		best = 2
+	}
+	if limit == 4 {
+		if err := weightedDistF(palette[3], cr, cg, cb, rw, gw, bw); err < bestErr {
+			bestErr = err
+			best = 3
+		}
+	}
+
+	return best, bestErr
 }
 
 // dxt1Refine performs local endpoint search around an initial candidate pair.
 func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, step, maxTries int, rw, gw, bw float64) (uint16, uint16) {
 	bestC0, bestC1 := orderDXT1(c0, c1, hasAlpha)
-	bestErr := dxt1BlockError(block, bestC0, bestC1, hasAlpha, alphaThreshold, rw, gw, bw)
+	bestErr := dxt1BlockError(block, bestC0, bestC1, hasAlpha, alphaThreshold, rw, gw, bw, 1e30)
 	if bestErr == 0 {
 		return bestC0, bestC1
 	}
+
 	var candidates0 [125]uint16
 	var candidates1 [125]uint16
 	n0 := vary565Into(bestC0, step, &candidates0)
@@ -258,7 +291,7 @@ func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold ui
 	for _, a := range candidates0[:n0] {
 		for _, b := range candidates1[:n1] {
 			ca, cb := orderDXT1(a, b, hasAlpha)
-			err := dxt1BlockError(block, ca, cb, hasAlpha, alphaThreshold, rw, gw, bw)
+			err := dxt1BlockError(block, ca, cb, hasAlpha, alphaThreshold, rw, gw, bw, bestErr)
 			if err < bestErr {
 				bestErr = err
 				bestC0 = ca
@@ -276,7 +309,10 @@ func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold ui
 }
 
 // dxt1BlockError measures total weighted color error for one candidate block encoding.
-func dxt1BlockError(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, rw, gw, bw float64) float64 {
+// Accumulation stops once the partial sum reaches cutoff: per-pixel errors are
+// non-negative, so such a candidate can never beat the current best and callers
+// comparing with strict < reject the returned value either way.
+func dxt1BlockError(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, rw, gw, bw float64, cutoff float64) float64 {
 	palette := dxt1Palette(c0, c1)
 	pf := paletteToFloat(palette)
 	err := 0.0
@@ -287,10 +323,16 @@ func dxt1BlockError(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshol
 			}
 
 			err += bestErrorWeightedFloat(pf, px, rw, gw, bw, 3)
+			if err >= cutoff {
+				return err
+			}
 		}
 	} else {
 		for _, px := range block {
 			err += bestErrorWeightedFloat(pf, px, rw, gw, bw, 4)
+			if err >= cutoff {
+				return err
+			}
 		}
 	}
 
