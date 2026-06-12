@@ -55,6 +55,30 @@ func rgbaFrom565(v uint16) rgba8 {
 	}
 }
 
+// mix3 returns (ka*a + kb*b + 1) / 3 for 8-bit inputs with ka+kb == 3.
+func mix3(ka, kb uint32, a, b uint8) uint8 {
+	// #nosec G115 -- max (3*255+1)/3 = 255, always fits uint8.
+	return uint8((ka*uint32(a) + kb*uint32(b) + 1) / 3)
+}
+
+// avg2 returns (a + b) / 2 for 8-bit inputs.
+func avg2(a, b uint8) uint8 {
+	// #nosec G115 -- max (255+255)/2 = 255, always fits uint8.
+	return uint8((uint32(a) + uint32(b)) / 2)
+}
+
+// mix7 returns (ka*a + kb*b + 3) / 7 for 8-bit inputs with ka+kb == 7.
+func mix7(ka, kb uint32, a, b uint8) uint8 {
+	// #nosec G115 -- max (7*255+3)/7 = 255, always fits uint8.
+	return uint8((ka*uint32(a) + kb*uint32(b) + 3) / 7)
+}
+
+// mix5 returns (ka*a + kb*b + 2) / 5 for 8-bit inputs with ka+kb == 5.
+func mix5(ka, kb uint32, a, b uint8) uint8 {
+	// #nosec G115 -- max (5*255+2)/5 = 255, always fits uint8.
+	return uint8((ka*uint32(a) + kb*uint32(b) + 2) / 5)
+}
+
 // clampU8 clamps an integer into the uint8 range [0, 255].
 func clampU8(v int) uint8 {
 	if v < 0 {
