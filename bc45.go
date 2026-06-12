@@ -109,7 +109,7 @@ func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
 		}
 	}
 	bestA0, bestA1 := a0, a1
-	bestErr := alphaBlockError(alpha, bestA0, bestA1)
+	bestErr := alphaBlockError(alpha, bestA0, bestA1, 1<<62)
 
 	if alphaTries > 0 && bestErr != 0 {
 		step := 1
@@ -118,7 +118,7 @@ func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
 		for i := range tries {
 			cand0 := clampU8(int(a0) + (i%3-1)*step)
 			cand1 := clampU8(int(a1) + ((i/3)%3-1)*step)
-			err := alphaBlockError(alpha, cand0, cand1)
+			err := alphaBlockError(alpha, cand0, cand1, bestErr)
 			if err < bestErr {
 				bestErr = err
 				bestA0 = cand0
@@ -169,13 +169,17 @@ func decodeAlphaBlock(data []byte) [16]uint8 {
 }
 
 // alphaBlockError computes total squared error for a candidate alpha endpoint pair.
-func alphaBlockError(alpha [16]uint8, a0, a1 uint8) int {
+// Stops accumulating once the partial sum reaches cutoff (see dxt1BlockError).
+func alphaBlockError(alpha [16]uint8, a0, a1 uint8, cutoff int) int {
 	palette := dxt5AlphaPalette(a0, a1)
 	err := 0
 
 	for _, a := range alpha {
 		_, bestErr := bestAlphaIndexErr(&palette, a)
 		err += bestErr
+		if err >= cutoff {
+			return err
+		}
 	}
 
 	return err
