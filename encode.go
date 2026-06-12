@@ -98,36 +98,49 @@ func decodeBlocksWithOptions(data []byte, width, height int, format Format, opts
 	pos := 0
 	for y := range by {
 		for x := range bx {
-			var block [16]rgba8
+			var block [64]byte
 
 			switch format {
 			case FormatDXT1:
 				block = decodeBlockDXT1(data[pos : pos+8])
 				pos += 8
+
 			case FormatDXT3:
 				block = decodeBlockDXT3(data[pos : pos+16])
 				pos += 16
+
 			case FormatDXT5:
 				block = decodeBlockDXT5(data[pos : pos+16])
 				pos += 16
+
 			case FormatBC4:
 				alpha := decodeBlockBC4(data[pos : pos+8])
 				pos += 8
-				for i := range 16 {
-					block[i] = rgba8{r: alpha[i], g: alpha[i], b: alpha[i], a: 255}
-				}
+				expandBC4Block(&block, &alpha)
+
 			case FormatBC5:
 				block = decodeBlockBC5(data[pos : pos+16])
 				pos += 16
+
 			default:
 				return nil, ErrUnsupportedFormat
 			}
 
-			storeBlock(out, width, height, x, y, block)
+			storeBlock(out, width, height, x, y, &block)
 		}
 	}
 
 	return out, nil
+}
+
+// expandBC4Block replicates 16 scalar samples into NRGBA gray pixels.
+func expandBC4Block(block *[64]byte, alpha *[16]uint8) {
+	for i := range 16 {
+		block[i*4+0] = alpha[i]
+		block[i*4+1] = alpha[i]
+		block[i*4+2] = alpha[i]
+		block[i*4+3] = 255
+	}
 }
 
 // encodeBlocksWithOptions encodes tight RGBA pixels into the selected BCn format.

@@ -28,20 +28,31 @@ func EncodeDXT1WithOptions(rgba []byte, width, height int, opts *EncodeOptions) 
 	return encodeBlocksWithOptions(rgba, width, height, FormatDXT1, opts)
 }
 
-// decodeBlockDXT1 decodes one BC1/DXT1 block (8 bytes) to 16 RGBA pixels.
-func decodeBlockDXT1(data []byte) [16]rgba8 {
+// decodeBlockDXT1 decodes one BC1/DXT1 block (8 bytes) into 16 NRGBA pixels
+// laid out as 4 rows of 16 bytes.
+func decodeBlockDXT1(data []byte) [64]byte {
 	c0 := binary.LittleEndian.Uint16(data[0:2])
 	c1 := binary.LittleEndian.Uint16(data[2:4])
-	palette := dxt1Palette(c0, c1)
+	pal := dxt1PaletteLE(c0, c1)
 	idx := binary.LittleEndian.Uint32(data[4:8])
-	var out [16]rgba8
-	for i := range 16 {
-		// #nosec G602 -- index masked to 0..3.
-		out[i] = palette[int(idx&0x3)]
+	var out [64]byte
+	for i := 0; i < 64; i += 4 {
+		binary.LittleEndian.PutUint32(out[i:i+4], pal[idx&0x3])
 		idx >>= 2
 	}
 
 	return out
+}
+
+// dxt1PaletteLE builds the BC1 palette as packed little-endian NRGBA words.
+func dxt1PaletteLE(c0, c1 uint16) [4]uint32 {
+	p := dxt1Palette(c0, c1)
+	var pal [4]uint32
+	for k := range pal {
+		pal[k] = uint32(p[k].r) | uint32(p[k].g)<<8 | uint32(p[k].b)<<16 | uint32(p[k].a)<<24
+	}
+
+	return pal
 }
 
 // dxt1Palette builds the 4-entry BC1 palette from two RGB565 endpoints.

@@ -68,20 +68,17 @@ func encodeBlockBC5(block [16]rgba8, opts EncodeOptions) [16]byte {
 	return out
 }
 
-// decodeBlockBC5 decodes BC5 into RG with fixed B=0 and A=255.
-func decodeBlockBC5(data []byte) [16]rgba8 {
+// decodeBlockBC5 decodes BC5 into RG with fixed B=0 and A=255,
+// laid out as 4 NRGBA rows of 16 bytes.
+func decodeBlockBC5(data []byte) [64]byte {
 	red := decodeAlphaBlock(data[0:8])
 	green := decodeAlphaBlock(data[8:16])
-	var out [16]rgba8
-
-	redView := red[:]
-	greenView := green[:]
-	outView := out[:]
-	for len(outView) > 0 {
-		outView[0] = rgba8{r: redView[0], g: greenView[0], b: 0, a: 255}
-		outView = outView[1:]
-		redView = redView[1:]
-		greenView = greenView[1:]
+	var out [64]byte
+	for i := range 16 {
+		out[i*4+0] = red[i]
+		out[i*4+1] = green[i]
+		out[i*4+2] = 0
+		out[i*4+3] = 255
 	}
 
 	return out

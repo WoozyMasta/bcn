@@ -43,25 +43,27 @@ func (p *decodePool) worker() {
 			pos := idx * job.blockSize
 			x := idx % job.bx
 			y := idx / job.bx
-			var block [16]rgba8
+			var block [64]byte
 
 			switch job.format {
 			case FormatDXT1:
 				block = decodeBlockDXT1(job.data[pos : pos+8])
+
 			case FormatDXT3:
 				block = decodeBlockDXT3(job.data[pos : pos+16])
+
 			case FormatDXT5:
 				block = decodeBlockDXT5(job.data[pos : pos+16])
+
 			case FormatBC4:
 				alpha := decodeBlockBC4(job.data[pos : pos+8])
-				for i := range 16 {
-					block[i] = rgba8{r: alpha[i], g: alpha[i], b: alpha[i], a: 255}
-				}
+				expandBC4Block(&block, &alpha)
+
 			case FormatBC5:
 				block = decodeBlockBC5(job.data[pos : pos+16])
 			}
 
-			storeBlock(job.out, job.width, job.height, x, y, block)
+			storeBlock(job.out, job.width, job.height, x, y, &block)
 		}
 		job.wg.Done()
 	}

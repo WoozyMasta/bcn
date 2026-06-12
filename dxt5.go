@@ -67,23 +67,22 @@ func encodeBlockDXT5WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	return out
 }
 
-// decodeBlockDXT5 decodes one BC3/DXT5 block into 16 RGBA pixels.
-func decodeBlockDXT5(data []byte) [16]rgba8 {
+// decodeBlockDXT5 decodes one BC3/DXT5 block into 16 NRGBA pixels
+// laid out as 4 rows of 16 bytes.
+func decodeBlockDXT5(data []byte) [64]byte {
 	a0 := data[0]
 	a1 := data[1]
 	alphaPalette := dxt5AlphaPalette(a0, a1)
 	alphaIdx := uint64(data[2]) | uint64(data[3])<<8 | uint64(data[4])<<16 | uint64(data[5])<<24 | uint64(data[6])<<32 | uint64(data[7])<<40
 	c0 := binary.LittleEndian.Uint16(data[8:10])
 	c1 := binary.LittleEndian.Uint16(data[10:12])
-	palette := dxt1Palette(c0, c1)
+	pal := dxt1PaletteLE(c0, c1)
 	idx := binary.LittleEndian.Uint32(data[12:16])
-	var out [16]rgba8
-	for i := range 16 {
-		// #nosec G602 -- index masked to 0..3.
-		c := palette[int(idx&0x3)]
-		alpha := alphaFromPalette(alphaPalette, alphaIdx)
-		c.a = alpha
-		out[i] = c
+
+	var out [64]byte
+	for i := 0; i < 64; i += 4 {
+		a := uint32(alphaPalette[alphaIdx&0x7])
+		binary.LittleEndian.PutUint32(out[i:i+4], pal[idx&0x3]&0x00FFFFFF|a<<24)
 		idx >>= 2
 		alphaIdx >>= 3
 	}
@@ -113,28 +112,6 @@ func dxt5AlphaPalette(a0, a1 uint8) [8]uint8 {
 	}
 
 	return p
-}
-
-// alphaFromPalette reads the current 3-bit alpha index and resolves it to value.
-func alphaFromPalette(p [8]uint8, idx uint64) uint8 {
-	switch idx & 0x7 {
-	case 0:
-		return p[0]
-	case 1:
-		return p[1]
-	case 2:
-		return p[2]
-	case 3:
-		return p[3]
-	case 4:
-		return p[4]
-	case 5:
-		return p[5]
-	case 6:
-		return p[6]
-	default:
-		return p[7]
-	}
 }
 
 // bestAlphaIndex returns the nearest alpha palette index for one sample.

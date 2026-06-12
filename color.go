@@ -14,14 +14,6 @@ func rgbaFromNRGBA(p []byte, i int) rgba8 {
 	return rgba8{p[i], p[i+1], p[i+2], p[i+3]}
 }
 
-// rgbaToNRGBA writes one pixel into a flat NRGBA byte buffer.
-func rgbaToNRGBA(p []byte, i int, c rgba8) {
-	p[i] = c.r
-	p[i+1] = c.g
-	p[i+2] = c.b
-	p[i+3] = c.a
-}
-
 // rgb565 quantizes an 8-bit RGB pixel into the packed 5:6:5 layout.
 func rgb565(c rgba8) uint16 {
 	r := uint16(c.r) >> 3
