@@ -36,16 +36,26 @@ func DecodeBC5WithOptions(data []byte, width, height int, opts *DecodeOptions) (
 	return decodeBlocksWithOptions(data, width, height, FormatBC5, opts)
 }
 
+// bc4Channel selects which pixel channel feeds a BC4 alpha block.
+type bc4Channel int
+
+const (
+	bc4ChannelR bc4Channel = iota
+	bc4ChannelG
+)
+
 // encodeBlockBC4 encodes one 4x4 block using a selected channel source.
-func encodeBlockBC4(block [16]rgba8, opts EncodeOptions, channel func(rgba8) uint8) [8]byte {
+func encodeBlockBC4(block [16]rgba8, opts EncodeOptions, channel bc4Channel) [8]byte {
 	var alpha [16]uint8
 
-	blockView := block[:]
-	alphaView := alpha[:]
-	for len(alphaView) > 0 {
-		alphaView[0] = channel(blockView[0])
-		alphaView = alphaView[1:]
-		blockView = blockView[1:]
+	if channel == bc4ChannelG {
+		for i := range block {
+			alpha[i] = block[i].g
+		}
+	} else {
+		for i := range block {
+			alpha[i] = block[i].r
+		}
 	}
 
 	settings := qualitySettingsForOpts(opts)
@@ -60,8 +70,8 @@ func decodeBlockBC4(data []byte) [16]uint8 {
 // encodeBlockBC5 encodes BC5 as two BC4 blocks (R then G).
 func encodeBlockBC5(block [16]rgba8, opts EncodeOptions) [16]byte {
 	var out [16]byte
-	red := encodeBlockBC4(block, opts, func(c rgba8) uint8 { return c.r })
-	green := encodeBlockBC4(block, opts, func(c rgba8) uint8 { return c.g })
+	red := encodeBlockBC4(block, opts, bc4ChannelR)
+	green := encodeBlockBC4(block, opts, bc4ChannelG)
 	copy(out[0:8], red[:])
 	copy(out[8:16], green[:])
 
