@@ -53,22 +53,22 @@ func dxt1Palette(c0, c1 uint16) [4]rgba8 {
 	palette[1] = p1
 	if c0 > c1 {
 		palette[2] = rgba8{
-			r: clampU8((2*int(p0.r) + int(p1.r) + 1) / 3),
-			g: clampU8((2*int(p0.g) + int(p1.g) + 1) / 3),
-			b: clampU8((2*int(p0.b) + int(p1.b) + 1) / 3),
+			r: mix3(2, 1, p0.r, p1.r),
+			g: mix3(2, 1, p0.g, p1.g),
+			b: mix3(2, 1, p0.b, p1.b),
 			a: 255,
 		}
 		palette[3] = rgba8{
-			r: clampU8((int(p0.r) + 2*int(p1.r) + 1) / 3),
-			g: clampU8((int(p0.g) + 2*int(p1.g) + 1) / 3),
-			b: clampU8((int(p0.b) + 2*int(p1.b) + 1) / 3),
+			r: mix3(1, 2, p0.r, p1.r),
+			g: mix3(1, 2, p0.g, p1.g),
+			b: mix3(1, 2, p0.b, p1.b),
 			a: 255,
 		}
 	} else {
 		palette[2] = rgba8{
-			r: clampU8((int(p0.r) + int(p1.r)) / 2),
-			g: clampU8((int(p0.g) + int(p1.g)) / 2),
-			b: clampU8((int(p0.b) + int(p1.b)) / 2),
+			r: avg2(p0.r, p1.r),
+			g: avg2(p0.g, p1.g),
+			b: avg2(p0.b, p1.b),
 			a: 255,
 		}
 		palette[3] = rgba8{0, 0, 0, 0}
