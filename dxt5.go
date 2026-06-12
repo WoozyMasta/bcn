@@ -47,8 +47,8 @@ func encodeBlockDXT5WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 
 	c0, c1 := dxt1ColorEndpoints(block, opts)
 	palette := dxt1Palette(c0, c1)
-	rw, gw, bw := getRGBWeights(&opts, minC.r == maxC.r)
-	indices := packDXT1IndicesWeighted(block, palette, false, opts.AlphaThreshold, rw, gw, bw)
+	w := getRGBWeightsFP(&opts, minC.r == maxC.r)
+	indices := packDXT1IndicesWeighted(block, palette, false, opts.AlphaThreshold, w)
 
 	var out [16]byte
 	out[0] = a0
