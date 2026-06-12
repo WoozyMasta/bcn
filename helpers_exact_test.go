@@ -103,7 +103,7 @@ func TestDXT1PaletteExhaustivePerChannel(t *testing.T) {
 		for r1 := 0; r1 < 32; r1++ {
 			check(uint16(r0<<11), uint16(r1<<11))
 			check(uint16(r0<<11|0x7FF), uint16(r1<<11|0x7FF))
-			check(uint16(r0), uint16(r1))           // blue channel sweep
+			check(uint16(r0), uint16(r1))               // blue channel sweep
 			check(uint16(r0|0xFFE0), uint16(r1|0xFFE0)) // blue with c0>c1 bias
 		}
 	}
