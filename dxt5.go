@@ -97,17 +97,17 @@ func dxt5AlphaPalette(a0, a1 uint8) [8]uint8 {
 	p[0] = a0
 	p[1] = a1
 	if a0 > a1 {
-		p[2] = clampU8((6*int(a0) + 1*int(a1) + 3) / 7)
-		p[3] = clampU8((5*int(a0) + 2*int(a1) + 3) / 7)
-		p[4] = clampU8((4*int(a0) + 3*int(a1) + 3) / 7)
-		p[5] = clampU8((3*int(a0) + 4*int(a1) + 3) / 7)
-		p[6] = clampU8((2*int(a0) + 5*int(a1) + 3) / 7)
-		p[7] = clampU8((1*int(a0) + 6*int(a1) + 3) / 7)
+		p[2] = mix7(6, 1, a0, a1)
+		p[3] = mix7(5, 2, a0, a1)
+		p[4] = mix7(4, 3, a0, a1)
+		p[5] = mix7(3, 4, a0, a1)
+		p[6] = mix7(2, 5, a0, a1)
+		p[7] = mix7(1, 6, a0, a1)
 	} else {
-		p[2] = clampU8((4*int(a0) + 1*int(a1) + 2) / 5)
-		p[3] = clampU8((3*int(a0) + 2*int(a1) + 2) / 5)
-		p[4] = clampU8((2*int(a0) + 3*int(a1) + 2) / 5)
-		p[5] = clampU8((1*int(a0) + 4*int(a1) + 2) / 5)
+		p[2] = mix5(4, 1, a0, a1)
+		p[3] = mix5(3, 2, a0, a1)
+		p[4] = mix5(2, 3, a0, a1)
+		p[5] = mix5(1, 4, a0, a1)
 		p[6] = 0
 		p[7] = 255
 	}
