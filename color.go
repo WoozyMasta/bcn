@@ -30,15 +30,27 @@ func rgb565(c rgba8) uint16 {
 	return (r << 11) | (g << 5) | b
 }
 
+// lut5to8 expands a 5-bit channel to 8 bits: (v*255 + 15) / 31.
+var lut5to8 [32]uint8
+
+// lut6to8 expands a 6-bit channel to 8 bits: (v*255 + 31) / 63.
+var lut6to8 [64]uint8
+
+func init() {
+	for i := range lut5to8 {
+		lut5to8[i] = uint8((i*255 + 15) / 31)
+	}
+	for i := range lut6to8 {
+		lut6to8[i] = uint8((i*255 + 31) / 63)
+	}
+}
+
 // rgbaFrom565 expands a packed RGB565 value back to 8-bit channels.
 func rgbaFrom565(v uint16) rgba8 {
-	r := int((v >> 11) & 0x1F)
-	g := int((v >> 5) & 0x3F)
-	b := int(v & 0x1F)
 	return rgba8{
-		r: clampU8((r*255 + 15) / 31),
-		g: clampU8((g*255 + 31) / 63),
-		b: clampU8((b*255 + 15) / 31),
+		r: lut5to8[(v>>11)&0x1F],
+		g: lut6to8[(v>>5)&0x3F],
+		b: lut5to8[v&0x1F],
 		a: 255,
 	}
 }
