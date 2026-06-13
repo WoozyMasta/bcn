@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD024 -->
 # Changelog
 
 All notable changes to this project will be documented in this file.
@@ -12,6 +13,29 @@ and this project adheres to [Semantic Versioning][].
 ### Changed
 ### Removed
 -->
+
+## Unreleased
+
+### Added
+
+* SIMD acceleration on `amd64`: AVX2/SSE2 (and BMI2 for DXT3/DXT5/BC4/BC5
+  decode) kernels for the hot encode/decode paths, selected at runtime via
+  `golang.org/x/sys/cpu`. A pure-Go fallback runs everywhere else and on edge
+  blocks, and is byte-exact with the kernels.
+* Opt-out for the assembly: `BCN_PUREGO=1` forces the pure-Go path at runtime,
+  `-tags purego` excludes the assembly from the build entirely.
+
+### Changed
+
+* Much faster single-thread throughput on AVX2 CPUs vs the previous release:
+  decode about 6x to 13x (DXT1 ~6x, DXT3/DXT5 ~7-8x, BC4 ~11x, BC5 ~13x);
+  encode best/balanced about 6.5x to 9.5x across all formats;
+  encode fast about 2x to 4x.
+* The encoder now scores color/alpha error with a
+  deterministic integer metric instead of float64.
+  Quality is unchanged (PSNR within about 0.01 dB),
+  but the encoded bytes can differ slightly from previous releases
+  at the same quality level.
 
 ## [0.1.5][] - 2026-02-17
 
