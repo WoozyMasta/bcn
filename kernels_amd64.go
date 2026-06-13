@@ -141,6 +141,16 @@ func decodeRangeDXT1ASM(data, out []byte, width, height, bx, start, end int) boo
 	return true
 }
 
+// decodeRangeDXT3ASM decodes blocks [start, end) with the AVX2+BMI2 row kernel.
+func decodeRangeDXT3ASM(data, out []byte, width, height, bx, start, end int) bool {
+	if !decodeRangeASMAvailable(hasAVX2BMI2, width, height, start, end) {
+		return false
+	}
+
+	decodeRangeRows(decodeDXT3RowAVX2, data, out, width, bx, start, end, 16)
+	return true
+}
+
 // decodeRangeDXT5ASM decodes blocks [start, end) with the AVX2+BMI2 row kernel.
 func decodeRangeDXT5ASM(data, out []byte, width, height, bx, start, end int) bool {
 	if !decodeRangeASMAvailable(hasAVX2BMI2, width, height, start, end) {

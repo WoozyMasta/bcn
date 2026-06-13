@@ -256,6 +256,163 @@ merge:
 	VZEROUPPER
 	RET
 
+// func decodeDXT3RowAVX2(dst *byte, src *byte, n int, stride int)
+// Requires: AVX, AVX2, BMI2
+TEXT ·decodeDXT3RowAVX2(SB), NOSPLIT, $0-32
+	MOVQ     dst+0(FP), AX
+	MOVQ     src+8(FP), CX
+	MOVQ     n+16(FP), DX
+	MOVQ     stride+24(FP), BX
+	VMOVDQU  decodeIdxShiftsLo<>+0(SB), Y0
+	VMOVDQU  decodeIdxShiftsHi<>+0(SB), Y1
+	VPCMPEQD Y2, Y2, Y2
+	VPSRLD   $0x1e, Y2, Y2
+	VPCMPEQD Y3, Y3, Y3
+	VPSRLD   $0x08, Y3, Y3
+
+loop:
+	MOVQ    $0x0f0f0f0f0f0f0f0f, SI
+	MOVL    (CX), DI
+	PDEPQ   SI, DI, DI
+	MOVL    4(CX), R8
+	PDEPQ   SI, R8, SI
+	VMOVQ   DI, X4
+	VPINSRQ $0x01, SI, X4, X4
+	MOVWLZX 8(CX), SI
+	MOVWLZX 10(CX), DI
+	MOVL    SI, R8
+	SHRL    $0x0b, R8
+	IMUL3Q  $0x0000020f, R8, R8
+	ADDL    $0x17, R8
+	SHRL    $0x06, R8
+	MOVL    SI, R9
+	SHRL    $0x05, R9
+	ANDL    $0x3f, R9
+	IMUL3Q  $0x00000103, R9, R9
+	ADDL    $0x21, R9
+	SHRL    $0x06, R9
+	MOVL    SI, R10
+	ANDL    $0x1f, R10
+	IMUL3Q  $0x0000020f, R10, R10
+	ADDL    $0x17, R10
+	SHRL    $0x06, R10
+	MOVL    R9, R11
+	SHLL    $0x08, R11
+	ORL     R8, R11
+	MOVL    R10, R12
+	SHLL    $0x10, R12
+	ORL     R12, R11
+	ORL     $0xff000000, R11
+	VMOVD   R11, X5
+	MOVL    DI, R11
+	SHRL    $0x0b, R11
+	IMUL3Q  $0x0000020f, R11, R11
+	ADDL    $0x17, R11
+	SHRL    $0x06, R11
+	MOVL    DI, R12
+	SHRL    $0x05, R12
+	ANDL    $0x3f, R12
+	IMUL3Q  $0x00000103, R12, R12
+	ADDL    $0x21, R12
+	SHRL    $0x06, R12
+	MOVL    DI, R13
+	ANDL    $0x1f, R13
+	IMUL3Q  $0x0000020f, R13, R13
+	ADDL    $0x17, R13
+	SHRL    $0x06, R13
+	MOVL    R12, R14
+	SHLL    $0x08, R14
+	ORL     R11, R14
+	MOVL    R13, R15
+	SHLL    $0x10, R15
+	ORL     R15, R14
+	ORL     $0xff000000, R14
+	VPINSRD $0x01, R14, X5, X5
+	CMPL    SI, DI
+	JHI     mode4
+	LEAQ    (R8)(R11*1), SI
+	SHRL    $0x01, SI
+	LEAQ    (R9)(R12*1), DI
+	SHRL    $0x01, DI
+	LEAQ    (R10)(R13*1), R8
+	SHRL    $0x01, R8
+	SHLL    $0x08, DI
+	ORL     SI, DI
+	MOVL    R8, SI
+	SHLL    $0x10, SI
+	ORL     SI, DI
+	ORL     $0xff000000, DI
+	VPINSRD $0x02, DI, X5, X5
+	JMP     merge
+
+mode4:
+	LEAQ    1(R11)(R8*2), SI
+	IMUL3Q  $0x000002ab, SI, SI
+	SHRL    $0x0b, SI
+	LEAQ    1(R8)(R11*2), DI
+	IMUL3Q  $0x000002ab, DI, DI
+	SHRL    $0x0b, DI
+	LEAQ    1(R12)(R9*2), R8
+	IMUL3Q  $0x000002ab, R8, R8
+	SHRL    $0x0b, R8
+	LEAQ    1(R9)(R12*2), R9
+	IMUL3Q  $0x000002ab, R9, R9
+	SHRL    $0x0b, R9
+	LEAQ    1(R13)(R10*2), R11
+	IMUL3Q  $0x000002ab, R11, R11
+	SHRL    $0x0b, R11
+	LEAQ    1(R10)(R13*2), R10
+	IMUL3Q  $0x000002ab, R10, R10
+	SHRL    $0x0b, R10
+	SHLL    $0x08, R8
+	ORL     SI, R8
+	MOVL    R11, SI
+	SHLL    $0x10, SI
+	ORL     SI, R8
+	ORL     $0xff000000, R8
+	VPINSRD $0x02, R8, X5, X5
+	MOVL    R9, SI
+	SHLL    $0x08, SI
+	ORL     DI, SI
+	MOVL    R10, DI
+	SHLL    $0x10, DI
+	ORL     DI, SI
+	ORL     $0xff000000, SI
+	VPINSRD $0x03, SI, X5, X5
+
+merge:
+	VPBROADCASTD 12(CX), Y6
+	VPSRLVD      Y0, Y6, Y7
+	VPAND        Y2, Y7, Y7
+	VPSRLVD      Y1, Y6, Y6
+	VPAND        Y2, Y6, Y6
+	VPERMD       Y5, Y7, Y7
+	VPERMD       Y5, Y6, Y6
+	VPAND        Y3, Y7, Y7
+	VPAND        Y3, Y6, Y6
+	VPMOVZXBD    X4, Y8
+	VPSLLD       $0x04, Y8, Y9
+	VPADDD       Y9, Y8, Y8
+	VPSLLD       $0x18, Y8, Y8
+	VPOR         Y8, Y7, Y7
+	VPSRLDQ      $0x08, X4, X4
+	VPMOVZXBD    X4, Y4
+	VPSLLD       $0x04, Y4, Y8
+	VPADDD       Y8, Y4, Y4
+	VPSLLD       $0x18, Y4, Y4
+	VPOR         Y4, Y6, Y6
+	VMOVDQU      X7, (AX)
+	VEXTRACTI128 $0x01, Y7, (AX)(BX*1)
+	LEAQ         (AX)(BX*2), SI
+	VMOVDQU      X6, (SI)
+	VEXTRACTI128 $0x01, Y6, (SI)(BX*1)
+	ADDQ         $0x10, CX
+	ADDQ         $0x10, AX
+	DECQ         DX
+	JNZ          loop
+	VZEROUPPER
+	RET
+
 // func decodeDXT5RowAVX2(dst *byte, src *byte, n int, stride int)
 // Requires: AVX, AVX2, BMI2, CMOV
 TEXT ·decodeDXT5RowAVX2(SB), NOSPLIT, $0-32

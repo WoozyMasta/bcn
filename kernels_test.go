@@ -176,6 +176,30 @@ func alphaPayload(blocks, seed int) []byte {
 	return data
 }
 
+// TestDecodeRangeDXT3Equivalence sweeps explicit 4-bit alpha and color blocks
+// (both palette modes) through the DXT3 kernel.
+func TestDecodeRangeDXT3Equivalence(t *testing.T) {
+	const blocks = 256
+	state := uint32(0xD37C0DE3)
+	next := func() byte {
+		state = state*1664525 + 1013904223
+		return byte(state >> 24)
+	}
+	for round := range 256 {
+		color := decodePayloadDXT1(blocks)
+		payload := make([]byte, blocks*16)
+		for b := range blocks {
+			// 8 bytes explicit alpha (all 16 nibble values covered across rounds).
+			for i := range 8 {
+				payload[b*16+i] = byte(round) + next()
+			}
+			// Reuse DXT1 color sub-block (c0,c1,indices) at offset 8.
+			copy(payload[b*16+8:b*16+16], color[b*8:(b+1)*8])
+		}
+		checkDecodeRangeASM(t, "DXT3", payload, 16, decodeRangeDXT3ASM, decodeBlockDXT3)
+	}
+}
+
 // TestDecodeRangeDXT5Equivalence sweeps all 65536 alpha endpoint pairs plus
 // random color blocks through the DXT5 kernel.
 func TestDecodeRangeDXT5Equivalence(t *testing.T) {

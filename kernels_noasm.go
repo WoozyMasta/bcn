@@ -16,6 +16,11 @@ func decodeRangeDXT1ASM(_, _ []byte, _, _, _, _, _ int) bool {
 	return false
 }
 
+// decodeRangeDXT3ASM is unavailable without assembly support.
+func decodeRangeDXT3ASM(_, _ []byte, _, _, _, _, _ int) bool {
+	return false
+}
+
 // decodeRangeDXT5ASM is unavailable without assembly support.
 func decodeRangeDXT5ASM(_, _ []byte, _, _, _, _, _ int) bool {
 	return false

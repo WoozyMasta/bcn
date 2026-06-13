@@ -16,6 +16,12 @@ func findMinMaxSSE2(block *[64]byte) uint64
 //go:noescape
 func decodeDXT1RowAVX2(dst *byte, src *byte, n int, stride int)
 
+// decodeDXT3RowAVX2 decodes n consecutive interior DXT3 blocks (16 bytes each)
+// into dst as 4 NRGBA rows of 16 bytes spaced stride bytes apart. Requires BMI2.
+//
+//go:noescape
+func decodeDXT3RowAVX2(dst *byte, src *byte, n int, stride int)
+
 // decodeDXT5RowAVX2 decodes n consecutive interior DXT5 blocks (16 bytes each)
 // into dst as 4 NRGBA rows of 16 bytes spaced stride bytes apart. Requires BMI2.
 //

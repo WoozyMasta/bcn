@@ -23,6 +23,7 @@ func main() {
 	alphaConsts := genAlphaConsts()
 	genMiscConsts()
 	genDecodeDXT1Row(consts)
+	genDecodeDXT3Row(consts)
 	genDecodeDXT5Row(consts, alphaConsts)
 	genDecodeBC4Row(alphaConsts)
 	genDecodeBC5Row(alphaConsts)

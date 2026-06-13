@@ -83,6 +83,10 @@ func decodeRangeDXT1(data, out []byte, width, height, bx, start, end int) {
 
 // decodeRangeDXT3 decodes a DXT3 block range (16 bytes per block).
 func decodeRangeDXT3(data, out []byte, width, height, bx, start, end int) {
+	if decodeRangeDXT3ASM(data, out, width, height, bx, start, end) {
+		return
+	}
+
 	x := start % bx
 	y := start / bx
 	pos := start * 16
