@@ -1035,3 +1035,209 @@ reduce:
 	VZEROUPPER
 	MOVL         AX, ret+24(FP)
 	RET
+
+DATA alphaIdxShifts<>+0(SB)/4, $0x00000000
+DATA alphaIdxShifts<>+4(SB)/4, $0x00000003
+DATA alphaIdxShifts<>+8(SB)/4, $0x00000006
+DATA alphaIdxShifts<>+12(SB)/4, $0x00000009
+DATA alphaIdxShifts<>+16(SB)/4, $0x0000000c
+DATA alphaIdxShifts<>+20(SB)/4, $0x0000000f
+DATA alphaIdxShifts<>+24(SB)/4, $0x00000012
+DATA alphaIdxShifts<>+28(SB)/4, $0x00000015
+GLOBL alphaIdxShifts<>(SB), RODATA|NOPTR, $32
+
+// func alphaBlockErrorAVX2(samples *[16]uint8, palette *[8]int32) uint32
+// Requires: AVX, AVX2
+TEXT ·alphaBlockErrorAVX2(SB), NOSPLIT, $0-20
+	MOVQ         samples+0(FP), AX
+	MOVQ         palette+8(FP), CX
+	VPMOVZXBD    (AX), Y0
+	VPMOVZXBD    8(AX), Y1
+	VPBROADCASTD (CX), Y2
+	VPSUBD       Y2, Y0, Y3
+	VPMULLD      Y3, Y3, Y3
+	VPSUBD       Y2, Y1, Y2
+	VPMULLD      Y2, Y2, Y2
+	VPBROADCASTD 4(CX), Y4
+	VPSUBD       Y4, Y0, Y5
+	VPMULLD      Y5, Y5, Y5
+	VPMINSD      Y5, Y3, Y3
+	VPSUBD       Y4, Y1, Y4
+	VPMULLD      Y4, Y4, Y4
+	VPMINSD      Y4, Y2, Y2
+	VPBROADCASTD 8(CX), Y4
+	VPSUBD       Y4, Y0, Y5
+	VPMULLD      Y5, Y5, Y5
+	VPMINSD      Y5, Y3, Y3
+	VPSUBD       Y4, Y1, Y4
+	VPMULLD      Y4, Y4, Y4
+	VPMINSD      Y4, Y2, Y2
+	VPBROADCASTD 12(CX), Y4
+	VPSUBD       Y4, Y0, Y5
+	VPMULLD      Y5, Y5, Y5
+	VPMINSD      Y5, Y3, Y3
+	VPSUBD       Y4, Y1, Y4
+	VPMULLD      Y4, Y4, Y4
+	VPMINSD      Y4, Y2, Y2
+	VPBROADCASTD 16(CX), Y4
+	VPSUBD       Y4, Y0, Y5
+	VPMULLD      Y5, Y5, Y5
+	VPMINSD      Y5, Y3, Y3
+	VPSUBD       Y4, Y1, Y4
+	VPMULLD      Y4, Y4, Y4
+	VPMINSD      Y4, Y2, Y2
+	VPBROADCASTD 20(CX), Y4
+	VPSUBD       Y4, Y0, Y5
+	VPMULLD      Y5, Y5, Y5
+	VPMINSD      Y5, Y3, Y3
+	VPSUBD       Y4, Y1, Y4
+	VPMULLD      Y4, Y4, Y4
+	VPMINSD      Y4, Y2, Y2
+	VPBROADCASTD 24(CX), Y4
+	VPSUBD       Y4, Y0, Y5
+	VPMULLD      Y5, Y5, Y5
+	VPMINSD      Y5, Y3, Y3
+	VPSUBD       Y4, Y1, Y4
+	VPMULLD      Y4, Y4, Y4
+	VPMINSD      Y4, Y2, Y2
+	VPBROADCASTD 28(CX), Y4
+	VPSUBD       Y4, Y0, Y0
+	VPMULLD      Y0, Y0, Y0
+	VPMINSD      Y0, Y3, Y3
+	VPSUBD       Y4, Y1, Y0
+	VPMULLD      Y0, Y0, Y0
+	VPMINSD      Y0, Y2, Y2
+	VPADDD       Y2, Y3, Y0
+	VEXTRACTI128 $0x01, Y0, X1
+	VPADDD       X1, X0, X0
+	VPSHUFD      $0x4e, X0, X1
+	VPADDD       X1, X0, X0
+	VPSHUFD      $0xe5, X0, X1
+	VPADDD       X1, X0, X0
+	VMOVD        X0, AX
+	VZEROUPPER
+	MOVL         AX, ret+16(FP)
+	RET
+
+// func bestAlphaIndices16AVX2(samples *[16]uint8, palette *[8]int32) uint64
+// Requires: AVX, AVX2
+TEXT ·bestAlphaIndices16AVX2(SB), NOSPLIT, $0-24
+	MOVQ         samples+0(FP), AX
+	MOVQ         palette+8(FP), CX
+	VPMOVZXBD    (AX), Y0
+	VPMOVZXBD    8(AX), Y1
+	VPCMPEQD     Y2, Y2, Y2
+	VPSRLD       $0x1f, Y2, Y2
+	VPBROADCASTD (CX), Y3
+	VPSUBD       Y3, Y0, Y4
+	VPMULLD      Y4, Y4, Y4
+	VPSUBD       Y3, Y1, Y3
+	VPMULLD      Y3, Y3, Y3
+	VPXOR        Y5, Y5, Y5
+	VPXOR        Y6, Y6, Y6
+	VMOVDQU      Y2, Y7
+	VPBROADCASTD 4(CX), Y8
+	VPSUBD       Y8, Y0, Y9
+	VPMULLD      Y9, Y9, Y9
+	VPCMPGTD     Y9, Y4, Y10
+	VPBLENDVB    Y10, Y9, Y4, Y4
+	VPBLENDVB    Y10, Y7, Y5, Y5
+	VPSUBD       Y8, Y1, Y8
+	VPMULLD      Y8, Y8, Y8
+	VPCMPGTD     Y8, Y3, Y9
+	VPBLENDVB    Y9, Y8, Y3, Y3
+	VPBLENDVB    Y9, Y7, Y6, Y6
+	VPADDD       Y2, Y7, Y7
+	VPBROADCASTD 8(CX), Y8
+	VPSUBD       Y8, Y0, Y9
+	VPMULLD      Y9, Y9, Y9
+	VPCMPGTD     Y9, Y4, Y10
+	VPBLENDVB    Y10, Y9, Y4, Y4
+	VPBLENDVB    Y10, Y7, Y5, Y5
+	VPSUBD       Y8, Y1, Y8
+	VPMULLD      Y8, Y8, Y8
+	VPCMPGTD     Y8, Y3, Y9
+	VPBLENDVB    Y9, Y8, Y3, Y3
+	VPBLENDVB    Y9, Y7, Y6, Y6
+	VPADDD       Y2, Y7, Y7
+	VPBROADCASTD 12(CX), Y8
+	VPSUBD       Y8, Y0, Y9
+	VPMULLD      Y9, Y9, Y9
+	VPCMPGTD     Y9, Y4, Y10
+	VPBLENDVB    Y10, Y9, Y4, Y4
+	VPBLENDVB    Y10, Y7, Y5, Y5
+	VPSUBD       Y8, Y1, Y8
+	VPMULLD      Y8, Y8, Y8
+	VPCMPGTD     Y8, Y3, Y9
+	VPBLENDVB    Y9, Y8, Y3, Y3
+	VPBLENDVB    Y9, Y7, Y6, Y6
+	VPADDD       Y2, Y7, Y7
+	VPBROADCASTD 16(CX), Y8
+	VPSUBD       Y8, Y0, Y9
+	VPMULLD      Y9, Y9, Y9
+	VPCMPGTD     Y9, Y4, Y10
+	VPBLENDVB    Y10, Y9, Y4, Y4
+	VPBLENDVB    Y10, Y7, Y5, Y5
+	VPSUBD       Y8, Y1, Y8
+	VPMULLD      Y8, Y8, Y8
+	VPCMPGTD     Y8, Y3, Y9
+	VPBLENDVB    Y9, Y8, Y3, Y3
+	VPBLENDVB    Y9, Y7, Y6, Y6
+	VPADDD       Y2, Y7, Y7
+	VPBROADCASTD 20(CX), Y8
+	VPSUBD       Y8, Y0, Y9
+	VPMULLD      Y9, Y9, Y9
+	VPCMPGTD     Y9, Y4, Y10
+	VPBLENDVB    Y10, Y9, Y4, Y4
+	VPBLENDVB    Y10, Y7, Y5, Y5
+	VPSUBD       Y8, Y1, Y8
+	VPMULLD      Y8, Y8, Y8
+	VPCMPGTD     Y8, Y3, Y9
+	VPBLENDVB    Y9, Y8, Y3, Y3
+	VPBLENDVB    Y9, Y7, Y6, Y6
+	VPADDD       Y2, Y7, Y7
+	VPBROADCASTD 24(CX), Y8
+	VPSUBD       Y8, Y0, Y9
+	VPMULLD      Y9, Y9, Y9
+	VPCMPGTD     Y9, Y4, Y10
+	VPBLENDVB    Y10, Y9, Y4, Y4
+	VPBLENDVB    Y10, Y7, Y5, Y5
+	VPSUBD       Y8, Y1, Y8
+	VPMULLD      Y8, Y8, Y8
+	VPCMPGTD     Y8, Y3, Y9
+	VPBLENDVB    Y9, Y8, Y3, Y3
+	VPBLENDVB    Y9, Y7, Y6, Y6
+	VPADDD       Y2, Y7, Y7
+	VPBROADCASTD 28(CX), Y2
+	VPSUBD       Y2, Y0, Y0
+	VPMULLD      Y0, Y0, Y0
+	VPCMPGTD     Y0, Y4, Y8
+	VPBLENDVB    Y8, Y0, Y4, Y4
+	VPBLENDVB    Y8, Y7, Y5, Y5
+	VPSUBD       Y2, Y1, Y0
+	VPMULLD      Y0, Y0, Y0
+	VPCMPGTD     Y0, Y3, Y1
+	VPBLENDVB    Y1, Y0, Y3, Y3
+	VPBLENDVB    Y1, Y7, Y6, Y6
+	VMOVDQU      alphaIdxShifts<>+0(SB), Y0
+	VPSLLVD      Y0, Y5, Y5
+	VPSLLVD      Y0, Y6, Y6
+	VEXTRACTI128 $0x01, Y5, X0
+	VPOR         X0, X5, X5
+	VPSHUFD      $0x4e, X5, X0
+	VPOR         X0, X5, X5
+	VPSHUFD      $0xe5, X5, X0
+	VPOR         X0, X5, X5
+	VMOVD        X5, AX
+	VEXTRACTI128 $0x01, Y6, X0
+	VPOR         X0, X6, X6
+	VPSHUFD      $0x4e, X6, X0
+	VPOR         X0, X6, X6
+	VPSHUFD      $0xe5, X6, X0
+	VPOR         X0, X6, X6
+	VMOVD        X6, CX
+	MOVL         CX, CX
+	SHLQ         $0x18, CX
+	ORQ          CX, AX
+	MOVQ         AX, ret+16(FP)
+	RET

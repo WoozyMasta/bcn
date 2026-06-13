@@ -30,6 +30,10 @@ func main() {
 	genPackDXT1Indices(consts)
 	genScoreDXT1Palette()
 
+	alphaShifts := genAlphaIdxShifts()
+	genAlphaBlockError()
+	genBestAlphaIndices(alphaShifts)
+
 	Generate()
 }
 

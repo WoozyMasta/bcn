@@ -36,13 +36,11 @@ func encodeBlockDXT5WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	alphaIdx := uint64(0)
 	if a0 != a1 {
 		alphaPalette := dxt5AlphaPalette(a0, a1)
-		for i := 15; i >= 0; i-- {
-			idx := bestAlphaIndex(&alphaPalette, block[i].a)
-			alphaIdx = (alphaIdx << 3) | uint64(idx&0x7)
-			if i == 0 {
-				break
-			}
+		var alpha [16]uint8
+		for i := range block {
+			alpha[i] = block[i].a
 		}
+		alphaIdx = packAlphaIndices(&alphaPalette, &alpha)
 	}
 
 	c0, c1 := dxt1ColorEndpoints(block, opts)
@@ -54,12 +52,7 @@ func encodeBlockDXT5WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	out[0] = a0
 	out[1] = a1
 	// 48-bit alpha indices, little-endian
-	out[2] = byte(alphaIdx)
-	out[3] = byte(alphaIdx >> 8)
-	out[4] = byte(alphaIdx >> 16)
-	out[5] = byte(alphaIdx >> 24)
-	out[6] = byte(alphaIdx >> 32)
-	out[7] = byte(alphaIdx >> 40)
+	putAlphaIndices(out[2:8], alphaIdx)
 	binary.LittleEndian.PutUint16(out[8:10], c0)
 	binary.LittleEndian.PutUint16(out[10:12], c1)
 	binary.LittleEndian.PutUint32(out[12:16], indices)

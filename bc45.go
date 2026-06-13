@@ -4,6 +4,8 @@
 
 package bcn
 
+import "encoding/binary"
+
 // EncodeBC4 encodes an RGBA image into BC4 blocks using the red channel.
 // Other channels are ignored.
 func EncodeBC4(rgba []byte, width, height int) ([]byte, error) {
@@ -135,26 +137,41 @@ func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
 	}
 
 	palette := dxt5AlphaPalette(bestA0, bestA1)
+	idx := packAlphaIndices(&palette, &alpha)
+
+	var out [8]byte
+	out[0] = bestA0
+	out[1] = bestA1
+	putAlphaIndices(out[2:8], idx)
+
+	return out
+}
+
+// putAlphaIndices writes a 48-bit packed alpha index field
+// as 6 little-endian bytes into dst (which must have length >= 6).
+func putAlphaIndices(dst []byte, idx uint64) {
+	var tmp [8]byte
+	binary.LittleEndian.PutUint64(tmp[:], idx)
+	copy(dst[:6], tmp[:6])
+}
+
+// packAlphaIndices returns the 48-bit packed nearest-palette indices
+// for 16 alpha samples (sample i at bit 3i), using the AVX2 kernel when available.
+func packAlphaIndices(palette *[8]uint8, alpha *[16]uint8) uint64 {
+	if idx, ok := bestAlphaIndices16ASM(alpha, palette); ok {
+		return idx
+	}
+
 	var idx uint64
 	for i := 15; i >= 0; i-- {
-		best := bestAlphaIndex(&palette, alpha[i])
+		best := bestAlphaIndex(palette, alpha[i])
 		idx = (idx << 3) | uint64(best&0x7)
 		if i == 0 {
 			break
 		}
 	}
 
-	var out [8]byte
-	out[0] = bestA0
-	out[1] = bestA1
-	out[2] = byte(idx)
-	out[3] = byte(idx >> 8)
-	out[4] = byte(idx >> 16)
-	out[5] = byte(idx >> 24)
-	out[6] = byte(idx >> 32)
-	out[7] = byte(idx >> 40)
-
-	return out
+	return idx
 }
 
 // decodeAlphaBlock unpacks one DXT5/BC4 alpha payload to 16 samples.
@@ -176,13 +193,23 @@ func decodeAlphaBlock(data []byte) [16]uint8 {
 }
 
 // alphaBlockError computes total squared error for a candidate alpha endpoint pair.
-// Stops accumulating once the partial sum reaches cutoff (see dxt1BlockError).
+// The AVX2 path returns the exact total; the scalar path stops at cutoff.
+// As with dxt1BlockError, callers compare with strict <, so both select the same winner.
 func alphaBlockError(alpha [16]uint8, a0, a1 uint8, cutoff int) int {
 	palette := dxt5AlphaPalette(a0, a1)
+	if e, ok := alphaBlockErrorASM(&alpha, &palette); ok {
+		return e
+	}
+
+	return alphaBlockErrorScalar(&palette, &alpha, cutoff)
+}
+
+// alphaBlockErrorScalar is the pure-Go reference for alphaBlockError.
+func alphaBlockErrorScalar(palette *[8]uint8, alpha *[16]uint8, cutoff int) int {
 	err := 0
 
 	for _, a := range alpha {
-		_, bestErr := bestAlphaIndexErr(&palette, a)
+		_, bestErr := bestAlphaIndexErr(palette, a)
 		err += bestErr
 		if err >= cutoff {
 			return err

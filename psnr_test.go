@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// psnrFloorsDB freezes RGB PSNR (dB) of encode→decode round trips measured on
+// psnrFloorsDB freezes RGB PSNR (dB) of encode->decode round trips measured on
 // the float64 metric baseline (master). The fixed-point metric and any later
 // optimization must not drop quality below these floors minus psnrToleranceDB.
 // Regenerate with BCN_PSNR_PRINT=1 when the metric changes deliberately.

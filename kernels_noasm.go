@@ -40,3 +40,13 @@ func packDXT1IndicesASM(_ *[16]rgba8, _ *[4]rgba8, _ bool, _ uint8, _ rgbWeights
 func scoreDXT1PaletteASM(_ *[16]rgba8, _, _ uint16, _ rgbWeightsFP) (int64, bool) {
 	return 0, false
 }
+
+// alphaBlockErrorASM is unavailable without assembly support.
+func alphaBlockErrorASM(_ *[16]uint8, _ *[8]uint8) (int, bool) {
+	return 0, false
+}
+
+// bestAlphaIndices16ASM is unavailable without assembly support.
+func bestAlphaIndices16ASM(_ *[16]uint8, _ *[8]uint8) (uint64, bool) {
+	return 0, false
+}

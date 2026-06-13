@@ -311,6 +311,83 @@ func TestScoreDXT1PaletteEquivalence(t *testing.T) {
 	}
 }
 
+// TestAlphaBlockErrorEquivalence verifies the AVX2 alpha-scoring kernel against
+// the scalar reference over random samples and all-pair endpoint palettes,
+// including degenerate (a0==a1) and swapped (mode5/mode7) palettes.
+func TestAlphaBlockErrorEquivalence(t *testing.T) {
+	state := uint32(0xA1FA0001)
+	next := func() uint32 {
+		state = state*1664525 + 1013904223
+		return state
+	}
+
+	for iter := 0; iter < 300_000; iter++ {
+		var alpha [16]uint8
+		for i := range alpha {
+			alpha[i] = uint8(next() >> 24)
+		}
+		a0 := uint8(next() >> 24)
+		a1 := uint8(next() >> 24)
+		palette := dxt5AlphaPalette(a0, a1)
+
+		got, ok := alphaBlockErrorASM(&alpha, &palette)
+		if !ok {
+			t.Skip("alpha score kernel unavailable on this platform")
+		}
+		want := alphaBlockErrorScalar(&palette, &alpha, 1<<62)
+		if got != want {
+			t.Fatalf("iter %d a0=%d a1=%d: got %d, want %d\nalpha=%v\npalette=%v",
+				iter, a0, a1, got, want, alpha, palette)
+		}
+	}
+}
+
+// TestBestAlphaIndicesEquivalence verifies the AVX2 alpha index-packing kernel
+// against the scalar reference, including ties (lowest index wins).
+func TestBestAlphaIndicesEquivalence(t *testing.T) {
+	state := uint32(0xB2FB0002)
+	next := func() uint32 {
+		state = state*1664525 + 1013904223
+		return state
+	}
+
+	scalarPack := func(palette *[8]uint8, alpha *[16]uint8) uint64 {
+		var idx uint64
+		for i := 15; i >= 0; i-- {
+			best := bestAlphaIndex(palette, alpha[i])
+			idx = (idx << 3) | uint64(best&0x7)
+			if i == 0 {
+				break
+			}
+		}
+		return idx
+	}
+
+	for iter := 0; iter < 300_000; iter++ {
+		var alpha [16]uint8
+		for i := range alpha {
+			alpha[i] = uint8(next() >> 24)
+		}
+		// Mix in palettes with repeated values to exercise tie-breaks.
+		a0 := uint8(next() >> 24)
+		a1 := a0
+		if next()&3 != 0 {
+			a1 = uint8(next() >> 24)
+		}
+		palette := dxt5AlphaPalette(a0, a1)
+
+		got, ok := bestAlphaIndices16ASM(&alpha, &palette)
+		if !ok {
+			t.Skip("alpha index kernel unavailable on this platform")
+		}
+		want := scalarPack(&palette, &alpha)
+		if got != want {
+			t.Fatalf("iter %d a0=%d a1=%d: got %#012x, want %#012x\nalpha=%v\npalette=%v",
+				iter, a0, a1, got, want, alpha, palette)
+		}
+	}
+}
+
 func BenchmarkFindMinMax(b *testing.B) {
 	block := benchmarkBlockAlpha()
 	b.Run("dispatch", func(b *testing.B) {
