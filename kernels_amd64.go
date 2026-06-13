@@ -26,3 +26,68 @@ func rgba8FromPacked(v uint32) rgba8 {
 	// #nosec G115 -- intentional byte extraction.
 	return rgba8{r: uint8(v), g: uint8(v >> 8), b: uint8(v >> 16), a: uint8(v >> 24)}
 }
+
+// decodeRowKernel is an assembly routine decoding n consecutive interior
+// blocks into 4 destination rows spaced stride bytes apart.
+type decodeRowKernel func(dst *byte, src *byte, n int, stride int)
+
+// decodeRangeRows feeds contiguous same-row block runs of [start, end) into
+// an assembly row kernel. blockSize is the compressed block size in bytes.
+func decodeRangeRows(kernel decodeRowKernel, data, out []byte, width, bx, start, end, blockSize int) {
+	stride := width * 4
+	for idx := start; idx < end; {
+		y := idx / bx
+		x := idx % bx
+		n := min(end, (y+1)*bx) - idx
+		kernel(&out[y*4*stride+x*16], &data[idx*blockSize], n, stride)
+		idx += n
+	}
+}
+
+// decodeRangeASMAvailable reports whether row kernels can decode this range:
+// edge blocks (width/height not multiples of 4) need the generic path.
+func decodeRangeASMAvailable(enabled bool, width, height, start, end int) bool {
+	return enabled && width%4 == 0 && height%4 == 0 && start < end
+}
+
+// decodeRangeDXT1ASM decodes blocks [start, end) with the AVX2 row kernel.
+// Returns false when the kernel cannot be used and the caller must take the
+// generic path.
+func decodeRangeDXT1ASM(data, out []byte, width, height, bx, start, end int) bool {
+	if !decodeRangeASMAvailable(hasAVX2, width, height, start, end) {
+		return false
+	}
+
+	decodeRangeRows(decodeDXT1RowAVX2, data, out, width, bx, start, end, 8)
+	return true
+}
+
+// decodeRangeDXT5ASM decodes blocks [start, end) with the AVX2+BMI2 row kernel.
+func decodeRangeDXT5ASM(data, out []byte, width, height, bx, start, end int) bool {
+	if !decodeRangeASMAvailable(hasAVX2BMI2, width, height, start, end) {
+		return false
+	}
+
+	decodeRangeRows(decodeDXT5RowAVX2, data, out, width, bx, start, end, 16)
+	return true
+}
+
+// decodeRangeBC4ASM decodes blocks [start, end) with the AVX2+BMI2 row kernel.
+func decodeRangeBC4ASM(data, out []byte, width, height, bx, start, end int) bool {
+	if !decodeRangeASMAvailable(hasAVX2BMI2, width, height, start, end) {
+		return false
+	}
+
+	decodeRangeRows(decodeBC4RowAVX2, data, out, width, bx, start, end, 8)
+	return true
+}
+
+// decodeRangeBC5ASM decodes blocks [start, end) with the AVX2+BMI2 row kernel.
+func decodeRangeBC5ASM(data, out []byte, width, height, bx, start, end int) bool {
+	if !decodeRangeASMAvailable(hasAVX2BMI2, width, height, start, end) {
+		return false
+	}
+
+	decodeRangeRows(decodeBC5RowAVX2, data, out, width, bx, start, end, 16)
+	return true
+}

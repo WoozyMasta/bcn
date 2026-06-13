@@ -9,3 +9,27 @@ package bcn
 //
 //go:noescape
 func findMinMaxSSE2(block *[64]byte) uint64
+
+// decodeDXT1RowAVX2 decodes n consecutive interior DXT1 blocks (8 bytes each)
+// into dst as 4 NRGBA rows of 16 bytes spaced stride bytes apart.
+//
+//go:noescape
+func decodeDXT1RowAVX2(dst *byte, src *byte, n int, stride int)
+
+// decodeDXT5RowAVX2 decodes n consecutive interior DXT5 blocks (16 bytes each)
+// into dst as 4 NRGBA rows of 16 bytes spaced stride bytes apart. Requires BMI2.
+//
+//go:noescape
+func decodeDXT5RowAVX2(dst *byte, src *byte, n int, stride int)
+
+// decodeBC4RowAVX2 decodes n consecutive interior BC4 blocks (8 bytes each)
+// into dst as 4 gray NRGBA rows spaced stride bytes apart. Requires BMI2.
+//
+//go:noescape
+func decodeBC4RowAVX2(dst *byte, src *byte, n int, stride int)
+
+// decodeBC5RowAVX2 decodes n consecutive interior BC5 blocks (16 bytes each)
+// into dst as 4 NRGBA rows (R, G, 0, 255) spaced stride bytes apart. Requires BMI2.
+//
+//go:noescape
+func decodeBC5RowAVX2(dst *byte, src *byte, n int, stride int)

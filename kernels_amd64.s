@@ -31,3 +31,541 @@ TEXT ·findMinMaxSSE2(SB), NOSPLIT, $0-16
 	MOVQ      X4, AX
 	MOVQ      AX, ret+8(FP)
 	RET
+
+DATA decodeIdxShiftsLo<>+0(SB)/4, $0x00000000
+DATA decodeIdxShiftsLo<>+4(SB)/4, $0x00000002
+DATA decodeIdxShiftsLo<>+8(SB)/4, $0x00000004
+DATA decodeIdxShiftsLo<>+12(SB)/4, $0x00000006
+DATA decodeIdxShiftsLo<>+16(SB)/4, $0x00000008
+DATA decodeIdxShiftsLo<>+20(SB)/4, $0x0000000a
+DATA decodeIdxShiftsLo<>+24(SB)/4, $0x0000000c
+DATA decodeIdxShiftsLo<>+28(SB)/4, $0x0000000e
+GLOBL decodeIdxShiftsLo<>(SB), RODATA|NOPTR, $32
+
+DATA decodeIdxShiftsHi<>+0(SB)/4, $0x00000010
+DATA decodeIdxShiftsHi<>+4(SB)/4, $0x00000012
+DATA decodeIdxShiftsHi<>+8(SB)/4, $0x00000014
+DATA decodeIdxShiftsHi<>+12(SB)/4, $0x00000016
+DATA decodeIdxShiftsHi<>+16(SB)/4, $0x00000018
+DATA decodeIdxShiftsHi<>+20(SB)/4, $0x0000001a
+DATA decodeIdxShiftsHi<>+24(SB)/4, $0x0000001c
+DATA decodeIdxShiftsHi<>+28(SB)/4, $0x0000001e
+GLOBL decodeIdxShiftsHi<>(SB), RODATA|NOPTR, $32
+
+DATA decodeAlphaPalConsts<>+0(SB)/2, $0x0007
+DATA decodeAlphaPalConsts<>+2(SB)/2, $0x0000
+DATA decodeAlphaPalConsts<>+4(SB)/2, $0x0006
+DATA decodeAlphaPalConsts<>+6(SB)/2, $0x0005
+DATA decodeAlphaPalConsts<>+8(SB)/2, $0x0004
+DATA decodeAlphaPalConsts<>+10(SB)/2, $0x0003
+DATA decodeAlphaPalConsts<>+12(SB)/2, $0x0002
+DATA decodeAlphaPalConsts<>+14(SB)/2, $0x0001
+DATA decodeAlphaPalConsts<>+16(SB)/2, $0x0000
+DATA decodeAlphaPalConsts<>+18(SB)/2, $0x0007
+DATA decodeAlphaPalConsts<>+20(SB)/2, $0x0001
+DATA decodeAlphaPalConsts<>+22(SB)/2, $0x0002
+DATA decodeAlphaPalConsts<>+24(SB)/2, $0x0003
+DATA decodeAlphaPalConsts<>+26(SB)/2, $0x0004
+DATA decodeAlphaPalConsts<>+28(SB)/2, $0x0005
+DATA decodeAlphaPalConsts<>+30(SB)/2, $0x0006
+DATA decodeAlphaPalConsts<>+32(SB)/2, $0x0003
+DATA decodeAlphaPalConsts<>+34(SB)/2, $0x0003
+DATA decodeAlphaPalConsts<>+36(SB)/2, $0x0003
+DATA decodeAlphaPalConsts<>+38(SB)/2, $0x0003
+DATA decodeAlphaPalConsts<>+40(SB)/2, $0x0003
+DATA decodeAlphaPalConsts<>+42(SB)/2, $0x0003
+DATA decodeAlphaPalConsts<>+44(SB)/2, $0x0003
+DATA decodeAlphaPalConsts<>+46(SB)/2, $0x0003
+DATA decodeAlphaPalConsts<>+48(SB)/2, $0x2493
+DATA decodeAlphaPalConsts<>+50(SB)/2, $0x2493
+DATA decodeAlphaPalConsts<>+52(SB)/2, $0x2493
+DATA decodeAlphaPalConsts<>+54(SB)/2, $0x2493
+DATA decodeAlphaPalConsts<>+56(SB)/2, $0x2493
+DATA decodeAlphaPalConsts<>+58(SB)/2, $0x2493
+DATA decodeAlphaPalConsts<>+60(SB)/2, $0x2493
+DATA decodeAlphaPalConsts<>+62(SB)/2, $0x2493
+DATA decodeAlphaPalConsts<>+64(SB)/2, $0x0005
+DATA decodeAlphaPalConsts<>+66(SB)/2, $0x0000
+DATA decodeAlphaPalConsts<>+68(SB)/2, $0x0004
+DATA decodeAlphaPalConsts<>+70(SB)/2, $0x0003
+DATA decodeAlphaPalConsts<>+72(SB)/2, $0x0002
+DATA decodeAlphaPalConsts<>+74(SB)/2, $0x0001
+DATA decodeAlphaPalConsts<>+76(SB)/2, $0x0000
+DATA decodeAlphaPalConsts<>+78(SB)/2, $0x0000
+DATA decodeAlphaPalConsts<>+80(SB)/2, $0x0000
+DATA decodeAlphaPalConsts<>+82(SB)/2, $0x0005
+DATA decodeAlphaPalConsts<>+84(SB)/2, $0x0001
+DATA decodeAlphaPalConsts<>+86(SB)/2, $0x0002
+DATA decodeAlphaPalConsts<>+88(SB)/2, $0x0003
+DATA decodeAlphaPalConsts<>+90(SB)/2, $0x0004
+DATA decodeAlphaPalConsts<>+92(SB)/2, $0x0000
+DATA decodeAlphaPalConsts<>+94(SB)/2, $0x0000
+DATA decodeAlphaPalConsts<>+96(SB)/2, $0x0002
+DATA decodeAlphaPalConsts<>+98(SB)/2, $0x0002
+DATA decodeAlphaPalConsts<>+100(SB)/2, $0x0002
+DATA decodeAlphaPalConsts<>+102(SB)/2, $0x0002
+DATA decodeAlphaPalConsts<>+104(SB)/2, $0x0002
+DATA decodeAlphaPalConsts<>+106(SB)/2, $0x0002
+DATA decodeAlphaPalConsts<>+108(SB)/2, $0x0000
+DATA decodeAlphaPalConsts<>+110(SB)/2, $0x04fd
+DATA decodeAlphaPalConsts<>+112(SB)/2, $0x3334
+DATA decodeAlphaPalConsts<>+114(SB)/2, $0x3334
+DATA decodeAlphaPalConsts<>+116(SB)/2, $0x3334
+DATA decodeAlphaPalConsts<>+118(SB)/2, $0x3334
+DATA decodeAlphaPalConsts<>+120(SB)/2, $0x3334
+DATA decodeAlphaPalConsts<>+122(SB)/2, $0x3334
+DATA decodeAlphaPalConsts<>+124(SB)/2, $0x3334
+DATA decodeAlphaPalConsts<>+126(SB)/2, $0x3334
+GLOBL decodeAlphaPalConsts<>(SB), RODATA|NOPTR, $128
+
+DATA decodeGrayMul<>+0(SB)/4, $0x00010101
+GLOBL decodeGrayMul<>(SB), RODATA|NOPTR, $4
+
+// func decodeDXT1RowAVX2(dst *byte, src *byte, n int, stride int)
+// Requires: AVX, AVX2
+TEXT ·decodeDXT1RowAVX2(SB), NOSPLIT, $0-32
+	MOVQ     dst+0(FP), AX
+	MOVQ     src+8(FP), CX
+	MOVQ     n+16(FP), DX
+	MOVQ     stride+24(FP), BX
+	VMOVDQU  decodeIdxShiftsLo<>+0(SB), Y0
+	VMOVDQU  decodeIdxShiftsHi<>+0(SB), Y1
+	VPCMPEQD Y2, Y2, Y2
+	VPSRLD   $0x1e, Y2, Y2
+
+loop:
+	MOVWLZX (CX), SI
+	MOVWLZX 2(CX), DI
+	MOVL    SI, R8
+	SHRL    $0x0b, R8
+	IMUL3Q  $0x0000020f, R8, R8
+	ADDL    $0x17, R8
+	SHRL    $0x06, R8
+	MOVL    SI, R9
+	SHRL    $0x05, R9
+	ANDL    $0x3f, R9
+	IMUL3Q  $0x00000103, R9, R9
+	ADDL    $0x21, R9
+	SHRL    $0x06, R9
+	MOVL    SI, R10
+	ANDL    $0x1f, R10
+	IMUL3Q  $0x0000020f, R10, R10
+	ADDL    $0x17, R10
+	SHRL    $0x06, R10
+	MOVL    R9, R11
+	SHLL    $0x08, R11
+	ORL     R8, R11
+	MOVL    R10, R12
+	SHLL    $0x10, R12
+	ORL     R12, R11
+	ORL     $0xff000000, R11
+	VMOVD   R11, X3
+	MOVL    DI, R11
+	SHRL    $0x0b, R11
+	IMUL3Q  $0x0000020f, R11, R11
+	ADDL    $0x17, R11
+	SHRL    $0x06, R11
+	MOVL    DI, R12
+	SHRL    $0x05, R12
+	ANDL    $0x3f, R12
+	IMUL3Q  $0x00000103, R12, R12
+	ADDL    $0x21, R12
+	SHRL    $0x06, R12
+	MOVL    DI, R13
+	ANDL    $0x1f, R13
+	IMUL3Q  $0x0000020f, R13, R13
+	ADDL    $0x17, R13
+	SHRL    $0x06, R13
+	MOVL    R12, R14
+	SHLL    $0x08, R14
+	ORL     R11, R14
+	MOVL    R13, R15
+	SHLL    $0x10, R15
+	ORL     R15, R14
+	ORL     $0xff000000, R14
+	VPINSRD $0x01, R14, X3, X3
+	CMPL    SI, DI
+	JHI     mode4
+	LEAQ    (R8)(R11*1), SI
+	SHRL    $0x01, SI
+	LEAQ    (R9)(R12*1), DI
+	SHRL    $0x01, DI
+	LEAQ    (R10)(R13*1), R8
+	SHRL    $0x01, R8
+	SHLL    $0x08, DI
+	ORL     SI, DI
+	MOVL    R8, SI
+	SHLL    $0x10, SI
+	ORL     SI, DI
+	ORL     $0xff000000, DI
+	VPINSRD $0x02, DI, X3, X3
+	JMP     merge
+
+mode4:
+	LEAQ    1(R11)(R8*2), SI
+	IMUL3Q  $0x000002ab, SI, SI
+	SHRL    $0x0b, SI
+	LEAQ    1(R8)(R11*2), DI
+	IMUL3Q  $0x000002ab, DI, DI
+	SHRL    $0x0b, DI
+	LEAQ    1(R12)(R9*2), R8
+	IMUL3Q  $0x000002ab, R8, R8
+	SHRL    $0x0b, R8
+	LEAQ    1(R9)(R12*2), R9
+	IMUL3Q  $0x000002ab, R9, R9
+	SHRL    $0x0b, R9
+	LEAQ    1(R13)(R10*2), R11
+	IMUL3Q  $0x000002ab, R11, R11
+	SHRL    $0x0b, R11
+	LEAQ    1(R10)(R13*2), R10
+	IMUL3Q  $0x000002ab, R10, R10
+	SHRL    $0x0b, R10
+	SHLL    $0x08, R8
+	ORL     SI, R8
+	MOVL    R11, SI
+	SHLL    $0x10, SI
+	ORL     SI, R8
+	ORL     $0xff000000, R8
+	VPINSRD $0x02, R8, X3, X3
+	MOVL    R9, SI
+	SHLL    $0x08, SI
+	ORL     DI, SI
+	MOVL    R10, DI
+	SHLL    $0x10, DI
+	ORL     DI, SI
+	ORL     $0xff000000, SI
+	VPINSRD $0x03, SI, X3, X3
+
+merge:
+	VPBROADCASTD 4(CX), Y4
+	VPSRLVD      Y0, Y4, Y5
+	VPAND        Y2, Y5, Y5
+	VPSRLVD      Y1, Y4, Y4
+	VPAND        Y2, Y4, Y4
+	VPERMD       Y3, Y5, Y5
+	VPERMD       Y3, Y4, Y4
+	VMOVDQU      X5, (AX)
+	VEXTRACTI128 $0x01, Y5, (AX)(BX*1)
+	LEAQ         (AX)(BX*2), SI
+	VMOVDQU      X4, (SI)
+	VEXTRACTI128 $0x01, Y4, (SI)(BX*1)
+	ADDQ         $0x08, CX
+	ADDQ         $0x10, AX
+	DECQ         DX
+	JNZ          loop
+	VZEROUPPER
+	RET
+
+// func decodeDXT5RowAVX2(dst *byte, src *byte, n int, stride int)
+// Requires: AVX, AVX2, BMI2, CMOV
+TEXT ·decodeDXT5RowAVX2(SB), NOSPLIT, $0-32
+	MOVQ     dst+0(FP), AX
+	MOVQ     src+8(FP), CX
+	MOVQ     n+16(FP), DX
+	MOVQ     stride+24(FP), BX
+	VMOVDQU  decodeIdxShiftsLo<>+0(SB), Y0
+	VMOVDQU  decodeIdxShiftsHi<>+0(SB), Y1
+	VPCMPEQD Y2, Y2, Y2
+	VPSRLD   $0x1e, Y2, Y2
+	VPCMPEQD Y3, Y3, Y3
+	VPSRLD   $0x08, Y3, Y3
+
+loop:
+	MOVBLZX      (CX), SI
+	MOVBLZX      1(CX), DI
+	LEAQ         decodeAlphaPalConsts<>+64(SB), R8
+	LEAQ         decodeAlphaPalConsts<>+0(SB), R9
+	CMPL         SI, DI
+	CMOVQHI      R9, R8
+	VMOVD        SI, X4
+	VPBROADCASTW X4, X4
+	VMOVD        DI, X5
+	VPBROADCASTW X5, X5
+	VPMULLW      (R8), X4, X4
+	VPMULLW      16(R8), X5, X5
+	VPADDW       X5, X4, X4
+	VPADDW       32(R8), X4, X4
+	VPMULHUW     48(R8), X4, X4
+	VPACKUSWB    X4, X4, X4
+	MOVL         2(CX), SI
+	MOVWLZX      6(CX), DI
+	SHLQ         $0x20, DI
+	ORQ          DI, SI
+	MOVQ         $0x0707070707070707, DI
+	PDEPQ        DI, SI, R8
+	SHRQ         $0x18, SI
+	PDEPQ        DI, SI, SI
+	VMOVQ        R8, X5
+	VPINSRQ      $0x01, SI, X5, X5
+	VPSHUFB      X5, X4, X4
+	MOVWLZX      8(CX), SI
+	MOVWLZX      10(CX), DI
+	MOVL         SI, R8
+	SHRL         $0x0b, R8
+	IMUL3Q       $0x0000020f, R8, R8
+	ADDL         $0x17, R8
+	SHRL         $0x06, R8
+	MOVL         SI, R9
+	SHRL         $0x05, R9
+	ANDL         $0x3f, R9
+	IMUL3Q       $0x00000103, R9, R9
+	ADDL         $0x21, R9
+	SHRL         $0x06, R9
+	MOVL         SI, R10
+	ANDL         $0x1f, R10
+	IMUL3Q       $0x0000020f, R10, R10
+	ADDL         $0x17, R10
+	SHRL         $0x06, R10
+	MOVL         R9, R11
+	SHLL         $0x08, R11
+	ORL          R8, R11
+	MOVL         R10, R12
+	SHLL         $0x10, R12
+	ORL          R12, R11
+	ORL          $0xff000000, R11
+	VMOVD        R11, X5
+	MOVL         DI, R11
+	SHRL         $0x0b, R11
+	IMUL3Q       $0x0000020f, R11, R11
+	ADDL         $0x17, R11
+	SHRL         $0x06, R11
+	MOVL         DI, R12
+	SHRL         $0x05, R12
+	ANDL         $0x3f, R12
+	IMUL3Q       $0x00000103, R12, R12
+	ADDL         $0x21, R12
+	SHRL         $0x06, R12
+	MOVL         DI, R13
+	ANDL         $0x1f, R13
+	IMUL3Q       $0x0000020f, R13, R13
+	ADDL         $0x17, R13
+	SHRL         $0x06, R13
+	MOVL         R12, R14
+	SHLL         $0x08, R14
+	ORL          R11, R14
+	MOVL         R13, R15
+	SHLL         $0x10, R15
+	ORL          R15, R14
+	ORL          $0xff000000, R14
+	VPINSRD      $0x01, R14, X5, X5
+	CMPL         SI, DI
+	JHI          mode4
+	LEAQ         (R8)(R11*1), SI
+	SHRL         $0x01, SI
+	LEAQ         (R9)(R12*1), DI
+	SHRL         $0x01, DI
+	LEAQ         (R10)(R13*1), R8
+	SHRL         $0x01, R8
+	SHLL         $0x08, DI
+	ORL          SI, DI
+	MOVL         R8, SI
+	SHLL         $0x10, SI
+	ORL          SI, DI
+	ORL          $0xff000000, DI
+	VPINSRD      $0x02, DI, X5, X5
+	JMP          merge
+
+mode4:
+	LEAQ    1(R11)(R8*2), SI
+	IMUL3Q  $0x000002ab, SI, SI
+	SHRL    $0x0b, SI
+	LEAQ    1(R8)(R11*2), DI
+	IMUL3Q  $0x000002ab, DI, DI
+	SHRL    $0x0b, DI
+	LEAQ    1(R12)(R9*2), R8
+	IMUL3Q  $0x000002ab, R8, R8
+	SHRL    $0x0b, R8
+	LEAQ    1(R9)(R12*2), R9
+	IMUL3Q  $0x000002ab, R9, R9
+	SHRL    $0x0b, R9
+	LEAQ    1(R13)(R10*2), R11
+	IMUL3Q  $0x000002ab, R11, R11
+	SHRL    $0x0b, R11
+	LEAQ    1(R10)(R13*2), R10
+	IMUL3Q  $0x000002ab, R10, R10
+	SHRL    $0x0b, R10
+	SHLL    $0x08, R8
+	ORL     SI, R8
+	MOVL    R11, SI
+	SHLL    $0x10, SI
+	ORL     SI, R8
+	ORL     $0xff000000, R8
+	VPINSRD $0x02, R8, X5, X5
+	MOVL    R9, SI
+	SHLL    $0x08, SI
+	ORL     DI, SI
+	MOVL    R10, DI
+	SHLL    $0x10, DI
+	ORL     DI, SI
+	ORL     $0xff000000, SI
+	VPINSRD $0x03, SI, X5, X5
+
+merge:
+	VPBROADCASTD 12(CX), Y6
+	VPSRLVD      Y0, Y6, Y7
+	VPAND        Y2, Y7, Y7
+	VPSRLVD      Y1, Y6, Y6
+	VPAND        Y2, Y6, Y6
+	VPERMD       Y5, Y7, Y7
+	VPERMD       Y5, Y6, Y6
+	VPAND        Y3, Y7, Y7
+	VPAND        Y3, Y6, Y6
+	VPMOVZXBD    X4, Y8
+	VPSLLD       $0x18, Y8, Y8
+	VPOR         Y8, Y7, Y7
+	VPSRLDQ      $0x08, X4, X4
+	VPMOVZXBD    X4, Y8
+	VPSLLD       $0x18, Y8, Y8
+	VPOR         Y8, Y6, Y6
+	VMOVDQU      X7, (AX)
+	VEXTRACTI128 $0x01, Y7, (AX)(BX*1)
+	LEAQ         (AX)(BX*2), SI
+	VMOVDQU      X6, (SI)
+	VEXTRACTI128 $0x01, Y6, (SI)(BX*1)
+	ADDQ         $0x10, CX
+	ADDQ         $0x10, AX
+	DECQ         DX
+	JNZ          loop
+	VZEROUPPER
+	RET
+
+// func decodeBC4RowAVX2(dst *byte, src *byte, n int, stride int)
+// Requires: AVX, AVX2, BMI2, CMOV
+TEXT ·decodeBC4RowAVX2(SB), NOSPLIT, $0-32
+	MOVQ         dst+0(FP), AX
+	MOVQ         src+8(FP), CX
+	MOVQ         n+16(FP), DX
+	MOVQ         stride+24(FP), BX
+	VPBROADCASTD decodeGrayMul<>+0(SB), Y0
+	VPCMPEQD     Y1, Y1, Y1
+	VPSLLD       $0x18, Y1, Y1
+
+loop:
+	MOVBLZX      (CX), SI
+	MOVBLZX      1(CX), DI
+	LEAQ         decodeAlphaPalConsts<>+64(SB), R8
+	LEAQ         decodeAlphaPalConsts<>+0(SB), R9
+	CMPL         SI, DI
+	CMOVQHI      R9, R8
+	VMOVD        SI, X2
+	VPBROADCASTW X2, X2
+	VMOVD        DI, X3
+	VPBROADCASTW X3, X3
+	VPMULLW      (R8), X2, X2
+	VPMULLW      16(R8), X3, X3
+	VPADDW       X3, X2, X2
+	VPADDW       32(R8), X2, X2
+	VPMULHUW     48(R8), X2, X2
+	VPACKUSWB    X2, X2, X2
+	MOVL         2(CX), SI
+	MOVWLZX      6(CX), DI
+	SHLQ         $0x20, DI
+	ORQ          DI, SI
+	MOVQ         $0x0707070707070707, DI
+	PDEPQ        DI, SI, R8
+	SHRQ         $0x18, SI
+	PDEPQ        DI, SI, SI
+	VMOVQ        R8, X3
+	VPINSRQ      $0x01, SI, X3, X3
+	VPSHUFB      X3, X2, X2
+	VPMOVZXBD    X2, Y3
+	VPMULLD      Y0, Y3, Y3
+	VPOR         Y1, Y3, Y3
+	VPSRLDQ      $0x08, X2, X2
+	VPMOVZXBD    X2, Y2
+	VPMULLD      Y0, Y2, Y2
+	VPOR         Y1, Y2, Y2
+	VMOVDQU      X3, (AX)
+	VEXTRACTI128 $0x01, Y3, (AX)(BX*1)
+	LEAQ         (AX)(BX*2), SI
+	VMOVDQU      X2, (SI)
+	VEXTRACTI128 $0x01, Y2, (SI)(BX*1)
+	ADDQ         $0x08, CX
+	ADDQ         $0x10, AX
+	DECQ         DX
+	JNZ          loop
+	VZEROUPPER
+	RET
+
+// func decodeBC5RowAVX2(dst *byte, src *byte, n int, stride int)
+// Requires: AVX, AVX2, BMI2, CMOV
+TEXT ·decodeBC5RowAVX2(SB), NOSPLIT, $0-32
+	MOVQ     dst+0(FP), AX
+	MOVQ     src+8(FP), CX
+	MOVQ     n+16(FP), DX
+	MOVQ     stride+24(FP), BX
+	VPCMPEQD Y0, Y0, Y0
+	VPSLLD   $0x18, Y0, Y0
+
+loop:
+	MOVBLZX      (CX), SI
+	MOVBLZX      1(CX), DI
+	LEAQ         decodeAlphaPalConsts<>+64(SB), R8
+	LEAQ         decodeAlphaPalConsts<>+0(SB), R9
+	CMPL         SI, DI
+	CMOVQHI      R9, R8
+	VMOVD        SI, X1
+	VPBROADCASTW X1, X1
+	VMOVD        DI, X2
+	VPBROADCASTW X2, X2
+	VPMULLW      (R8), X1, X1
+	VPMULLW      16(R8), X2, X2
+	VPADDW       X2, X1, X1
+	VPADDW       32(R8), X1, X1
+	VPMULHUW     48(R8), X1, X1
+	VPACKUSWB    X1, X1, X1
+	MOVL         2(CX), SI
+	MOVWLZX      6(CX), DI
+	SHLQ         $0x20, DI
+	ORQ          DI, SI
+	MOVQ         $0x0707070707070707, DI
+	PDEPQ        DI, SI, R8
+	SHRQ         $0x18, SI
+	PDEPQ        DI, SI, SI
+	VMOVQ        R8, X2
+	VPINSRQ      $0x01, SI, X2, X2
+	VPSHUFB      X2, X1, X1
+	MOVBLZX      8(CX), SI
+	MOVBLZX      9(CX), DI
+	LEAQ         decodeAlphaPalConsts<>+64(SB), R8
+	LEAQ         decodeAlphaPalConsts<>+0(SB), R9
+	CMPL         SI, DI
+	CMOVQHI      R9, R8
+	VMOVD        SI, X2
+	VPBROADCASTW X2, X2
+	VMOVD        DI, X3
+	VPBROADCASTW X3, X3
+	VPMULLW      (R8), X2, X2
+	VPMULLW      16(R8), X3, X3
+	VPADDW       X3, X2, X2
+	VPADDW       32(R8), X2, X2
+	VPMULHUW     48(R8), X2, X2
+	VPACKUSWB    X2, X2, X2
+	MOVL         10(CX), SI
+	MOVWLZX      14(CX), DI
+	SHLQ         $0x20, DI
+	ORQ          DI, SI
+	MOVQ         $0x0707070707070707, DI
+	PDEPQ        DI, SI, R8
+	SHRQ         $0x18, SI
+	PDEPQ        DI, SI, SI
+	VMOVQ        R8, X3
+	VPINSRQ      $0x01, SI, X3, X3
+	VPSHUFB      X3, X2, X2
+	VPUNPCKLBW   X2, X1, X3
+	VPMOVZXWD    X3, Y3
+	VPOR         Y0, Y3, Y3
+	VPUNPCKHBW   X2, X1, X1
+	VPMOVZXWD    X1, Y1
+	VPOR         Y0, Y1, Y1
+	VMOVDQU      X3, (AX)
+	VEXTRACTI128 $0x01, Y3, (AX)(BX*1)
+	LEAQ         (AX)(BX*2), SI
+	VMOVDQU      X1, (SI)
+	VEXTRACTI128 $0x01, Y1, (SI)(BX*1)
+	ADDQ         $0x10, CX
+	ADDQ         $0x10, AX
+	DECQ         DX
+	JNZ          loop
+	VZEROUPPER
+	RET

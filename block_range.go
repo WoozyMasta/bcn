@@ -60,6 +60,10 @@ func encodeBlockRange(format Format, rgba, out []byte, width, height, bx, start,
 
 // decodeRangeDXT1 decodes a DXT1 block range (8 bytes per block).
 func decodeRangeDXT1(data, out []byte, width, height, bx, start, end int) {
+	if decodeRangeDXT1ASM(data, out, width, height, bx, start, end) {
+		return
+	}
+
 	x := start % bx
 	y := start / bx
 	pos := start * 8
@@ -98,6 +102,10 @@ func decodeRangeDXT3(data, out []byte, width, height, bx, start, end int) {
 
 // decodeRangeDXT5 decodes a DXT5 block range (16 bytes per block).
 func decodeRangeDXT5(data, out []byte, width, height, bx, start, end int) {
+	if decodeRangeDXT5ASM(data, out, width, height, bx, start, end) {
+		return
+	}
+
 	x := start % bx
 	y := start / bx
 	pos := start * 16
@@ -117,6 +125,10 @@ func decodeRangeDXT5(data, out []byte, width, height, bx, start, end int) {
 
 // decodeRangeBC4 decodes a BC4 block range (8 bytes per block).
 func decodeRangeBC4(data, out []byte, width, height, bx, start, end int) {
+	if decodeRangeBC4ASM(data, out, width, height, bx, start, end) {
+		return
+	}
+
 	x := start % bx
 	y := start / bx
 	pos := start * 8
@@ -138,6 +150,10 @@ func decodeRangeBC4(data, out []byte, width, height, bx, start, end int) {
 
 // decodeRangeBC5 decodes a BC5 block range (16 bytes per block).
 func decodeRangeBC5(data, out []byte, width, height, bx, start, end int) {
+	if decodeRangeBC5ASM(data, out, width, height, bx, start, end) {
+		return
+	}
+
 	x := start % bx
 	y := start / bx
 	pos := start * 16
