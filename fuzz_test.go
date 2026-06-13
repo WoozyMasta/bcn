@@ -90,9 +90,10 @@ func FuzzAlphaKernels(f *testing.F) {
 		}
 		var alpha [16]uint8
 		copy(alpha[:], data)
-		palette := dxt5AlphaPalette(data[16], data[17])
+		a0, a1 := data[16], data[17]
+		palette := dxt5AlphaPalette(a0, a1)
 
-		errGot, ok := alphaBlockErrorASM(&alpha, &palette)
+		errGot, ok := alphaBlockErrorASM(&alpha, a0, a1)
 		if !ok {
 			t.Skip("alpha kernels unavailable")
 		}
@@ -101,7 +102,7 @@ func FuzzAlphaKernels(f *testing.F) {
 			t.Fatalf("alphaBlockError: got %d want %d", errGot, errWant)
 		}
 
-		idxGot, _ := bestAlphaIndices16ASM(&alpha, &palette)
+		idxGot, _ := bestAlphaIndices16ASM(&alpha, a0, a1)
 		var idxWant uint64
 		for i := 15; i >= 0; i-- {
 			idxWant = (idxWant << 3) | uint64(bestAlphaIndex(&palette, alpha[i])&0x7)

@@ -32,8 +32,8 @@ func main() {
 	genScoreDXT1Palette()
 
 	alphaShifts := genAlphaIdxShifts()
-	genAlphaBlockError()
-	genBestAlphaIndices(alphaShifts)
+	genAlphaBlockError(alphaConsts)
+	genBestAlphaIndices(alphaConsts, alphaShifts)
 
 	Generate()
 }

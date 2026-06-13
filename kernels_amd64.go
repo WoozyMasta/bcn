@@ -75,35 +75,26 @@ func scoreDXT1PaletteASM(block *[16]rgba8, c0, c1 uint16, w rgbWeightsFP) (int64
 	return int64(e), true
 }
 
-// alphaPaletteI32 widens an 8-entry alpha palette to int32 for the kernels.
-func alphaPaletteI32(p *[8]uint8) [8]int32 {
-	var out [8]int32
-	for i, v := range p {
-		out[i] = int32(v)
-	}
-	return out
-}
-
-// alphaBlockErrorASM scores 16 alpha samples against an 8-entry palette via AVX2.
+// alphaBlockErrorASM scores 16 alpha samples against
+// palette of endpoints a0, a1 via AVX2 (the kernel builds the palette).
 // Returns ok=false when AVX2 is unavailable.
-func alphaBlockErrorASM(samples *[16]uint8, palette *[8]uint8) (int, bool) {
+func alphaBlockErrorASM(samples *[16]uint8, a0, a1 uint8) (int, bool) {
 	if !hasAVX2 {
 		return 0, false
 	}
 
-	pal := alphaPaletteI32(palette)
-	return int(alphaBlockErrorAVX2(samples, &pal)), true
+	return int(alphaBlockErrorAVX2(samples, uint32(a0)|uint32(a1)<<8)), true
 }
 
-// bestAlphaIndices16ASM packs the nearest 8-entry palette indices
-// for 16 alpha samples via AVX2. Returns ok=false when AVX2 is unavailable.
-func bestAlphaIndices16ASM(samples *[16]uint8, palette *[8]uint8) (uint64, bool) {
+// bestAlphaIndices16ASM packs the nearest palette indices
+// for 16 alpha samples against the palette of endpoints a0, a1 via AVX2.
+// Returns ok=false when AVX2 is unavailable.
+func bestAlphaIndices16ASM(samples *[16]uint8, a0, a1 uint8) (uint64, bool) {
 	if !hasAVX2 {
 		return 0, false
 	}
 
-	pal := alphaPaletteI32(palette)
-	return bestAlphaIndices16AVX2(samples, &pal), true
+	return bestAlphaIndices16AVX2(samples, uint32(a0)|uint32(a1)<<8), true
 }
 
 // decodeRowKernel is an assembly routine decoding n consecutive interior

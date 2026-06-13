@@ -354,7 +354,7 @@ func TestAlphaBlockErrorEquivalence(t *testing.T) {
 		a1 := uint8(next() >> 24)
 		palette := dxt5AlphaPalette(a0, a1)
 
-		got, ok := alphaBlockErrorASM(&alpha, &palette)
+		got, ok := alphaBlockErrorASM(&alpha, a0, a1)
 		if !ok {
 			t.Skip("alpha score kernel unavailable on this platform")
 		}
@@ -400,7 +400,7 @@ func TestBestAlphaIndicesEquivalence(t *testing.T) {
 		}
 		palette := dxt5AlphaPalette(a0, a1)
 
-		got, ok := bestAlphaIndices16ASM(&alpha, &palette)
+		got, ok := bestAlphaIndices16ASM(&alpha, a0, a1)
 		if !ok {
 			t.Skip("alpha index kernel unavailable on this platform")
 		}

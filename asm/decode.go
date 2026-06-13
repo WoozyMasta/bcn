@@ -183,17 +183,12 @@ func genAlphaConsts() Mem {
 	return m
 }
 
-// emitAlphaBytes emits BC3/BC4 alpha block decoding for the 8-byte alpha
-// payload at src+disp and returns 16 alpha samples as XMM bytes.
-// The 48-bit index field is loaded as 4+2 bytes to avoid reading past the
-// block, then PDEP spreads the 3-bit indices into bytes for VPSHUFB.
-func emitAlphaBytes(src Register, disp int, ac Mem) VecVirtual {
-	a0 := GP32()
-	MOVBLZX(Mem{Base: src, Disp: disp}, a0)
-	a1 := GP32()
-	MOVBLZX(Mem{Base: src, Disp: disp + 1}, a1)
-
-	// Branchless mode select: base points at the matching constant group.
+// emitAlphaPaletteWords builds the 8-entry BC3/BC4 alpha palette from a0, a1
+// (zero-extended bytes) and returns the values as 8 words in an XMM.
+// The mode (a0>a1 vs a0<=a1) is selected branchlessly
+// by pointing base at the matching constant group;
+// lane k = (wa[k]*a0 + wb[k]*a1 + bias[k]) * mul[k] >> 16.
+func emitAlphaPaletteWords(a0, a1 GPVirtual, ac Mem) VecVirtual {
 	base := GP64()
 	LEAQ(ac.Offset(64), base)
 	b7 := GP64()
@@ -215,8 +210,23 @@ func emitAlphaBytes(src Register, disp int, ac Mem) VecVirtual {
 	VPADDW(t1, t0, t0)
 	VPADDW(Mem{Base: base, Disp: 32}, t0, t0)
 	VPMULHUW(Mem{Base: base, Disp: 48}, t0, t0)
+
+	return t0
+}
+
+// emitAlphaBytes emits BC3/BC4 alpha block decoding for the 8-byte alpha
+// payload at src+disp and returns 16 alpha samples as XMM bytes.
+// The 48-bit index field is loaded as 4+2 bytes to avoid reading past the
+// block, then PDEP spreads the 3-bit indices into bytes for VPSHUFB.
+func emitAlphaBytes(src Register, disp int, ac Mem) VecVirtual {
+	a0 := GP32()
+	MOVBLZX(Mem{Base: src, Disp: disp}, a0)
+	a1 := GP32()
+	MOVBLZX(Mem{Base: src, Disp: disp + 1}, a1)
+
+	palWords := emitAlphaPaletteWords(a0, a1, ac)
 	apal := XMM()
-	VPACKUSWB(t0, t0, apal)
+	VPACKUSWB(palWords, palWords, apal)
 
 	vlo := GP64()
 	MOVL(Mem{Base: src, Disp: disp + 2}, vlo.As32())

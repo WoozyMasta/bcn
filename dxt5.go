@@ -35,12 +35,11 @@ func encodeBlockDXT5WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	a1 := minC.a
 	alphaIdx := uint64(0)
 	if a0 != a1 {
-		alphaPalette := dxt5AlphaPalette(a0, a1)
 		var alpha [16]uint8
 		for i := range block {
 			alpha[i] = block[i].a
 		}
-		alphaIdx = packAlphaIndices(&alphaPalette, &alpha)
+		alphaIdx = packAlphaIndices(a0, a1, &alpha)
 	}
 
 	c0, c1 := dxt1ColorEndpoints(block, opts)

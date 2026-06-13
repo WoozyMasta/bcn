@@ -1203,61 +1203,80 @@ DATA alphaIdxShifts<>+24(SB)/4, $0x00000012
 DATA alphaIdxShifts<>+28(SB)/4, $0x00000015
 GLOBL alphaIdxShifts<>(SB), RODATA|NOPTR, $32
 
-// func alphaBlockErrorAVX2(samples *[16]uint8, palette *[8]int32) uint32
-// Requires: AVX, AVX2
-TEXT ·alphaBlockErrorAVX2(SB), NOSPLIT, $0-20
+// func alphaBlockErrorAVX2(samples *[16]uint8, aa uint32) uint32
+// Requires: AVX, AVX2, CMOV
+TEXT ·alphaBlockErrorAVX2(SB), NOSPLIT, $32-20
 	MOVQ         samples+0(FP), AX
-	MOVQ         palette+8(FP), CX
+	MOVL         aa+8(FP), CX
+	MOVL         CX, DX
+	ANDL         $0x000000ff, DX
+	SHRL         $0x08, CX
+	ANDL         $0x000000ff, CX
+	LEAQ         decodeAlphaPalConsts<>+64(SB), BX
+	LEAQ         decodeAlphaPalConsts<>+0(SB), SI
+	CMPL         DX, CX
+	CMOVQHI      SI, BX
+	VMOVD        DX, X0
+	VPBROADCASTW X0, X0
+	VMOVD        CX, X1
+	VPBROADCASTW X1, X1
+	VPMULLW      (BX), X0, X0
+	VPMULLW      16(BX), X1, X1
+	VPADDW       X1, X0, X0
+	VPADDW       32(BX), X0, X0
+	VPMULHUW     48(BX), X0, X0
+	VPMOVZXWD    X0, Y0
+	VMOVDQU      Y0, (SP)
 	VPMOVZXBD    (AX), Y0
 	VPMOVZXBD    8(AX), Y1
-	VPBROADCASTD (CX), Y2
+	VPBROADCASTD (SP), Y2
 	VPSUBD       Y2, Y0, Y3
 	VPMULLD      Y3, Y3, Y3
 	VPSUBD       Y2, Y1, Y2
 	VPMULLD      Y2, Y2, Y2
-	VPBROADCASTD 4(CX), Y4
+	VPBROADCASTD 4(SP), Y4
 	VPSUBD       Y4, Y0, Y5
 	VPMULLD      Y5, Y5, Y5
 	VPMINSD      Y5, Y3, Y3
 	VPSUBD       Y4, Y1, Y4
 	VPMULLD      Y4, Y4, Y4
 	VPMINSD      Y4, Y2, Y2
-	VPBROADCASTD 8(CX), Y4
+	VPBROADCASTD 8(SP), Y4
 	VPSUBD       Y4, Y0, Y5
 	VPMULLD      Y5, Y5, Y5
 	VPMINSD      Y5, Y3, Y3
 	VPSUBD       Y4, Y1, Y4
 	VPMULLD      Y4, Y4, Y4
 	VPMINSD      Y4, Y2, Y2
-	VPBROADCASTD 12(CX), Y4
+	VPBROADCASTD 12(SP), Y4
 	VPSUBD       Y4, Y0, Y5
 	VPMULLD      Y5, Y5, Y5
 	VPMINSD      Y5, Y3, Y3
 	VPSUBD       Y4, Y1, Y4
 	VPMULLD      Y4, Y4, Y4
 	VPMINSD      Y4, Y2, Y2
-	VPBROADCASTD 16(CX), Y4
+	VPBROADCASTD 16(SP), Y4
 	VPSUBD       Y4, Y0, Y5
 	VPMULLD      Y5, Y5, Y5
 	VPMINSD      Y5, Y3, Y3
 	VPSUBD       Y4, Y1, Y4
 	VPMULLD      Y4, Y4, Y4
 	VPMINSD      Y4, Y2, Y2
-	VPBROADCASTD 20(CX), Y4
+	VPBROADCASTD 20(SP), Y4
 	VPSUBD       Y4, Y0, Y5
 	VPMULLD      Y5, Y5, Y5
 	VPMINSD      Y5, Y3, Y3
 	VPSUBD       Y4, Y1, Y4
 	VPMULLD      Y4, Y4, Y4
 	VPMINSD      Y4, Y2, Y2
-	VPBROADCASTD 24(CX), Y4
+	VPBROADCASTD 24(SP), Y4
 	VPSUBD       Y4, Y0, Y5
 	VPMULLD      Y5, Y5, Y5
 	VPMINSD      Y5, Y3, Y3
 	VPSUBD       Y4, Y1, Y4
 	VPMULLD      Y4, Y4, Y4
 	VPMINSD      Y4, Y2, Y2
-	VPBROADCASTD 28(CX), Y4
+	VPBROADCASTD 28(SP), Y4
 	VPSUBD       Y4, Y0, Y0
 	VPMULLD      Y0, Y0, Y0
 	VPMINSD      Y0, Y3, Y3
@@ -1276,16 +1295,35 @@ TEXT ·alphaBlockErrorAVX2(SB), NOSPLIT, $0-20
 	MOVL         AX, ret+16(FP)
 	RET
 
-// func bestAlphaIndices16AVX2(samples *[16]uint8, palette *[8]int32) uint64
-// Requires: AVX, AVX2
-TEXT ·bestAlphaIndices16AVX2(SB), NOSPLIT, $0-24
+// func bestAlphaIndices16AVX2(samples *[16]uint8, aa uint32) uint64
+// Requires: AVX, AVX2, CMOV
+TEXT ·bestAlphaIndices16AVX2(SB), NOSPLIT, $32-24
 	MOVQ         samples+0(FP), AX
-	MOVQ         palette+8(FP), CX
+	MOVL         aa+8(FP), CX
+	MOVL         CX, DX
+	ANDL         $0x000000ff, DX
+	SHRL         $0x08, CX
+	ANDL         $0x000000ff, CX
+	LEAQ         decodeAlphaPalConsts<>+64(SB), BX
+	LEAQ         decodeAlphaPalConsts<>+0(SB), SI
+	CMPL         DX, CX
+	CMOVQHI      SI, BX
+	VMOVD        DX, X0
+	VPBROADCASTW X0, X0
+	VMOVD        CX, X1
+	VPBROADCASTW X1, X1
+	VPMULLW      (BX), X0, X0
+	VPMULLW      16(BX), X1, X1
+	VPADDW       X1, X0, X0
+	VPADDW       32(BX), X0, X0
+	VPMULHUW     48(BX), X0, X0
+	VPMOVZXWD    X0, Y0
+	VMOVDQU      Y0, (SP)
 	VPMOVZXBD    (AX), Y0
 	VPMOVZXBD    8(AX), Y1
 	VPCMPEQD     Y2, Y2, Y2
 	VPSRLD       $0x1f, Y2, Y2
-	VPBROADCASTD (CX), Y3
+	VPBROADCASTD (SP), Y3
 	VPSUBD       Y3, Y0, Y4
 	VPMULLD      Y4, Y4, Y4
 	VPSUBD       Y3, Y1, Y3
@@ -1293,7 +1331,7 @@ TEXT ·bestAlphaIndices16AVX2(SB), NOSPLIT, $0-24
 	VPXOR        Y5, Y5, Y5
 	VPXOR        Y6, Y6, Y6
 	VMOVDQU      Y2, Y7
-	VPBROADCASTD 4(CX), Y8
+	VPBROADCASTD 4(SP), Y8
 	VPSUBD       Y8, Y0, Y9
 	VPMULLD      Y9, Y9, Y9
 	VPCMPGTD     Y9, Y4, Y10
@@ -1305,7 +1343,7 @@ TEXT ·bestAlphaIndices16AVX2(SB), NOSPLIT, $0-24
 	VPBLENDVB    Y9, Y8, Y3, Y3
 	VPBLENDVB    Y9, Y7, Y6, Y6
 	VPADDD       Y2, Y7, Y7
-	VPBROADCASTD 8(CX), Y8
+	VPBROADCASTD 8(SP), Y8
 	VPSUBD       Y8, Y0, Y9
 	VPMULLD      Y9, Y9, Y9
 	VPCMPGTD     Y9, Y4, Y10
@@ -1317,7 +1355,7 @@ TEXT ·bestAlphaIndices16AVX2(SB), NOSPLIT, $0-24
 	VPBLENDVB    Y9, Y8, Y3, Y3
 	VPBLENDVB    Y9, Y7, Y6, Y6
 	VPADDD       Y2, Y7, Y7
-	VPBROADCASTD 12(CX), Y8
+	VPBROADCASTD 12(SP), Y8
 	VPSUBD       Y8, Y0, Y9
 	VPMULLD      Y9, Y9, Y9
 	VPCMPGTD     Y9, Y4, Y10
@@ -1329,7 +1367,7 @@ TEXT ·bestAlphaIndices16AVX2(SB), NOSPLIT, $0-24
 	VPBLENDVB    Y9, Y8, Y3, Y3
 	VPBLENDVB    Y9, Y7, Y6, Y6
 	VPADDD       Y2, Y7, Y7
-	VPBROADCASTD 16(CX), Y8
+	VPBROADCASTD 16(SP), Y8
 	VPSUBD       Y8, Y0, Y9
 	VPMULLD      Y9, Y9, Y9
 	VPCMPGTD     Y9, Y4, Y10
@@ -1341,7 +1379,7 @@ TEXT ·bestAlphaIndices16AVX2(SB), NOSPLIT, $0-24
 	VPBLENDVB    Y9, Y8, Y3, Y3
 	VPBLENDVB    Y9, Y7, Y6, Y6
 	VPADDD       Y2, Y7, Y7
-	VPBROADCASTD 20(CX), Y8
+	VPBROADCASTD 20(SP), Y8
 	VPSUBD       Y8, Y0, Y9
 	VPMULLD      Y9, Y9, Y9
 	VPCMPGTD     Y9, Y4, Y10
@@ -1353,7 +1391,7 @@ TEXT ·bestAlphaIndices16AVX2(SB), NOSPLIT, $0-24
 	VPBLENDVB    Y9, Y8, Y3, Y3
 	VPBLENDVB    Y9, Y7, Y6, Y6
 	VPADDD       Y2, Y7, Y7
-	VPBROADCASTD 24(CX), Y8
+	VPBROADCASTD 24(SP), Y8
 	VPSUBD       Y8, Y0, Y9
 	VPMULLD      Y9, Y9, Y9
 	VPCMPGTD     Y9, Y4, Y10
@@ -1365,7 +1403,7 @@ TEXT ·bestAlphaIndices16AVX2(SB), NOSPLIT, $0-24
 	VPBLENDVB    Y9, Y8, Y3, Y3
 	VPBLENDVB    Y9, Y7, Y6, Y6
 	VPADDD       Y2, Y7, Y7
-	VPBROADCASTD 28(CX), Y2
+	VPBROADCASTD 28(SP), Y2
 	VPSUBD       Y2, Y0, Y0
 	VPMULLD      Y0, Y0, Y0
 	VPCMPGTD     Y0, Y4, Y8

@@ -136,8 +136,7 @@ func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
 		}
 	}
 
-	palette := dxt5AlphaPalette(bestA0, bestA1)
-	idx := packAlphaIndices(&palette, &alpha)
+	idx := packAlphaIndices(bestA0, bestA1, &alpha)
 
 	var out [8]byte
 	out[0] = bestA0
@@ -156,15 +155,17 @@ func putAlphaIndices(dst []byte, idx uint64) {
 }
 
 // packAlphaIndices returns the 48-bit packed nearest-palette indices
-// for 16 alpha samples (sample i at bit 3i), using the AVX2 kernel when available.
-func packAlphaIndices(palette *[8]uint8, alpha *[16]uint8) uint64 {
-	if idx, ok := bestAlphaIndices16ASM(alpha, palette); ok {
+// for 16 alpha samples (sample i at bit 3i) against the palette
+// of endpoints a0, a1, using the AVX2 kernel when available.
+func packAlphaIndices(a0, a1 uint8, alpha *[16]uint8) uint64 {
+	if idx, ok := bestAlphaIndices16ASM(alpha, a0, a1); ok {
 		return idx
 	}
 
+	palette := dxt5AlphaPalette(a0, a1)
 	var idx uint64
 	for i := 15; i >= 0; i-- {
-		best := bestAlphaIndex(palette, alpha[i])
+		best := bestAlphaIndex(&palette, alpha[i])
 		idx = (idx << 3) | uint64(best&0x7)
 		if i == 0 {
 			break
@@ -196,11 +197,11 @@ func decodeAlphaBlock(data []byte) [16]uint8 {
 // The AVX2 path returns the exact total; the scalar path stops at cutoff.
 // As with dxt1BlockError, callers compare with strict <, so both select the same winner.
 func alphaBlockError(alpha [16]uint8, a0, a1 uint8, cutoff int) int {
-	palette := dxt5AlphaPalette(a0, a1)
-	if e, ok := alphaBlockErrorASM(&alpha, &palette); ok {
+	if e, ok := alphaBlockErrorASM(&alpha, a0, a1); ok {
 		return e
 	}
 
+	palette := dxt5AlphaPalette(a0, a1)
 	return alphaBlockErrorScalar(&palette, &alpha, cutoff)
 }
 

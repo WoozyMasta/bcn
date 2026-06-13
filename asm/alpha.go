@@ -37,31 +37,55 @@ func sqDiff(samp, pv VecVirtual) VecVirtual {
 	return d
 }
 
-// genAlphaBlockError emits the AVX2 kernel computing the total squared error of
-// 16 alpha samples against an 8-entry palette. Like the color score kernel it
-// evaluates all samples exactly (no cutoff): callers compare with strict <, so
-// the exact total and the scalar cutoff sum select the same winner.
-func genAlphaBlockError() {
-	TEXT("alphaBlockErrorAVX2", NOSPLIT, "func(samples *[16]uint8, palette *[8]int32) uint32")
+// emitAlphaPaletteScratch builds the 8-entry alpha palette
+// from the packed endpoints aa (a0 in the low byte, a1 in the next)
+// and spills it as 8 int32 values to a stack local, returning that local.
+// The per-entry broadcasts in the scoring loops then read directly from the spill.
+func emitAlphaPaletteScratch(aa Register, ac Mem) Mem {
+	a0 := GP32()
+	MOVL(aa, a0)
+	ANDL(U32(0xFF), a0)
+	a1 := GP32()
+	MOVL(aa, a1)
+	SHRL(Imm(8), a1)
+	ANDL(U32(0xFF), a1)
+
+	palWords := emitAlphaPaletteWords(a0, a1, ac)
+	palD := YMM()
+	VPMOVZXWD(palWords, palD)
+
+	scratch := AllocLocal(32)
+	VMOVDQU(palD, scratch)
+	return scratch
+}
+
+// genAlphaBlockError emits the AVX2 kernel computing the total squared error
+// of 16 alpha samples against the palette built from endpoints aa (a0 | a1<<8).
+// Like the color score kernel it evaluates all samples exactly (no cutoff):
+// callers compare with strict <,
+// so the exact total and the scalar cutoff sum select the same winner.
+func genAlphaBlockError(ac Mem) {
+	TEXT("alphaBlockErrorAVX2", NOSPLIT, "func(samples *[16]uint8, aa uint32) uint32")
 	Pragma("noescape")
 	Doc(
 		"alphaBlockErrorAVX2 returns the summed minimum squared error of 16 alpha",
-		"samples against an 8-entry palette (BC3/BC4 alpha block scoring).",
+		"samples against the palette of endpoints aa = a0 | a1<<8 (BC3/BC4 scoring).",
 	)
 
 	sp := Load(Param("samples"), GP64())
-	pp := Load(Param("palette"), GP64())
+	aa := Load(Param("aa"), GP32())
 
+	pp := emitAlphaPaletteScratch(aa, ac)
 	loS, hiS := loadAlphaSamples(sp)
 
 	p0 := YMM()
-	VPBROADCASTD(Mem{Base: pp}, p0)
+	VPBROADCASTD(pp, p0)
 	runLo := sqDiff(loS, p0)
 	runHi := sqDiff(hiS, p0)
 
 	for e := 1; e < 8; e++ {
 		pv := YMM()
-		VPBROADCASTD(Mem{Base: pp, Disp: e * 4}, pv)
+		VPBROADCASTD(pp.Offset(e*4), pv)
 		VPMINSD(sqDiff(loS, pv), runLo, runLo)
 		VPMINSD(sqDiff(hiS, pv), runHi, runHi)
 	}
@@ -75,19 +99,22 @@ func genAlphaBlockError() {
 }
 
 // genBestAlphaIndices emits the AVX2 kernel assigning each of 16 alpha samples
-// the nearest 8-entry palette index and packing the 3-bit indices into a 48-bit
-// value (sample i at bit 3i), matching the scalar encoder's bit order.
-func genBestAlphaIndices(shifts Mem) {
-	TEXT("bestAlphaIndices16AVX2", NOSPLIT, "func(samples *[16]uint8, palette *[8]int32) uint64")
+// the nearest palette index (palette built from aa = a0 | a1<<8)
+// and packing the 3-bit indices into a 48-bit value (sample i at bit 3i),
+// matching the scalar encoder's bit order.
+func genBestAlphaIndices(ac, shifts Mem) {
+	TEXT("bestAlphaIndices16AVX2", NOSPLIT, "func(samples *[16]uint8, aa uint32) uint64")
 	Pragma("noescape")
 	Doc(
 		"bestAlphaIndices16AVX2 returns the packed 48-bit BC3/BC4 alpha indices",
-		"for 16 samples against an 8-entry palette. Ties keep the lowest index.",
+		"for 16 samples against the palette of endpoints aa = a0 | a1<<8.",
+		"Ties keep the lowest index.",
 	)
 
 	sp := Load(Param("samples"), GP64())
-	pp := Load(Param("palette"), GP64())
+	aa := Load(Param("aa"), GP32())
 
+	pp := emitAlphaPaletteScratch(aa, ac)
 	loS, hiS := loadAlphaSamples(sp)
 
 	ones := YMM()
@@ -96,7 +123,7 @@ func genBestAlphaIndices(shifts Mem) {
 	VPSRLD(Imm(31), ones, one)
 
 	p0 := YMM()
-	VPBROADCASTD(Mem{Base: pp}, p0)
+	VPBROADCASTD(pp, p0)
 	bestLo := sqDiff(loS, p0)
 	bestHi := sqDiff(hiS, p0)
 	idxLo := YMM()
@@ -108,7 +135,7 @@ func genBestAlphaIndices(shifts Mem) {
 
 	for e := 1; e < 8; e++ {
 		pv := YMM()
-		VPBROADCASTD(Mem{Base: pp, Disp: e * 4}, pv)
+		VPBROADCASTD(pp.Offset(e*4), pv)
 
 		eLo := sqDiff(loS, pv)
 		mLo := YMM()

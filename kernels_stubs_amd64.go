@@ -56,13 +56,14 @@ func packDXT1IndicesAVX2(block *[64]byte, params *[20]int32) uint32
 func scoreDXT1PaletteAVX2(block *[64]byte, cc uint32, weights *[4]int32) uint32
 
 // alphaBlockErrorAVX2 returns the summed minimum squared error of 16 alpha
-// samples against an 8-entry palette (BC3/BC4 alpha block scoring).
+// samples against the palette of endpoints aa = a0 | a1<<8 (BC3/BC4 scoring).
 //
 //go:noescape
-func alphaBlockErrorAVX2(samples *[16]uint8, palette *[8]int32) uint32
+func alphaBlockErrorAVX2(samples *[16]uint8, aa uint32) uint32
 
 // bestAlphaIndices16AVX2 returns the packed 48-bit BC3/BC4 alpha indices
-// for 16 samples against an 8-entry palette. Ties keep the lowest index.
+// for 16 samples against the palette of endpoints aa = a0 | a1<<8.
+// Ties keep the lowest index.
 //
 //go:noescape
-func bestAlphaIndices16AVX2(samples *[16]uint8, palette *[8]int32) uint64
+func bestAlphaIndices16AVX2(samples *[16]uint8, aa uint32) uint64
