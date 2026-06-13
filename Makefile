@@ -9,10 +9,21 @@ BENCH_REF_SINGLE ?= bench_baseline_single_thread.txt
 
 .PHONY: test bench bench-single-thread bench-fast verify vet check \
 	fmt fmt-check lint lint-fix align align-fix \
+	generate generate-check \
 	tidy download tools tool-golangci-lint tool-betteralign tool-benchstat \
 	release-notes
 
-check: verify fmt-check vet lint align test
+check: verify generate-check fmt-check vet lint align test
+
+generate:
+	$(GO) generate ./...
+
+generate-check: generate
+	@if ! git diff --quiet --exit-code -- '*_amd64.s' '*_stubs_*.go'; then \
+		echo "generate-check: generated files are stale, run 'make generate' and commit the result"; \
+		git --no-pager diff --stat -- '*_amd64.s' '*_stubs_*.go'; \
+		exit 1; \
+	fi
 
 fmt:
 	gofmt -w .
