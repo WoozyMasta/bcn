@@ -7,13 +7,16 @@ BENCH_COUNT ?= 6
 BENCH_REF_MULTI  ?= bench_baseline_multi_thread.txt
 BENCH_REF_SINGLE ?= bench_baseline_single_thread.txt
 
-.PHONY: test bench bench-single-thread bench-fast verify vet check \
+FUZZTIME ?= 20s
+
+.PHONY: test test-race test-pure \
+	bench bench-single-thread bench-fast verify vet check \
 	fmt fmt-check lint lint-fix align align-fix \
-	generate generate-check \
+	generate generate-check fuzz \
 	tidy download tools tool-golangci-lint tool-betteralign tool-benchstat \
 	release-notes
 
-check: verify generate-check fmt-check vet lint align test
+check: verify generate-check fmt-check vet lint align test fuzz
 
 generate:
 	$(GO) generate ./...
@@ -40,6 +43,18 @@ vet:
 
 test:
 	$(GO) test ./...
+
+test-race:
+	$(GO) test -race ./...
+
+test-pure:
+	$(GO) test -tags purego ./...
+
+fuzz:
+	@for t in FuzzScoreDXT1Palette FuzzPackDXT1Indices FuzzAlphaKernels FuzzDecodeNoPanic; do \
+		echo "> $$t"; \
+		$(GO) test -run '^$$' -fuzz "^$$t$$" -fuzztime $(FUZZTIME) . || exit 1; \
+	done
 
 bench:
 	@tmp=$$(mktemp); \
