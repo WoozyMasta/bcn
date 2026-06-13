@@ -27,6 +27,40 @@ func rgba8FromPacked(v uint32) rgba8 {
 	return rgba8{r: uint8(v), g: uint8(v >> 8), b: uint8(v >> 16), a: uint8(v >> 24)}
 }
 
+// pack3Penalty keeps palette entry 3 from winning the argmin in alpha mode.
+// It exceeds the maximum per-pixel weighted SSE (255^2*1024*3 < 2^28) while
+// leaving headroom against int32 overflow when added to a real error.
+const pack3Penalty = int32(1) << 30
+
+// packDXT1IndicesASM assigns palette indices with the AVX2 kernel.
+// Returns ok=false when AVX2 is unavailable and the caller must fall back.
+func packDXT1IndicesASM(block *[16]rgba8, palette *[4]rgba8, hasAlpha bool, alphaThreshold uint8, w rgbWeightsFP) (uint32, bool) {
+	if !hasAVX2 {
+		return 0, false
+	}
+
+	var params [20]int32
+	for k := range 4 {
+		params[k] = int32(palette[k].r)
+		params[4+k] = int32(palette[k].g)
+		params[8+k] = int32(palette[k].b)
+	}
+	params[12] = w.r
+	params[13] = w.g
+	params[14] = w.b
+	if hasAlpha {
+		// Sub-threshold pixels are forced to entry 3; the penalty turns the
+		// remaining argmin into a limit-3 search (entry 3 never wins).
+		params[15] = int32(alphaThreshold)
+		params[16] = pack3Penalty
+	}
+	// Opaque mode leaves threshold and penalty zero: entry 3 competes (limit 4)
+	// and no pixel is forced (alpha is always >= 0).
+
+	idx := packDXT1IndicesAVX2((*[64]byte)(unsafe.Pointer(block)), &params)
+	return idx, true
+}
+
 // decodeRowKernel is an assembly routine decoding n consecutive interior
 // blocks into 4 destination rows spaced stride bytes apart.
 type decodeRowKernel func(dst *byte, src *byte, n int, stride int)

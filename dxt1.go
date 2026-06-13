@@ -173,8 +173,18 @@ func packDXT1Indices(block [16]rgba8, palette [4]rgba8, hasAlpha bool, alphaThre
 	return packDXT1IndicesWeighted(block, palette, hasAlpha, alphaThreshold, defaultWeightsFP)
 }
 
-// packDXT1IndicesWeighted maps each pixel to the best palette entry and bit-packs indices.
+// packDXT1IndicesWeighted maps each pixel to the best palette entry and bit-packs indices,
+// using the AVX2 kernel when available and the scalar path otherwise.
 func packDXT1IndicesWeighted(block [16]rgba8, palette [4]rgba8, hasAlpha bool, alphaThreshold uint8, w rgbWeightsFP) uint32 {
+	if idx, ok := packDXT1IndicesASM(&block, &palette, hasAlpha, alphaThreshold, w); ok {
+		return idx
+	}
+
+	return packDXT1IndicesGeneric(block, palette, hasAlpha, alphaThreshold, w)
+}
+
+// packDXT1IndicesGeneric is the scalar reference for palette index assignment.
+func packDXT1IndicesGeneric(block [16]rgba8, palette [4]rgba8, hasAlpha bool, alphaThreshold uint8, w rgbWeightsFP) uint32 {
 	indices := uint32(0)
 
 	for i, px := range block {

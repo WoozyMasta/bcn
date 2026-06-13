@@ -30,3 +30,8 @@ func decodeRangeBC4ASM(_, _ []byte, _, _, _, _, _ int) bool {
 func decodeRangeBC5ASM(_, _ []byte, _, _, _, _, _ int) bool {
 	return false
 }
+
+// packDXT1IndicesASM is unavailable without assembly support.
+func packDXT1IndicesASM(_ *[16]rgba8, _ *[4]rgba8, _ bool, _ uint8, _ rgbWeightsFP) (uint32, bool) {
+	return 0, false
+}

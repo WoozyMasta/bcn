@@ -221,6 +221,51 @@ func TestDecodeRangeBC5Equivalence(t *testing.T) {
 	}
 }
 
+// TestPackDXT1IndicesEquivalence verifies the AVX2 index-assignment kernel
+// against the scalar reference across opaque and alpha modes, random palettes,
+// weights and blocks (including sub-threshold alpha pixels and ties).
+func TestPackDXT1IndicesEquivalence(t *testing.T) {
+	state := uint32(0x9E3779B1)
+	next := func() uint32 {
+		state = state*1664525 + 1013904223
+		return state
+	}
+	nextByte := func() uint8 { return uint8(next() >> 24) }
+
+	weights := []rgbWeightsFP{
+		defaultWeightsFP,
+		balancedWeightsFP,
+		{r: 1, g: 1, b: 1},
+		{r: 1024, g: 0, b: 0},
+	}
+
+	for iter := 0; iter < 200_000; iter++ {
+		var block [16]rgba8
+		for i := range block {
+			block[i] = rgba8{nextByte(), nextByte(), nextByte(), nextByte()}
+		}
+
+		var palette [4]rgba8
+		for i := range palette {
+			palette[i] = rgba8{nextByte(), nextByte(), nextByte(), 255}
+		}
+
+		w := weights[next()%uint32(len(weights))]
+		hasAlpha := next()&1 == 0
+		threshold := uint8(next() % 256)
+
+		got, ok := packDXT1IndicesASM(&block, &palette, hasAlpha, threshold, w)
+		if !ok {
+			t.Skip("pack kernel unavailable on this platform")
+		}
+		want := packDXT1IndicesGeneric(block, palette, hasAlpha, threshold, w)
+		if got != want {
+			t.Fatalf("iter %d hasAlpha=%v thr=%d w=%v: got %#08x, want %#08x\nblock=%v\npalette=%v",
+				iter, hasAlpha, threshold, w, got, want, block, palette)
+		}
+	}
+}
+
 func BenchmarkFindMinMax(b *testing.B) {
 	block := benchmarkBlockAlpha()
 	b.Run("dispatch", func(b *testing.B) {

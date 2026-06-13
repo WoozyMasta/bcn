@@ -33,3 +33,11 @@ func decodeBC4RowAVX2(dst *byte, src *byte, n int, stride int)
 //
 //go:noescape
 func decodeBC5RowAVX2(dst *byte, src *byte, n int, stride int)
+
+// packDXT1IndicesAVX2 maps 16 NRGBA pixels to weighted-SSE-nearest palette
+// entries and packs the 2-bit indices. Alpha mode is driven by the params
+// block: a sub-threshold pixel is forced to index 3 and the entry-3 penalty
+// keeps that entry from winning the argmin. Ties keep the lowest index.
+//
+//go:noescape
+func packDXT1IndicesAVX2(block *[64]byte, params *[20]int32) uint32
