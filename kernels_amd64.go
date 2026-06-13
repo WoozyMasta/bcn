@@ -61,6 +61,20 @@ func packDXT1IndicesASM(block *[16]rgba8, palette *[4]rgba8, hasAlpha bool, alph
 	return idx, true
 }
 
+// scoreDXT1PaletteASM returns the total weighted block error of one opaque-mode
+// BC1 endpoint pair via the AVX2 kernel. Returns ok=false when AVX2 is
+// unavailable and the caller must use the scalar path.
+func scoreDXT1PaletteASM(block *[16]rgba8, c0, c1 uint16, w rgbWeightsFP) (int64, bool) {
+	if !hasAVX2 {
+		return 0, false
+	}
+
+	weights := [4]int32{w.r, w.g, w.b, 0}
+	cc := uint32(c0) | uint32(c1)<<16
+	e := scoreDXT1PaletteAVX2((*[64]byte)(unsafe.Pointer(block)), cc, &weights)
+	return int64(e), true
+}
+
 // decodeRowKernel is an assembly routine decoding n consecutive interior
 // blocks into 4 destination rows spaced stride bytes apart.
 type decodeRowKernel func(dst *byte, src *byte, n int, stride int)

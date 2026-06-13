@@ -28,6 +28,7 @@ func main() {
 	genDecodeBC5Row(alphaConsts)
 
 	genPackDXT1Indices(consts)
+	genScoreDXT1Palette()
 
 	Generate()
 }

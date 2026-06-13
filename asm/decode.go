@@ -31,11 +31,10 @@ func genDecodeConsts() decodeConsts {
 	return decodeConsts{shiftsLo: lo, shiftsHi: hi}
 }
 
-// expand565 emits scalar code expanding a packed RGB565 word (zero-extended
-// in c) to 8-bit channels using exact multiply-shift identities:
+// expand565RGB emits scalar code expanding a packed RGB565 word (zero-extended
+// in c) to separate 8-bit channels using exact multiply-shift identities:
 // 5-bit: (v*527+23)>>6, 6-bit: (v*259+33)>>6 (byte-identical to (v*255+k)/d).
-// Returns the packed little-endian RGBA dword and the separate channels.
-func expand565(c GPVirtual) (packed, r8, g8, b8 GPVirtual) {
+func expand565RGB(c GPVirtual) (r8, g8, b8 GPVirtual) {
 	// avo v0.6 lacks imm32 forms of IMUL3L, so multiplies use the Q form on
 	// zero-extended values (identical low 32 bits).
 	r8 = GP32()
@@ -59,6 +58,14 @@ func expand565(c GPVirtual) (packed, r8, g8, b8 GPVirtual) {
 	IMUL3Q(U32(527), b8.As64(), b8.As64())
 	ADDL(Imm(23), b8)
 	SHRL(Imm(6), b8)
+
+	return r8, g8, b8
+}
+
+// expand565 expands a packed RGB565 word and additionally packs the channels
+// into a little-endian RGBA dword (alpha 0xFF).
+func expand565(c GPVirtual) (packed, r8, g8, b8 GPVirtual) {
+	r8, g8, b8 = expand565RGB(c)
 
 	packed = GP32()
 	MOVL(g8, packed)

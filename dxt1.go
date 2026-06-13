@@ -311,10 +311,24 @@ func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold ui
 }
 
 // dxt1BlockError measures total weighted color error for one candidate block encoding.
-// Accumulation stops once the partial sum reaches cutoff: per-pixel errors are
-// non-negative, so such a candidate can never beat the current best and callers
-// comparing with strict < reject the returned value either way.
+// The opaque path uses the AVX2 score kernel (exact total) when available;
+// the scalar path stops accumulating once the partial sum reaches cutoff.
+// Per-pixel errors are non-negative, so a candidate that hits the cutoff
+// can never beat the current best, and callers comparing with strict < reject
+// it either way - making the exact-total kernel
+// and the cutoff scalar interchangeable for the winner.
 func dxt1BlockError(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, w rgbWeightsFP, cutoff int64) int64 {
+	if !hasAlpha {
+		if e, ok := scoreDXT1PaletteASM(&block, c0, c1, w); ok {
+			return e
+		}
+	}
+
+	return dxt1BlockErrorScalar(block, c0, c1, hasAlpha, alphaThreshold, w, cutoff)
+}
+
+// dxt1BlockErrorScalar is the pure-Go reference for dxt1BlockError.
+func dxt1BlockErrorScalar(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, w rgbWeightsFP, cutoff int64) int64 {
 	palette := dxt1Palette(c0, c1)
 	err := int64(0)
 	if hasAlpha {

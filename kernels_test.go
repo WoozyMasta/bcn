@@ -266,6 +266,51 @@ func TestPackDXT1IndicesEquivalence(t *testing.T) {
 	}
 }
 
+// TestScoreDXT1PaletteEquivalence verifies the AVX2 block-error kernel against
+// the scalar opaque-mode reference over random blocks, endpoint pairs (both
+// 3-color and 4-color palette modes) and weights.
+func TestScoreDXT1PaletteEquivalence(t *testing.T) {
+	state := uint32(0x5DEECE66)
+	next := func() uint32 {
+		state = state*1664525 + 1013904223
+		return state
+	}
+	nextByte := func() uint8 { return uint8(next() >> 24) }
+
+	weights := []rgbWeightsFP{
+		defaultWeightsFP,
+		balancedWeightsFP,
+		{r: 1, g: 1, b: 1},
+		{r: 1024, g: 0, b: 0},
+		{r: 0, g: 0, b: 1024},
+	}
+
+	for iter := 0; iter < 300_000; iter++ {
+		var block [16]rgba8
+		for i := range block {
+			block[i] = rgba8{nextByte(), nextByte(), nextByte(), 255}
+		}
+
+		c0 := uint16(next())
+		c1 := uint16(next())
+		// Half the cases force c0 == c1 (3-color palette with black entry 3).
+		if next()&3 == 0 {
+			c1 = c0
+		}
+		w := weights[next()%uint32(len(weights))]
+
+		got, ok := scoreDXT1PaletteASM(&block, c0, c1, w)
+		if !ok {
+			t.Skip("score kernel unavailable on this platform")
+		}
+		want := dxt1BlockErrorScalar(block, c0, c1, false, 0, w, maxBlockErr)
+		if got != want {
+			t.Fatalf("iter %d c0=%#04x c1=%#04x w=%v: got %d, want %d\nblock=%v",
+				iter, c0, c1, w, got, want, block)
+		}
+	}
+}
+
 func BenchmarkFindMinMax(b *testing.B) {
 	block := benchmarkBlockAlpha()
 	b.Run("dispatch", func(b *testing.B) {

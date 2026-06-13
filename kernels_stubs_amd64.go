@@ -41,3 +41,10 @@ func decodeBC5RowAVX2(dst *byte, src *byte, n int, stride int)
 //
 //go:noescape
 func packDXT1IndicesAVX2(block *[64]byte, params *[20]int32) uint32
+
+// scoreDXT1PaletteAVX2 returns the total weighted block error of one BC1
+// endpoint pair (cc = c0 | c1<<16) over 16 pixels, palette built like the
+// Go encoder. Used to drive endpoint refinement.
+//
+//go:noescape
+func scoreDXT1PaletteAVX2(block *[64]byte, cc uint32, weights *[4]int32) uint32

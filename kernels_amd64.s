@@ -753,3 +753,285 @@ TEXT ·packDXT1IndicesAVX2(SB), NOSPLIT, $0-20
 	VZEROUPPER
 	MOVL         AX, ret+16(FP)
 	RET
+
+// func scoreDXT1PaletteAVX2(block *[64]byte, cc uint32, weights *[4]int32) uint32
+// Requires: AVX, AVX2
+TEXT ·scoreDXT1PaletteAVX2(SB), NOSPLIT, $0-28
+	MOVQ         block+0(FP), AX
+	MOVL         cc+8(FP), CX
+	MOVQ         weights+16(FP), DX
+	MOVL         CX, BX
+	ANDL         $0x0000ffff, BX
+	SHRL         $0x10, CX
+	VPCMPEQD     Y0, Y0, Y0
+	VPSRLD       $0x18, Y0, Y0
+	VMOVDQU      (AX), Y1
+	VMOVDQU      32(AX), Y2
+	VPAND        Y0, Y1, Y3
+	VPSRLD       $0x08, Y1, Y4
+	VPAND        Y0, Y4, Y4
+	VPSRLD       $0x10, Y1, Y1
+	VPAND        Y0, Y1, Y1
+	VPAND        Y0, Y2, Y5
+	VPSRLD       $0x08, Y2, Y6
+	VPAND        Y0, Y6, Y6
+	VPSRLD       $0x10, Y2, Y2
+	VPAND        Y0, Y2, Y2
+	VPBROADCASTD (DX), Y0
+	VPBROADCASTD 4(DX), Y7
+	VPBROADCASTD 8(DX), Y8
+	MOVL         BX, AX
+	SHRL         $0x0b, AX
+	IMUL3Q       $0x0000020f, AX, AX
+	ADDL         $0x17, AX
+	SHRL         $0x06, AX
+	MOVL         BX, DX
+	SHRL         $0x05, DX
+	ANDL         $0x3f, DX
+	IMUL3Q       $0x00000103, DX, DX
+	ADDL         $0x21, DX
+	SHRL         $0x06, DX
+	MOVL         BX, SI
+	ANDL         $0x1f, SI
+	IMUL3Q       $0x0000020f, SI, SI
+	ADDL         $0x17, SI
+	SHRL         $0x06, SI
+	MOVL         CX, DI
+	SHRL         $0x0b, DI
+	IMUL3Q       $0x0000020f, DI, DI
+	ADDL         $0x17, DI
+	SHRL         $0x06, DI
+	MOVL         CX, R8
+	SHRL         $0x05, R8
+	ANDL         $0x3f, R8
+	IMUL3Q       $0x00000103, R8, R8
+	ADDL         $0x21, R8
+	SHRL         $0x06, R8
+	MOVL         CX, R9
+	ANDL         $0x1f, R9
+	IMUL3Q       $0x0000020f, R9, R9
+	ADDL         $0x17, R9
+	SHRL         $0x06, R9
+	VMOVD        AX, X9
+	VPBROADCASTD X9, Y10
+	VPSUBD       Y10, Y3, Y9
+	VPMULLD      Y9, Y9, Y9
+	VPMULLD      Y0, Y9, Y9
+	VPSUBD       Y10, Y5, Y10
+	VPMULLD      Y10, Y10, Y10
+	VPMULLD      Y0, Y10, Y10
+	VMOVD        DX, X11
+	VPBROADCASTD X11, Y11
+	VPSUBD       Y11, Y4, Y12
+	VPMULLD      Y12, Y12, Y12
+	VPMULLD      Y7, Y12, Y12
+	VPADDD       Y12, Y9, Y9
+	VPSUBD       Y11, Y6, Y11
+	VPMULLD      Y11, Y11, Y11
+	VPMULLD      Y7, Y11, Y11
+	VPADDD       Y11, Y10, Y10
+	VMOVD        SI, X11
+	VPBROADCASTD X11, Y11
+	VPSUBD       Y11, Y1, Y12
+	VPMULLD      Y12, Y12, Y12
+	VPMULLD      Y8, Y12, Y12
+	VPADDD       Y12, Y9, Y9
+	VPSUBD       Y11, Y2, Y11
+	VPMULLD      Y11, Y11, Y11
+	VPMULLD      Y8, Y11, Y11
+	VPADDD       Y11, Y10, Y10
+	VMOVDQU      Y9, Y9
+	VMOVDQU      Y10, Y10
+	VMOVD        DI, X11
+	VPBROADCASTD X11, Y11
+	VPSUBD       Y11, Y3, Y12
+	VPMULLD      Y12, Y12, Y12
+	VPMULLD      Y0, Y12, Y12
+	VPSUBD       Y11, Y5, Y11
+	VPMULLD      Y11, Y11, Y11
+	VPMULLD      Y0, Y11, Y11
+	VMOVD        R8, X13
+	VPBROADCASTD X13, Y13
+	VPSUBD       Y13, Y4, Y14
+	VPMULLD      Y14, Y14, Y14
+	VPMULLD      Y7, Y14, Y14
+	VPADDD       Y14, Y12, Y12
+	VPSUBD       Y13, Y6, Y13
+	VPMULLD      Y13, Y13, Y13
+	VPMULLD      Y7, Y13, Y13
+	VPADDD       Y13, Y11, Y11
+	VMOVD        R9, X13
+	VPBROADCASTD X13, Y13
+	VPSUBD       Y13, Y1, Y14
+	VPMULLD      Y14, Y14, Y14
+	VPMULLD      Y8, Y14, Y14
+	VPADDD       Y14, Y12, Y12
+	VPSUBD       Y13, Y2, Y13
+	VPMULLD      Y13, Y13, Y13
+	VPMULLD      Y8, Y13, Y13
+	VPADDD       Y13, Y11, Y11
+	VPMINSD      Y12, Y9, Y9
+	VPMINSD      Y11, Y10, Y10
+	CMPL         BX, CX
+	JHI          mode4
+	LEAQ         (AX)(DI*1), AX
+	SHRL         $0x01, AX
+	LEAQ         (DX)(R8*1), CX
+	SHRL         $0x01, CX
+	LEAQ         (SI)(R9*1), DX
+	SHRL         $0x01, DX
+	VMOVD        AX, X11
+	VPBROADCASTD X11, Y11
+	VPSUBD       Y11, Y3, Y12
+	VPMULLD      Y12, Y12, Y12
+	VPMULLD      Y0, Y12, Y12
+	VPSUBD       Y11, Y5, Y11
+	VPMULLD      Y11, Y11, Y11
+	VPMULLD      Y0, Y11, Y11
+	VMOVD        CX, X13
+	VPBROADCASTD X13, Y13
+	VPSUBD       Y13, Y4, Y14
+	VPMULLD      Y14, Y14, Y14
+	VPMULLD      Y7, Y14, Y14
+	VPADDD       Y14, Y12, Y12
+	VPSUBD       Y13, Y6, Y13
+	VPMULLD      Y13, Y13, Y13
+	VPMULLD      Y7, Y13, Y13
+	VPADDD       Y13, Y11, Y11
+	VMOVD        DX, X13
+	VPBROADCASTD X13, Y13
+	VPSUBD       Y13, Y1, Y14
+	VPMULLD      Y14, Y14, Y14
+	VPMULLD      Y8, Y14, Y14
+	VPADDD       Y14, Y12, Y12
+	VPSUBD       Y13, Y2, Y13
+	VPMULLD      Y13, Y13, Y13
+	VPMULLD      Y8, Y13, Y13
+	VPADDD       Y13, Y11, Y11
+	VPMINSD      Y12, Y9, Y9
+	VPMINSD      Y11, Y10, Y10
+	XORL         AX, AX
+	VMOVD        AX, X11
+	VPBROADCASTD X11, Y11
+	VPSUBD       Y11, Y3, Y3
+	VPMULLD      Y3, Y3, Y3
+	VPMULLD      Y0, Y3, Y3
+	VPSUBD       Y11, Y5, Y5
+	VPMULLD      Y5, Y5, Y5
+	VPMULLD      Y0, Y5, Y5
+	VMOVD        AX, X0
+	VPBROADCASTD X0, Y0
+	VPSUBD       Y0, Y4, Y4
+	VPMULLD      Y4, Y4, Y4
+	VPMULLD      Y7, Y4, Y4
+	VPADDD       Y4, Y3, Y3
+	VPSUBD       Y0, Y6, Y0
+	VPMULLD      Y0, Y0, Y0
+	VPMULLD      Y7, Y0, Y0
+	VPADDD       Y0, Y5, Y5
+	VMOVD        AX, X0
+	VPBROADCASTD X0, Y0
+	VPSUBD       Y0, Y1, Y1
+	VPMULLD      Y1, Y1, Y1
+	VPMULLD      Y8, Y1, Y1
+	VPADDD       Y1, Y3, Y3
+	VPSUBD       Y0, Y2, Y0
+	VPMULLD      Y0, Y0, Y0
+	VPMULLD      Y8, Y0, Y0
+	VPADDD       Y0, Y5, Y5
+	VPMINSD      Y3, Y9, Y9
+	VPMINSD      Y5, Y10, Y10
+	JMP          reduce
+
+mode4:
+	LEAQ         1(DI)(AX*2), CX
+	IMUL3Q       $0x000002ab, CX, CX
+	SHRL         $0x0b, CX
+	LEAQ         1(R8)(DX*2), BX
+	IMUL3Q       $0x000002ab, BX, BX
+	SHRL         $0x0b, BX
+	LEAQ         1(R9)(SI*2), R10
+	IMUL3Q       $0x000002ab, R10, R10
+	SHRL         $0x0b, R10
+	VMOVD        CX, X11
+	VPBROADCASTD X11, Y11
+	VPSUBD       Y11, Y3, Y12
+	VPMULLD      Y12, Y12, Y12
+	VPMULLD      Y0, Y12, Y12
+	VPSUBD       Y11, Y5, Y11
+	VPMULLD      Y11, Y11, Y11
+	VPMULLD      Y0, Y11, Y11
+	VMOVD        BX, X13
+	VPBROADCASTD X13, Y13
+	VPSUBD       Y13, Y4, Y14
+	VPMULLD      Y14, Y14, Y14
+	VPMULLD      Y7, Y14, Y14
+	VPADDD       Y14, Y12, Y12
+	VPSUBD       Y13, Y6, Y13
+	VPMULLD      Y13, Y13, Y13
+	VPMULLD      Y7, Y13, Y13
+	VPADDD       Y13, Y11, Y11
+	VMOVD        R10, X13
+	VPBROADCASTD X13, Y13
+	VPSUBD       Y13, Y1, Y14
+	VPMULLD      Y14, Y14, Y14
+	VPMULLD      Y8, Y14, Y14
+	VPADDD       Y14, Y12, Y12
+	VPSUBD       Y13, Y2, Y13
+	VPMULLD      Y13, Y13, Y13
+	VPMULLD      Y8, Y13, Y13
+	VPADDD       Y13, Y11, Y11
+	VPMINSD      Y12, Y9, Y9
+	VPMINSD      Y11, Y10, Y10
+	LEAQ         1(AX)(DI*2), AX
+	IMUL3Q       $0x000002ab, AX, AX
+	SHRL         $0x0b, AX
+	LEAQ         1(DX)(R8*2), CX
+	IMUL3Q       $0x000002ab, CX, CX
+	SHRL         $0x0b, CX
+	LEAQ         1(SI)(R9*2), DX
+	IMUL3Q       $0x000002ab, DX, DX
+	SHRL         $0x0b, DX
+	VMOVD        AX, X11
+	VPBROADCASTD X11, Y11
+	VPSUBD       Y11, Y3, Y3
+	VPMULLD      Y3, Y3, Y3
+	VPMULLD      Y0, Y3, Y3
+	VPSUBD       Y11, Y5, Y5
+	VPMULLD      Y5, Y5, Y5
+	VPMULLD      Y0, Y5, Y5
+	VMOVD        CX, X0
+	VPBROADCASTD X0, Y0
+	VPSUBD       Y0, Y4, Y4
+	VPMULLD      Y4, Y4, Y4
+	VPMULLD      Y7, Y4, Y4
+	VPADDD       Y4, Y3, Y3
+	VPSUBD       Y0, Y6, Y0
+	VPMULLD      Y0, Y0, Y0
+	VPMULLD      Y7, Y0, Y0
+	VPADDD       Y0, Y5, Y5
+	VMOVD        DX, X0
+	VPBROADCASTD X0, Y0
+	VPSUBD       Y0, Y1, Y1
+	VPMULLD      Y1, Y1, Y1
+	VPMULLD      Y8, Y1, Y1
+	VPADDD       Y1, Y3, Y3
+	VPSUBD       Y0, Y2, Y0
+	VPMULLD      Y0, Y0, Y0
+	VPMULLD      Y8, Y0, Y0
+	VPADDD       Y0, Y5, Y5
+	VPMINSD      Y3, Y9, Y9
+	VPMINSD      Y5, Y10, Y10
+
+reduce:
+	VPADDD       Y10, Y9, Y0
+	VEXTRACTI128 $0x01, Y0, X1
+	VPADDD       X1, X0, X0
+	VPSHUFD      $0x4e, X0, X1
+	VPADDD       X1, X0, X0
+	VPSHUFD      $0xe5, X0, X1
+	VPADDD       X1, X0, X0
+	VMOVD        X0, AX
+	VZEROUPPER
+	MOVL         AX, ret+24(FP)
+	RET
