@@ -65,10 +65,10 @@ func emitAlphaPaletteScratch(aa Register, ac Mem) Mem {
 // callers compare with strict <,
 // so the exact total and the scalar cutoff sum select the same winner.
 func genAlphaBlockError(ac Mem) {
-	TEXT("alphaBlockErrorAVX2", NOSPLIT, "func(samples *[16]uint8, aa uint32) uint32")
+	TEXT("AlphaBlockErrorAVX2", NOSPLIT, "func(samples *[16]uint8, aa uint32) uint32")
 	Pragma("noescape")
 	Doc(
-		"alphaBlockErrorAVX2 returns the summed minimum squared error of 16 alpha",
+		"AlphaBlockErrorAVX2 returns the summed minimum squared error of 16 alpha",
 		"samples against the palette of endpoints aa = a0 | a1<<8 (BC3/BC4 scoring).",
 	)
 
@@ -103,10 +103,10 @@ func genAlphaBlockError(ac Mem) {
 // and packing the 3-bit indices into a 48-bit value (sample i at bit 3i),
 // matching the scalar encoder's bit order.
 func genBestAlphaIndices(ac, shifts Mem) {
-	TEXT("bestAlphaIndices16AVX2", NOSPLIT, "func(samples *[16]uint8, aa uint32) uint64")
+	TEXT("BestAlphaIndices16AVX2", NOSPLIT, "func(samples *[16]uint8, aa uint32) uint64")
 	Pragma("noescape")
 	Doc(
-		"bestAlphaIndices16AVX2 returns the packed 48-bit BC3/BC4 alpha indices",
+		"BestAlphaIndices16AVX2 returns the packed 48-bit BC3/BC4 alpha indices",
 		"for 16 samples against the palette of endpoints aa = a0 | a1<<8.",
 		"Ties keep the lowest index.",
 	)

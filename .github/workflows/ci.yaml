@@ -17,11 +17,5 @@ jobs:
         with:
           go-version: '1.26'
 
-      - name: Install tools
-        run: make tool-golangci-lint tool-betteralign
-
-      - name: Check
-        run: make check FUZZTIME=10s
-
-      - name: Check (pure Go fallback)
-        run: go test -tags purego ./...
+      - name: CI
+        run: make ci FUZZTIME=10s

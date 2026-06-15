@@ -265,10 +265,10 @@ func emitStore4Rows(px0, px1 VecVirtual, dst, stride Register) {
 
 // genDecodeDXT5Row emits the AVX2+BMI2 kernel decoding n interior DXT5 blocks.
 func genDecodeDXT5Row(c decodeConsts, ac Mem) {
-	TEXT("decodeDXT5RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
+	TEXT("DecodeDXT5RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
 	Pragma("noescape")
 	Doc(
-		"decodeDXT5RowAVX2 decodes n consecutive interior DXT5 blocks (16 bytes each)",
+		"DecodeDXT5RowAVX2 decodes n consecutive interior DXT5 blocks (16 bytes each)",
 		"into dst as 4 NRGBA rows of 16 bytes spaced stride bytes apart. Requires BMI2.",
 	)
 
@@ -375,10 +375,10 @@ func emitDXT3AlphaInto(nib VecVirtual, px VecVirtual) {
 // genDecodeDXT3Row emits the AVX2+BMI2 kernel decoding n interior DXT3 blocks.
 // Color decoding mirrors DXT1; alpha is the explicit 4-bit field expanded *17.
 func genDecodeDXT3Row(c decodeConsts) {
-	TEXT("decodeDXT3RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
+	TEXT("DecodeDXT3RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
 	Pragma("noescape")
 	Doc(
-		"decodeDXT3RowAVX2 decodes n consecutive interior DXT3 blocks (16 bytes each)",
+		"DecodeDXT3RowAVX2 decodes n consecutive interior DXT3 blocks (16 bytes each)",
 		"into dst as 4 NRGBA rows of 16 bytes spaced stride bytes apart. Requires BMI2.",
 	)
 
@@ -443,10 +443,10 @@ func genDecodeDXT3Row(c decodeConsts) {
 // genDecodeBC4Row emits the AVX2+BMI2 kernel decoding n interior BC4 blocks
 // into gray RGBA pixels.
 func genDecodeBC4Row(ac Mem) {
-	TEXT("decodeBC4RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
+	TEXT("DecodeBC4RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
 	Pragma("noescape")
 	Doc(
-		"decodeBC4RowAVX2 decodes n consecutive interior BC4 blocks (8 bytes each)",
+		"DecodeBC4RowAVX2 decodes n consecutive interior BC4 blocks (8 bytes each)",
 		"into dst as 4 gray NRGBA rows spaced stride bytes apart. Requires BMI2.",
 	)
 
@@ -491,10 +491,10 @@ func genDecodeBC4Row(ac Mem) {
 // genDecodeBC5Row emits the AVX2+BMI2 kernel decoding n interior BC5 blocks
 // (R and G channels from two alpha payloads, B=0, A=255).
 func genDecodeBC5Row(ac Mem) {
-	TEXT("decodeBC5RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
+	TEXT("DecodeBC5RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
 	Pragma("noescape")
 	Doc(
-		"decodeBC5RowAVX2 decodes n consecutive interior BC5 blocks (16 bytes each)",
+		"DecodeBC5RowAVX2 decodes n consecutive interior BC5 blocks (16 bytes each)",
 		"into dst as 4 NRGBA rows (R, G, 0, 255) spaced stride bytes apart. Requires BMI2.",
 	)
 
@@ -547,10 +547,10 @@ func genMiscConsts() {
 // genDecodeDXT1Row emits the AVX2 kernel decoding n consecutive interior
 // DXT1 blocks straight into the destination image rows.
 func genDecodeDXT1Row(c decodeConsts) {
-	TEXT("decodeDXT1RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
+	TEXT("DecodeDXT1RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
 	Pragma("noescape")
 	Doc(
-		"decodeDXT1RowAVX2 decodes n consecutive interior DXT1 blocks (8 bytes each)",
+		"DecodeDXT1RowAVX2 decodes n consecutive interior DXT1 blocks (8 bytes each)",
 		"into dst as 4 NRGBA rows of 16 bytes spaced stride bytes apart.",
 	)
 

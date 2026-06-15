@@ -2,8 +2,8 @@
 // Copyright (c) 2026 WoozyMasta
 // Source: github.com/woozymasta/bcn
 
-// Command asm generates the amd64 SIMD kernels for the bcn package via avo.
-// Regenerate with: go generate . (from the module root).
+// Command asmgen generates the amd64 SIMD kernels for the internal/simd
+// package via avo. Regenerate with `make generate` from the repository root.
 package main
 
 import (
@@ -41,10 +41,10 @@ func main() {
 // genFindMinMax emits the SSE2 kernel computing per-channel min/max over a
 // 4x4 RGBA block. Byte layout matches [16]rgba8 (64 contiguous bytes).
 func genFindMinMax() {
-	TEXT("findMinMaxSSE2", NOSPLIT, "func(block *[64]byte) uint64")
+	TEXT("FindMinMaxSSE2", NOSPLIT, "func(block *[64]byte) uint64")
 	Pragma("noescape")
 	Doc(
-		"findMinMaxSSE2 computes per-channel min/max over 16 RGBA pixels.",
+		"FindMinMaxSSE2 computes per-channel min/max over 16 RGBA pixels.",
 		"Returns min RGBA packed little-endian in the low 32 bits and max RGBA in the high 32 bits.",
 	)
 

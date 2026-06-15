@@ -4,17 +4,19 @@
 
 //go:build amd64 && !purego
 
-//go:generate go run ./asm -out kernels_amd64.s -stubs kernels_stubs_amd64.go -pkg bcn
-
 package bcn
 
-import "unsafe"
+import (
+	"unsafe"
+
+	"github.com/woozymasta/bcn/internal/simd"
+)
 
 // findMinMax returns per-channel min and max colors inside a 4x4 block.
 func findMinMax(block [16]rgba8) (rgba8, rgba8) {
-	if useASM {
+	if simd.Enabled {
 		// [16]rgba8 is 64 contiguous bytes (four uint8 fields, no padding).
-		v := findMinMaxSSE2((*[64]byte)(unsafe.Pointer(&block)))
+		v := simd.FindMinMaxSSE2((*[64]byte)(unsafe.Pointer(&block)))
 		return rgba8FromPacked(uint32(v)), rgba8FromPacked(uint32(v >> 32)) // #nosec G115 -- intentional 32-bit halves.
 	}
 
@@ -35,7 +37,7 @@ const pack3Penalty = int32(1) << 30
 // packDXT1IndicesASM assigns palette indices with the AVX2 kernel.
 // Returns ok=false when AVX2 is unavailable and the caller must fall back.
 func packDXT1IndicesASM(block *[16]rgba8, palette *[4]rgba8, hasAlpha bool, alphaThreshold uint8, w rgbWeightsFP) (uint32, bool) {
-	if !hasAVX2 {
+	if !simd.HasAVX2 {
 		return 0, false
 	}
 
@@ -57,7 +59,7 @@ func packDXT1IndicesASM(block *[16]rgba8, palette *[4]rgba8, hasAlpha bool, alph
 	// Opaque mode leaves threshold and penalty zero: entry 3 competes (limit 4)
 	// and no pixel is forced (alpha is always >= 0).
 
-	idx := packDXT1IndicesAVX2((*[64]byte)(unsafe.Pointer(block)), &params)
+	idx := simd.PackDXT1IndicesAVX2((*[64]byte)(unsafe.Pointer(block)), &params)
 	return idx, true
 }
 
@@ -65,13 +67,13 @@ func packDXT1IndicesASM(block *[16]rgba8, palette *[4]rgba8, hasAlpha bool, alph
 // BC1 endpoint pair via the AVX2 kernel. Returns ok=false when AVX2 is
 // unavailable and the caller must use the scalar path.
 func scoreDXT1PaletteASM(block *[16]rgba8, c0, c1 uint16, w rgbWeightsFP) (int64, bool) {
-	if !hasAVX2 {
+	if !simd.HasAVX2 {
 		return 0, false
 	}
 
 	weights := [4]int32{w.r, w.g, w.b, 0}
 	cc := uint32(c0) | uint32(c1)<<16
-	e := scoreDXT1PaletteAVX2((*[64]byte)(unsafe.Pointer(block)), cc, &weights)
+	e := simd.ScoreDXT1PaletteAVX2((*[64]byte)(unsafe.Pointer(block)), cc, &weights)
 	return int64(e), true
 }
 
@@ -79,22 +81,22 @@ func scoreDXT1PaletteASM(block *[16]rgba8, c0, c1 uint16, w rgbWeightsFP) (int64
 // palette of endpoints a0, a1 via AVX2 (the kernel builds the palette).
 // Returns ok=false when AVX2 is unavailable.
 func alphaBlockErrorASM(samples *[16]uint8, a0, a1 uint8) (int, bool) {
-	if !hasAVX2 {
+	if !simd.HasAVX2 {
 		return 0, false
 	}
 
-	return int(alphaBlockErrorAVX2(samples, uint32(a0)|uint32(a1)<<8)), true
+	return int(simd.AlphaBlockErrorAVX2(samples, uint32(a0)|uint32(a1)<<8)), true
 }
 
 // bestAlphaIndices16ASM packs the nearest palette indices
 // for 16 alpha samples against the palette of endpoints a0, a1 via AVX2.
 // Returns ok=false when AVX2 is unavailable.
 func bestAlphaIndices16ASM(samples *[16]uint8, a0, a1 uint8) (uint64, bool) {
-	if !hasAVX2 {
+	if !simd.HasAVX2 {
 		return 0, false
 	}
 
-	return bestAlphaIndices16AVX2(samples, uint32(a0)|uint32(a1)<<8), true
+	return simd.BestAlphaIndices16AVX2(samples, uint32(a0)|uint32(a1)<<8), true
 }
 
 // decodeRowKernel is an assembly routine decoding n consecutive interior
@@ -124,50 +126,50 @@ func decodeRangeASMAvailable(enabled bool, width, height, start, end int) bool {
 // Returns false when the kernel cannot be used and the caller must take the
 // generic path.
 func decodeRangeDXT1ASM(data, out []byte, width, height, bx, start, end int) bool {
-	if !decodeRangeASMAvailable(hasAVX2, width, height, start, end) {
+	if !decodeRangeASMAvailable(simd.HasAVX2, width, height, start, end) {
 		return false
 	}
 
-	decodeRangeRows(decodeDXT1RowAVX2, data, out, width, bx, start, end, 8)
+	decodeRangeRows(simd.DecodeDXT1RowAVX2, data, out, width, bx, start, end, 8)
 	return true
 }
 
 // decodeRangeDXT3ASM decodes blocks [start, end) with the AVX2+BMI2 row kernel.
 func decodeRangeDXT3ASM(data, out []byte, width, height, bx, start, end int) bool {
-	if !decodeRangeASMAvailable(hasAVX2BMI2, width, height, start, end) {
+	if !decodeRangeASMAvailable(simd.HasAVX2BMI2, width, height, start, end) {
 		return false
 	}
 
-	decodeRangeRows(decodeDXT3RowAVX2, data, out, width, bx, start, end, 16)
+	decodeRangeRows(simd.DecodeDXT3RowAVX2, data, out, width, bx, start, end, 16)
 	return true
 }
 
 // decodeRangeDXT5ASM decodes blocks [start, end) with the AVX2+BMI2 row kernel.
 func decodeRangeDXT5ASM(data, out []byte, width, height, bx, start, end int) bool {
-	if !decodeRangeASMAvailable(hasAVX2BMI2, width, height, start, end) {
+	if !decodeRangeASMAvailable(simd.HasAVX2BMI2, width, height, start, end) {
 		return false
 	}
 
-	decodeRangeRows(decodeDXT5RowAVX2, data, out, width, bx, start, end, 16)
+	decodeRangeRows(simd.DecodeDXT5RowAVX2, data, out, width, bx, start, end, 16)
 	return true
 }
 
 // decodeRangeBC4ASM decodes blocks [start, end) with the AVX2+BMI2 row kernel.
 func decodeRangeBC4ASM(data, out []byte, width, height, bx, start, end int) bool {
-	if !decodeRangeASMAvailable(hasAVX2BMI2, width, height, start, end) {
+	if !decodeRangeASMAvailable(simd.HasAVX2BMI2, width, height, start, end) {
 		return false
 	}
 
-	decodeRangeRows(decodeBC4RowAVX2, data, out, width, bx, start, end, 8)
+	decodeRangeRows(simd.DecodeBC4RowAVX2, data, out, width, bx, start, end, 8)
 	return true
 }
 
 // decodeRangeBC5ASM decodes blocks [start, end) with the AVX2+BMI2 row kernel.
 func decodeRangeBC5ASM(data, out []byte, width, height, bx, start, end int) bool {
-	if !decodeRangeASMAvailable(hasAVX2BMI2, width, height, start, end) {
+	if !decodeRangeASMAvailable(simd.HasAVX2BMI2, width, height, start, end) {
 		return false
 	}
 
-	decodeRangeRows(decodeBC5RowAVX2, data, out, width, bx, start, end, 16)
+	decodeRangeRows(simd.DecodeBC5RowAVX2, data, out, width, bx, start, end, 16)
 	return true
 }

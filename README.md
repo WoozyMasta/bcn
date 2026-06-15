@@ -107,7 +107,8 @@ cfg, _, _ := image.DecodeConfig(f) // width, height only
 ## Acceleration
 
 On `amd64` the hot encode/decode paths use AVX2/SSE2 assembly kernels
-(generated with [avo](https://github.com/mmcloughlin/avo))
+(in the `internal/simd` package, generated with
+[avo](https://github.com/mmcloughlin/avo))
 selected at runtime via `golang.org/x/sys/cpu`;
 a portable pure-Go fallback handles every other platform
 and any block the kernels do not cover
@@ -116,13 +117,15 @@ The two paths are byte-exact -
 validated by exhaustive, randomized and fuzz equivalence tests.
 
 * AVX2 kernels need AVX2
-  (decode of DXT1 needs AVX2; DXT5/BC4/BC5 decode needs AVX2+BMI2).
+  (decode of DXT1 needs AVX2; DXT3/DXT5/BC4/BC5 decode needs AVX2+BMI2).
   Without them the pure-Go path runs.
 * `BCN_PUREGO=1` in the environment forces the pure-Go path at runtime;
   building with `-tags purego` excludes the assembly entirely.
-* Regenerate kernels after editing `asm/` with `make generate`
-  (or `go generate ./...`);
-  `make check` verifies the committed `.s` is up to date.
+* The avo generator lives in its own build-time-only module
+  (`internal/simd/asmgen`), so consumers never pull avo into their module graph;
+  the only runtime dependency is `golang.org/x/sys`.
+* Regenerate kernels after editing `internal/simd/asmgen` with `make generate`;
+  `make generate-check` (part of CI) verifies the committed `.s` is up to date.
 * Set `GOAMD64=v2`/`v3` to let the Go compiler also vectorize the fallback
   and container helpers;
   it does not affect the hand-written kernels.

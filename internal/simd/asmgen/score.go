@@ -21,10 +21,10 @@ import (
 // (high 16). weights points to {wr, wg, wb, _} int32. Returns the total
 // (always < 16*66.6M < 2^31, fits uint32).
 func genScoreDXT1Palette() {
-	TEXT("scoreDXT1PaletteAVX2", NOSPLIT, "func(block *[64]byte, cc uint32, weights *[4]int32) uint32")
+	TEXT("ScoreDXT1PaletteAVX2", NOSPLIT, "func(block *[64]byte, cc uint32, weights *[4]int32) uint32")
 	Pragma("noescape")
 	Doc(
-		"scoreDXT1PaletteAVX2 returns the total weighted block error of one BC1",
+		"ScoreDXT1PaletteAVX2 returns the total weighted block error of one BC1",
 		"endpoint pair (cc = c0 | c1<<16) over 16 pixels, palette built like the",
 		"Go encoder. Used to drive endpoint refinement.",
 	)
