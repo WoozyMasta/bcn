@@ -38,7 +38,7 @@ test-race-pure:
 
 fuzz:
 	@for t in FuzzScoreDXT1Palette FuzzPackDXT1Indices FuzzAlphaKernels FuzzDecodeNoPanic; do \
-		echo "== $$t =="; \
+		echo "> $$t"; \
 		$(GO) test -run '^$$' -fuzz "^$$t$$" -fuzztime $(FUZZTIME) . || exit 1; \
 	done
 
