@@ -27,6 +27,12 @@ var psnrFloorsDB = map[string]float64{
 	"DXT5/nohq/q1":        23.1445,
 	"DXT5/nohq/q6":        25.4902,
 	"DXT5/nohq/q8":        25.7045,
+	"BC7/opaque/q1":       23.6610,
+	"BC7/opaque/q6":       23.6610,
+	"BC7/opaque/q8":       23.6610,
+	"BC7/translucent/q1":  22.6344,
+	"BC7/translucent/q6":  22.6344,
+	"BC7/translucent/q8":  22.6344,
 }
 
 const psnrToleranceDB = 0.05
@@ -57,6 +63,8 @@ func psnrCases() []struct {
 	add(FormatDXT3, "translucent")
 	add(FormatDXT5, "translucent")
 	add(FormatDXT5, "nohq")
+	add(FormatBC7, "opaque")
+	add(FormatBC7, "translucent")
 
 	return cases
 }

@@ -47,6 +47,36 @@ func (r *bptcReader) readN(n int) int32 {
 	return int32(r.read(n))
 }
 
+// bptcWriter is the inverse of bptcReader:
+// it appends fields LSB-first into a little-endian 128-bit window,
+// so encoded blocks decode with the same layout.
+type bptcWriter struct {
+	lo, hi uint64
+	pos    int
+}
+
+// put appends the low n bits of v at the current position and advances.
+func (w *bptcWriter) put(v uint32, n int) {
+	for k := range n {
+		if v&(1<<uint(k)) != 0 {
+			if w.pos < 64 {
+				w.lo |= 1 << uint(w.pos)
+			} else {
+				w.hi |= 1 << uint(w.pos-64)
+			}
+		}
+		w.pos++
+	}
+}
+
+// bytes returns the packed 16-byte block.
+func (w *bptcWriter) bytes() [16]byte {
+	var b [16]byte
+	binary.LittleEndian.PutUint64(b[0:8], w.lo)
+	binary.LittleEndian.PutUint64(b[8:16], w.hi)
+	return b
+}
+
 // BC7 interpolation weight tables for 2/3/4-bit indices (aWeight2/3/4 in bcdec).
 var (
 	bc7Weight2 = [4]int32{0, 21, 43, 64}

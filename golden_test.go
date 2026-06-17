@@ -83,6 +83,26 @@ var goldenEncodeHashes = map[string]string{
 	"BC5/opaque/q8":        "330bcfc40f2875fc",
 	"BC5/opaque/q9":        "330bcfc40f2875fc",
 	"BC5/opaque/q10":       "330bcfc40f2875fc",
+	"BC7/opaque/q1":        "676bc14c0e70df41",
+	"BC7/opaque/q2":        "676bc14c0e70df41",
+	"BC7/opaque/q3":        "676bc14c0e70df41",
+	"BC7/opaque/q4":        "676bc14c0e70df41",
+	"BC7/opaque/q5":        "676bc14c0e70df41",
+	"BC7/opaque/q6":        "676bc14c0e70df41",
+	"BC7/opaque/q7":        "676bc14c0e70df41",
+	"BC7/opaque/q8":        "676bc14c0e70df41",
+	"BC7/opaque/q9":        "676bc14c0e70df41",
+	"BC7/opaque/q10":       "676bc14c0e70df41",
+	"BC7/translucent/q1":   "80f1cd8d9ca86319",
+	"BC7/translucent/q2":   "80f1cd8d9ca86319",
+	"BC7/translucent/q3":   "80f1cd8d9ca86319",
+	"BC7/translucent/q4":   "80f1cd8d9ca86319",
+	"BC7/translucent/q5":   "80f1cd8d9ca86319",
+	"BC7/translucent/q6":   "80f1cd8d9ca86319",
+	"BC7/translucent/q7":   "80f1cd8d9ca86319",
+	"BC7/translucent/q8":   "80f1cd8d9ca86319",
+	"BC7/translucent/q9":   "80f1cd8d9ca86319",
+	"BC7/translucent/q10":  "80f1cd8d9ca86319",
 }
 
 // goldenImage returns a deterministic 64x64 test image per scenario.
@@ -137,6 +157,8 @@ func goldenCases() []struct {
 		{FormatDXT5, "nohq"},
 		{FormatBC4, "opaque"},
 		{FormatBC5, "opaque"},
+		{FormatBC7, "opaque"},
+		{FormatBC7, "translucent"},
 	}
 
 	var cases []struct {
