@@ -29,6 +29,12 @@ var (
 	colorBetaNum3 = [4]int{0, 2, 1, 0}
 )
 
+type lsqColorSums struct {
+	saa, sbb, sab    int // Normal matrix: sum(a*a), sum(b*b), sum(a*b).
+	sapR, sapG, sapB int // Endpoint-0 projections: sum(a*R), sum(a*G), sum(a*B).
+	sbpR, sbpG, sbpB int // Endpoint-1 projections: sum(b*R), sum(b*G), sum(b*B).
+}
+
 // lsqColorRefine polishes an ordered BC1 endpoint pair with iterated
 // least-squares fitting. seedErr is the current block error of (c0, c1);
 // candidates are accepted only when they strictly improve it.
@@ -83,45 +89,50 @@ func lsqColorSolve(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold
 		limit = 3
 	}
 
-	var saa, sbb, sab int
-	var sapR, sapG, sapB int
-	var sbpR, sbpG, sbpB int
-
-	// TODO(avo): per-pixel nearest-index search + integer accumulation is the
-	// hot loop here; a future AVX2 kernel can fold assignment and the sums.
-	for _, px := range block {
-		if hasAlpha && px.a < alphaThreshold {
-			continue
-		}
-
-		idx := bestIndexWeighted(&palette, px, w, limit)
-		b := betaNum[idx]
-		a := d - b
-
-		saa += a * a
-		sbb += b * b
-		sab += a * b
-		sapR += a * int(px.r)
-		sapG += a * int(px.g)
-		sapB += a * int(px.b)
-		sbpR += b * int(px.r)
-		sbpG += b * int(px.g)
-		sbpB += b * int(px.b)
+	sums, ok := lsqColorAccumulateASM(&block, &palette, hasAlpha, alphaThreshold, w, d, betaNum)
+	if !ok {
+		sums = lsqColorAccumulateGeneric(block, &palette, hasAlpha, alphaThreshold, w, d, betaNum, limit)
 	}
 
-	denom := int64(saa)*int64(sbb) - int64(sab)*int64(sab)
+	denom := int64(sums.saa)*int64(sums.sbb) - int64(sums.sab)*int64(sums.sab)
 	if denom == 0 {
 		return 0, 0, false
 	}
 
-	r0, r1 := lsqSolvePair(d, saa, sbb, sab, sapR, sbpR, denom)
-	g0, g1 := lsqSolvePair(d, saa, sbb, sab, sapG, sbpG, denom)
-	b0, b1 := lsqSolvePair(d, saa, sbb, sab, sapB, sbpB, denom)
+	r0, r1 := lsqSolvePair(d, sums.saa, sums.sbb, sums.sab, sums.sapR, sums.sbpR, denom)
+	g0, g1 := lsqSolvePair(d, sums.saa, sums.sbb, sums.sab, sums.sapG, sums.sbpG, denom)
+	b0, b1 := lsqSolvePair(d, sums.saa, sums.sbb, sums.sab, sums.sapB, sums.sbpB, denom)
 
 	e0 := rgba8{r: clampU8(r0), g: clampU8(g0), b: clampU8(b0), a: 255}
 	e1 := rgba8{r: clampU8(r1), g: clampU8(g1), b: clampU8(b1), a: 255}
 
 	return rgb565(e0), rgb565(e1), true
+}
+
+// lsqColorAccumulateGeneric is the scalar reference for BC1 LSQ index assignment and accumulation.
+func lsqColorAccumulateGeneric(block [16]rgba8, palette *[4]rgba8, hasAlpha bool, alphaThreshold uint8, w rgbWeightsFP, d int, betaNum *[4]int, limit int) lsqColorSums {
+	var sums lsqColorSums
+	for _, px := range block {
+		if hasAlpha && px.a < alphaThreshold {
+			continue
+		}
+
+		idx := bestIndexWeighted(palette, px, w, limit)
+		b := betaNum[idx]
+		a := d - b
+
+		sums.saa += a * a
+		sums.sbb += b * b
+		sums.sab += a * b
+		sums.sapR += a * int(px.r)
+		sums.sapG += a * int(px.g)
+		sums.sapB += a * int(px.b)
+		sums.sbpR += b * int(px.r)
+		sums.sbpG += b * int(px.g)
+		sums.sbpB += b * int(px.b)
+	}
+
+	return sums
 }
 
 // lsqSolvePair solves the 2x2 normal equations for one channel
@@ -145,6 +156,11 @@ func lsqSolvePair(d, saa, sbb, sab, sap, sbp int, denom int64) (int, int) {
 // The encoder always emits the 8-value mode (a0 >= a1),
 // so the 6-value mapping is not needed here.
 var alphaBetaNum = [8]int{0, 7, 1, 2, 3, 4, 5, 6}
+
+type lsqAlphaSums struct {
+	saa, sbb, sab int
+	sap, sbp      int
+}
 
 // lsqAlphaRefine polishes an ordered alpha endpoint pair (a0 >= a1)
 // with iterated least-squares fitting, accepting a candidate only when it lowers the alpha block error.
@@ -186,33 +202,40 @@ func lsqAlphaRefine(alpha [16]uint8, a0, a1 uint8, iters int) (uint8, uint8) {
 // maxAlphaErr is an effectively infinite cutoff for alphaBlockError.
 const maxAlphaErr = 1 << 30
 
-// lsqAlphaSolve assigns each sample to its nearest entry of the 8-value palette for (a0, a1) and
-// returns the least-squares-optimal endpoints. ok is false on a degenerate distribution.
+// lsqAlphaSolve assigns each sample to its nearest entry of the 8-value palette for (a0, a1)
+// and returns the least-squares-optimal endpoints. ok is false on a degenerate distribution.
 func lsqAlphaSolve(alpha [16]uint8, a0, a1 uint8) (uint8, uint8, bool) {
 	palette := dxt5AlphaPalette(a0, a1)
 
-	var saa, sbb, sab, sap, sbp int
-
-	// TODO(avo): mirrors the color hot loop; a future kernel can vectorize the
-	// nearest-index search and the scalar accumulation.
-	for _, s := range alpha {
-		idx := bestAlphaIndex(&palette, s)
-		b := alphaBetaNum[idx]
-		a := 7 - b
-
-		saa += a * a
-		sbb += b * b
-		sab += a * b
-		sap += a * int(s)
-		sbp += b * int(s)
+	sums, ok := lsqAlphaAccumulateASM(&alpha, a0, a1)
+	if !ok {
+		sums = lsqAlphaAccumulateGeneric(alpha, &palette)
 	}
 
-	denom := int64(saa)*int64(sbb) - int64(sab)*int64(sab)
+	denom := int64(sums.saa)*int64(sums.sbb) - int64(sums.sab)*int64(sums.sab)
 	if denom == 0 {
 		return 0, 0, false
 	}
 
-	v0, v1 := lsqSolvePair(7, saa, sbb, sab, sap, sbp, denom)
+	v0, v1 := lsqSolvePair(7, sums.saa, sums.sbb, sums.sab, sums.sap, sums.sbp, denom)
 
 	return clampU8(v0), clampU8(v1), true
+}
+
+// lsqAlphaAccumulateGeneric is the scalar reference for BC3/BC4 LSQ index assignment and accumulation.
+func lsqAlphaAccumulateGeneric(alpha [16]uint8, palette *[8]uint8) lsqAlphaSums {
+	var sums lsqAlphaSums
+	for _, s := range alpha {
+		idx := bestAlphaIndex(palette, s)
+		b := alphaBetaNum[idx]
+		a := 7 - b
+
+		sums.saa += a * a
+		sums.sbb += b * b
+		sums.sab += a * b
+		sums.sap += a * int(s)
+		sums.sbp += b * int(s)
+	}
+
+	return sums
 }

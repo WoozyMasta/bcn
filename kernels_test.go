@@ -412,6 +412,85 @@ func TestBestAlphaIndicesEquivalence(t *testing.T) {
 	}
 }
 
+// TestLSQColorAccumulateEquivalence verifies the LSQ assign+accumulate hook
+// against the scalar reference for opaque and alpha-mode BC1 palettes.
+func TestLSQColorAccumulateEquivalence(t *testing.T) {
+	state := uint32(0x15A11C01)
+	next := func() uint32 {
+		state = state*1664525 + 1013904223
+		return state
+	}
+	nextByte := func() uint8 { return uint8(next() >> 24) }
+
+	weights := []rgbWeightsFP{
+		defaultWeightsFP,
+		balancedWeightsFP,
+		{r: 1, g: 1, b: 1},
+		{r: 0, g: 1024, b: 0},
+	}
+
+	for iter := 0; iter < 200_000; iter++ {
+		var block [16]rgba8
+		for i := range block {
+			block[i] = rgba8{nextByte(), nextByte(), nextByte(), nextByte()}
+		}
+
+		c0, c1 := uint16(next()), uint16(next())
+		palette := dxt1Palette(c0, c1)
+		hasAlpha := next()&1 == 0
+		threshold := uint8(next() >> 24)
+		w := weights[next()%uint32(len(weights))]
+		d := 3
+		betaNum := &colorBetaNum4
+		limit := 4
+		if hasAlpha {
+			d = 2
+			betaNum = &colorBetaNum3
+			limit = 3
+		}
+
+		got, ok := lsqColorAccumulateASM(&block, &palette, hasAlpha, threshold, w, d, betaNum)
+		if !ok {
+			t.Skip("LSQ color accumulate kernel unavailable on this platform")
+		}
+		want := lsqColorAccumulateGeneric(block, &palette, hasAlpha, threshold, w, d, betaNum, limit)
+		if got != want {
+			t.Fatalf("iter %d hasAlpha=%v thr=%d w=%v: got %+v, want %+v\nblock=%v\npalette=%v",
+				iter, hasAlpha, threshold, w, got, want, block, palette)
+		}
+	}
+}
+
+// TestLSQAlphaAccumulateEquivalence verifies the LSQ alpha assign+accumulate hook
+// against the scalar reference over random samples and endpoint pairs.
+func TestLSQAlphaAccumulateEquivalence(t *testing.T) {
+	state := uint32(0x15A11C02)
+	next := func() uint32 {
+		state = state*1664525 + 1013904223
+		return state
+	}
+
+	for iter := 0; iter < 200_000; iter++ {
+		var alpha [16]uint8
+		for i := range alpha {
+			alpha[i] = uint8(next() >> 24)
+		}
+		a0 := uint8(next() >> 24)
+		a1 := uint8(next() >> 24)
+		palette := dxt5AlphaPalette(a0, a1)
+
+		got, ok := lsqAlphaAccumulateASM(&alpha, a0, a1)
+		if !ok {
+			t.Skip("LSQ alpha accumulate kernel unavailable on this platform")
+		}
+		want := lsqAlphaAccumulateGeneric(alpha, &palette)
+		if got != want {
+			t.Fatalf("iter %d a0=%d a1=%d: got %+v, want %+v\nalpha=%v\npalette=%v",
+				iter, a0, a1, got, want, alpha, palette)
+		}
+	}
+}
+
 func BenchmarkFindMinMax(b *testing.B) {
 	block := benchmarkBlockAlpha()
 	b.Run("dispatch", func(b *testing.B) {

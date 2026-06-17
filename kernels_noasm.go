@@ -55,3 +55,13 @@ func alphaBlockErrorASM(_ *[16]uint8, _, _ uint8) (int, bool) {
 func bestAlphaIndices16ASM(_ *[16]uint8, _, _ uint8) (uint64, bool) {
 	return 0, false
 }
+
+// lsqColorAccumulateASM is unavailable without assembly support.
+func lsqColorAccumulateASM(_ *[16]rgba8, _ *[4]rgba8, _ bool, _ uint8, _ rgbWeightsFP, _ int, _ *[4]int) (lsqColorSums, bool) {
+	return lsqColorSums{}, false
+}
+
+// lsqAlphaAccumulateASM is unavailable without assembly support.
+func lsqAlphaAccumulateASM(_ *[16]uint8, _, _ uint8) (lsqAlphaSums, bool) {
+	return lsqAlphaSums{}, false
+}

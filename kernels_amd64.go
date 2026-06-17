@@ -99,6 +99,72 @@ func bestAlphaIndices16ASM(samples *[16]uint8, a0, a1 uint8) (uint64, bool) {
 	return simd.BestAlphaIndices16AVX2(samples, uint32(a0)|uint32(a1)<<8), true
 }
 
+// lsqColorAccumulateASM uses AVX2 for the LSQ assign step
+// and normal-equation accumulation. Returns ok=false when AVX2 is unavailable.
+func lsqColorAccumulateASM(
+	block *[16]rgba8,
+	palette *[4]rgba8,
+	hasAlpha bool,
+	alphaThreshold uint8,
+	w rgbWeightsFP,
+	d int,
+	betaNum *[4]int,
+) (lsqColorSums, bool) {
+	if !simd.HasAVX2 {
+		return lsqColorSums{}, false
+	}
+
+	var params [22]int32
+	for k := range 4 {
+		params[k] = int32(palette[k].r)
+		params[4+k] = int32(palette[k].g)
+		params[8+k] = int32(palette[k].b)
+		params[18+k] = int32(betaNum[k])
+	}
+	params[12] = w.r
+	params[13] = w.g
+	params[14] = w.b
+	if hasAlpha {
+		params[15] = int32(alphaThreshold)
+		params[16] = pack3Penalty
+	}
+	params[17] = int32(d)
+
+	var out [9]int32
+	simd.LSQColorAccumulateAVX2((*[64]byte)(unsafe.Pointer(block)), &params, &out)
+
+	return lsqColorSums{
+		saa:  int(out[0]),
+		sbb:  int(out[1]),
+		sab:  int(out[2]),
+		sapR: int(out[3]),
+		sapG: int(out[4]),
+		sapB: int(out[5]),
+		sbpR: int(out[6]),
+		sbpG: int(out[7]),
+		sbpB: int(out[8]),
+	}, true
+}
+
+// lsqAlphaAccumulateASM uses AVX2 for the LSQ assign step
+// and normal-equation accumulation. Returns ok=false when AVX2 is unavailable.
+func lsqAlphaAccumulateASM(samples *[16]uint8, a0, a1 uint8) (lsqAlphaSums, bool) {
+	if !simd.HasAVX2 {
+		return lsqAlphaSums{}, false
+	}
+
+	var out [5]int32
+	simd.LSQAlphaAccumulateAVX2(samples, uint32(a0)|uint32(a1)<<8, &out)
+
+	return lsqAlphaSums{
+		saa: int(out[0]),
+		sbb: int(out[1]),
+		sab: int(out[2]),
+		sap: int(out[3]),
+		sbp: int(out[4]),
+	}, true
+}
+
 // decodeRowKernel is an assembly routine decoding n consecutive interior
 // blocks into 4 destination rows spaced stride bytes apart.
 type decodeRowKernel func(dst *byte, src *byte, n int, stride int)
