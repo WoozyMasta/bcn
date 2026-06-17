@@ -29,3 +29,11 @@ jobs:
           tag: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           bodyFile: release.md
+
+      - name: Request pkg.go.dev reindex
+        env:
+          MODULE: github.com/woozymasta/bcn
+          VERSION: ${{ github.ref_name }}
+        run: >-
+          curl -sSfX POST --retry 3 --retry-delay 2
+          "https://pkg.go.dev/fetch/${MODULE}@${VERSION}"
