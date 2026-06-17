@@ -14,13 +14,20 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
-## Unreleased
+## [0.3.0][] - 2026-06-17
+
+### Added
+
+* Least-squares (LSQ) endpoint refit for BC1, BC3, BC4 and BC5 encoders,
+  with `RefinementOptions.LSQIters` to tune or disable the pass.
 
 ### Changed
 
-* Improved BC1/DXT1, DXT5, BC4 and BC5 encoding quality
-  with LSQ (least-squares) endpoint refit,
-  with AVX2 acceleration on `amd64` and pure-Go fallback everywhere else.
+* `QualityLevelBalanced` and higher presets now include LSQ by default.
+* Faster least-squares refit on `amd64` via AVX2 acceleration,
+  with pure-Go fallback everywhere else.
+
+[0.3.0]: https://github.com/WoozyMasta/bcn/compare/v0.2.0...v0.3.0
 
 ## [0.2.0][] - 2026-06-17
 
