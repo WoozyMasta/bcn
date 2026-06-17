@@ -61,7 +61,7 @@ func encodeBlockBC4(block [16]rgba8, opts EncodeOptions, channel bc4Channel) [8]
 	}
 
 	settings := qualitySettingsForOpts(opts)
-	return encodeAlphaBlock(alpha, settings.alphaTries)
+	return encodeAlphaBlock(alpha, settings.alphaTries, settings.lsqIters)
 }
 
 // decodeBlockBC4 decodes one BC4 block into 16 scalar samples.
@@ -97,7 +97,7 @@ func decodeBlockBC5(data []byte) [64]byte {
 }
 
 // encodeAlphaBlock packs 16 alpha samples into DXT5/BC4 alpha layout (8 bytes).
-func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
+func encodeAlphaBlock(alpha [16]uint8, alphaTries, lsqIters int) [8]byte {
 	// BC4/BC5 use the same 8-byte alpha block layout as DXT5 alpha.
 	minA, maxA := alpha[0], alpha[0]
 	for i := 1; i < 16; i++ {
@@ -134,6 +134,10 @@ func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
 				bestA1 = cand1
 			}
 		}
+	}
+
+	if lsqIters > 0 {
+		bestA0, bestA1 = lsqAlphaRefine(alpha, bestA0, bestA1, lsqIters)
 	}
 
 	idx := packAlphaIndices(bestA0, bestA1, &alpha)

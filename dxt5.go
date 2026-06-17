@@ -30,6 +30,7 @@ func EncodeDXT5WithOptions(rgba []byte, width, height int, opts *EncodeOptions) 
 // encodeBlockDXT5WithOptions encodes one BC3/DXT5 block with interpolated alpha.
 func encodeBlockDXT5WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	minC, maxC := findMinMax(block)
+	settings := qualitySettingsForOpts(opts)
 
 	a0 := maxC.a
 	a1 := minC.a
@@ -38,6 +39,9 @@ func encodeBlockDXT5WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 		var alpha [16]uint8
 		for i := range block {
 			alpha[i] = block[i].a
+		}
+		if settings.lsqIters > 0 {
+			a0, a1 = lsqAlphaRefine(alpha, a0, a1, settings.lsqIters)
 		}
 		alphaIdx = packAlphaIndices(a0, a1, &alpha)
 	}

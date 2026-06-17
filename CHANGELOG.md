@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
+## Unreleased
+
+### Changed
+
+* Improved BC1/DXT1, DXT5, BC4 and BC5 encoding quality
+  with LSQ (least-squares) endpoint refit,
+  with AVX2 acceleration on `amd64` and pure-Go fallback everywhere else.
+
 ## [0.2.0][] - 2026-06-17
 
 ### Added

@@ -34,6 +34,8 @@ func main() {
 	alphaShifts := genAlphaIdxShifts()
 	genAlphaBlockError(alphaConsts)
 	genBestAlphaIndices(alphaConsts, alphaShifts)
+	genLSQColorAccumulate()
+	genLSQAlphaAccumulate(alphaConsts)
 
 	Generate()
 }
