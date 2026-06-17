@@ -18,4 +18,4 @@ jobs:
           go-version: '1.26'
 
       - name: CI
-        run: make ci FUZZTIME=10s
+        run: make ci
