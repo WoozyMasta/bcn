@@ -68,14 +68,14 @@ func AlphaBlockErrorAVX2(samples *[16]uint8, aa uint32) uint32
 //go:noescape
 func BestAlphaIndices16AVX2(samples *[16]uint8, aa uint32) uint64
 
-// LSQColorAccumulateAVX2 assigns BC1 palette indices
-// and accumulates least-squares normal-equation sums for 16 RGBA pixels.
+// LSQColorAccumulateAVX2 assigns BC1 palette indices and accumulates
+// least-squares normal-equation sums for 16 RGBA pixels.
 //
 //go:noescape
 func LSQColorAccumulateAVX2(block *[64]byte, params *[22]int32, out *[9]int32)
 
-// LSQAlphaAccumulateAVX2 assigns BC3/BC4 alpha indices
-// and accumulates least-squares normal-equation sums for 16 samples.
+// LSQAlphaAccumulateAVX2 assigns BC3/BC4 alpha indices and accumulates
+// least-squares normal-equation sums for 16 samples.
 //
 //go:noescape
 func LSQAlphaAccumulateAVX2(samples *[16]uint8, aa uint32, out *[5]int32)
