@@ -18,8 +18,8 @@ func dxt1ColorEndpoints(block [16]rgba8, opts EncodeOptions) (uint16, uint16) {
 		c0, c1 = dxt1EndpointsFast(block)
 	}
 
-	if settings.colorTries > 0 {
-		c0, c1 = dxt1Refine(block, c0, c1, false, opts.AlphaThreshold, settings.colorStep, settings.colorTries, w)
+	if settings.colorTries > 0 || settings.lsqIters > 0 {
+		c0, c1 = dxt1Refine(block, c0, c1, false, opts.AlphaThreshold, settings.colorStep, settings.colorTries, settings.lsqIters, w)
 	}
 
 	return c0, c1

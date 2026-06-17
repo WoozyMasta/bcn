@@ -107,8 +107,8 @@ func encodeBlockDXT1WithOptions(block [16]rgba8, opts EncodeOptions) [8]byte {
 	} else {
 		c0, c1 = dxt1EndpointsFast(block)
 	}
-	if settings.colorTries > 0 {
-		c0, c1 = dxt1Refine(block, c0, c1, hasAlpha, opts.AlphaThreshold, settings.colorStep, settings.colorTries, w)
+	if settings.colorTries > 0 || settings.lsqIters > 0 {
+		c0, c1 = dxt1Refine(block, c0, c1, hasAlpha, opts.AlphaThreshold, settings.colorStep, settings.colorTries, settings.lsqIters, w)
 	}
 
 	c0, c1 = orderDXT1(c0, c1, hasAlpha)
@@ -276,35 +276,48 @@ func bestIndexWeightedErr(palette *[4]rgba8, c rgba8, w rgbWeightsFP, limit int)
 	return best, bestErr
 }
 
-// dxt1Refine performs local endpoint search around an initial candidate pair.
-func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, step, maxTries int, w rgbWeightsFP) (uint16, uint16) {
+// dxt1Refine performs local endpoint search around an initial candidate pair,
+// then polishes the winner with iterated least-squares fitting.
+// Both stages only accept strictly-lower-error candidates,
+// so the result is never worse than the seed endpoints.
+func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, step, maxTries, lsqIters int, w rgbWeightsFP) (uint16, uint16) {
 	bestC0, bestC1 := orderDXT1(c0, c1, hasAlpha)
 	bestErr := dxt1BlockError(block, bestC0, bestC1, hasAlpha, alphaThreshold, w, maxBlockErr)
 	if bestErr == 0 {
 		return bestC0, bestC1
 	}
 
-	var candidates0 [125]uint16
-	var candidates1 [125]uint16
-	n0 := vary565Into(bestC0, step, &candidates0)
-	n1 := vary565Into(bestC1, step, &candidates1)
+	if maxTries > 0 {
+		var candidates0 [125]uint16
+		var candidates1 [125]uint16
+		n0 := vary565Into(bestC0, step, &candidates0)
+		n1 := vary565Into(bestC1, step, &candidates1)
 
-	tries := 0
-	for _, a := range candidates0[:n0] {
-		for _, b := range candidates1[:n1] {
-			ca, cb := orderDXT1(a, b, hasAlpha)
-			err := dxt1BlockError(block, ca, cb, hasAlpha, alphaThreshold, w, bestErr)
-			if err < bestErr {
-				bestErr = err
-				bestC0 = ca
-				bestC1 = cb
-			}
+		tries := 0
+	grid:
+		for _, a := range candidates0[:n0] {
+			for _, b := range candidates1[:n1] {
+				ca, cb := orderDXT1(a, b, hasAlpha)
+				err := dxt1BlockError(block, ca, cb, hasAlpha, alphaThreshold, w, bestErr)
+				if err < bestErr {
+					bestErr = err
+					bestC0 = ca
+					bestC1 = cb
+					if bestErr == 0 {
+						return bestC0, bestC1
+					}
+				}
 
-			tries++
-			if tries >= maxTries {
-				return bestC0, bestC1
+				tries++
+				if tries >= maxTries {
+					break grid
+				}
 			}
 		}
+	}
+
+	if lsqIters > 0 {
+		bestC0, bestC1 = lsqColorRefine(block, bestC0, bestC1, hasAlpha, alphaThreshold, w, lsqIters, bestErr)
 	}
 
 	return bestC0, bestC1
@@ -313,9 +326,8 @@ func dxt1Refine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold ui
 // dxt1BlockError measures total weighted color error for one candidate block encoding.
 // The opaque path uses the AVX2 score kernel (exact total) when available;
 // the scalar path stops accumulating once the partial sum reaches cutoff.
-// Per-pixel errors are non-negative, so a candidate that hits the cutoff
-// can never beat the current best, and callers comparing with strict < reject
-// it either way - making the exact-total kernel
+// Per-pixel errors are non-negative, so a candidate that hits the cutoff can never beat the current best,
+// and callers comparing with strict < reject it either way - making the exact-total kernel
 // and the cutoff scalar interchangeable for the winner.
 func dxt1BlockError(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, w rgbWeightsFP, cutoff int64) int64 {
 	if !hasAlpha {

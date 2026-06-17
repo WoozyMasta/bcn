@@ -79,6 +79,10 @@ type EncodeOptions struct {
 	weightsFP *rgbWeightsFP
 	// QualityLevel provides a 1..10 quality scale. 0 = default (Balanced).
 	// Recommended: 1=fast, 6=balanced, 8=best, 9-10=extreme.
+	//
+	// Beyond level 1, endpoint selection adds a PCA seed, a grid search,
+	// and a least-squares endpoint refit (see RefinementOptions.LSQIters).
+	// The refit trades some encode speed for higher quality.
 	QualityLevel int
 	// Workers controls parallel block encoding. 0 = auto (GOMAXPROCS), 1 = disable parallelism,
 	// N > 1 = use N workers. Defaults to 0.
@@ -105,6 +109,10 @@ type RefinementOptions struct {
 	ColorTries *int  // ColorTries overrides quality behavior derived from QualityLevel.
 	AlphaTries *int  // AlphaTries overrides quality behavior derived from QualityLevel.
 	ColorStep  *int  // ColorStep overrides quality behavior derived from QualityLevel.
+
+	// LSQIters overrides the least-squares endpoint polish iterations applied after the grid search.
+	// 0 disables LSQ (grid search still runs); nil uses the quality-derived default.
+	LSQIters *int
 }
 
 // normalizeEncodeOptions applies defaults, bounds and cached derived settings.
@@ -150,6 +158,7 @@ type qualitySettings struct {
 	colorTries int
 	colorStep  int
 	alphaTries int
+	lsqIters   int
 }
 
 // qualitySettingsForOpts returns cached settings when available, otherwise resolves them.
@@ -191,34 +200,41 @@ func resolveQualitySettings(opts EncodeOptions) qualitySettings {
 			step := max(*ref.ColorStep, 1)
 			settings.colorStep = step
 		}
+		if ref.LSQIters != nil {
+			settings.lsqIters = clampNonNegative(*ref.LSQIters)
+		}
 	}
 
 	return settings
 }
 
 // qualitySettingsFromLevel maps a 1..10 quality level to concrete search settings.
+//
+// lsqIters caps the least-squares endpoint polish iterations applied after the grid search;
+// it converges and breaks early, so the cap is a safety bound, not a fixed cost.
+// Level 1 stays a pure fast path (no refinement, no LSQ).
 func qualitySettingsFromLevel(level int) qualitySettings {
 	switch level {
 	case 1:
-		return qualitySettings{usePCA: false, colorTries: 0, colorStep: 1, alphaTries: 0}
+		return qualitySettings{usePCA: false, colorTries: 0, colorStep: 1, alphaTries: 0, lsqIters: 0}
 	case 2:
-		return qualitySettings{usePCA: false, colorTries: 8, colorStep: 1, alphaTries: 8}
+		return qualitySettings{usePCA: false, colorTries: 8, colorStep: 1, alphaTries: 8, lsqIters: 2}
 	case 3:
-		return qualitySettings{usePCA: false, colorTries: 16, colorStep: 1, alphaTries: 16}
+		return qualitySettings{usePCA: false, colorTries: 16, colorStep: 1, alphaTries: 16, lsqIters: 2}
 	case 4:
-		return qualitySettings{usePCA: false, colorTries: 32, colorStep: 1, alphaTries: 32}
+		return qualitySettings{usePCA: false, colorTries: 32, colorStep: 1, alphaTries: 32, lsqIters: 2}
 	case 5:
-		return qualitySettings{usePCA: true, colorTries: 32, colorStep: 1, alphaTries: 32}
+		return qualitySettings{usePCA: true, colorTries: 32, colorStep: 1, alphaTries: 32, lsqIters: 2}
 	case 6:
-		return qualitySettings{usePCA: true, colorTries: 64, colorStep: 1, alphaTries: 64}
+		return qualitySettings{usePCA: true, colorTries: 64, colorStep: 1, alphaTries: 64, lsqIters: 2}
 	case 7:
-		return qualitySettings{usePCA: true, colorTries: 96, colorStep: 1, alphaTries: 96}
+		return qualitySettings{usePCA: true, colorTries: 96, colorStep: 1, alphaTries: 96, lsqIters: 2}
 	case 8:
-		return qualitySettings{usePCA: true, colorTries: 256, colorStep: 2, alphaTries: 256}
+		return qualitySettings{usePCA: true, colorTries: 256, colorStep: 2, alphaTries: 256, lsqIters: 4}
 	case 9:
-		return qualitySettings{usePCA: true, colorTries: 384, colorStep: 1, alphaTries: 384}
+		return qualitySettings{usePCA: true, colorTries: 384, colorStep: 1, alphaTries: 384, lsqIters: 4}
 	case 10:
-		return qualitySettings{usePCA: true, colorTries: 512, colorStep: 1, alphaTries: 512}
+		return qualitySettings{usePCA: true, colorTries: 512, colorStep: 1, alphaTries: 512, lsqIters: 4}
 	default:
 		return qualitySettingsFromLevel(QualityLevelBalanced)
 	}
@@ -234,6 +250,9 @@ func normalizeRefinement(ref *RefinementOptions) {
 	}
 	if ref.ColorStep != nil && *ref.ColorStep < 1 {
 		*ref.ColorStep = 1
+	}
+	if ref.LSQIters != nil {
+		*ref.LSQIters = clampNonNegative(*ref.LSQIters)
 	}
 }
 

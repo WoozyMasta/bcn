@@ -15,7 +15,8 @@ and read/write DDS/KTX with mipmaps and cubemaps.
 * DDS read/write (2D + cubemap, mipmaps, uncompressed RGBA/BGRA)
 * KTX v1 read/write (2D + cubemap, mipmaps)
 * Mipmap generation with optional sRGB-aware downscale
-* Quality levels (1..10) with refinement overrides (`Refinement`)
+* Quality levels (1..10) with least-squares endpoint refit
+  and refinement overrides (`Refinement`)
 * Parallel encoding control via `EncodeOptions.Workers` (0=auto, 1=off)
 * Parallel decoding control via `DecodeOptions.Workers` (0=auto, 1=off)
 
@@ -103,6 +104,12 @@ cfg, _, _ := image.DecodeConfig(f) // width, height only
 * DDS BGRA is converted to RGBA on decode;
   RGBA/BGRA are supported for uncompressed DDS.
 * `Refinement` overrides `QualityLevel` when set.
+* Quality levels above 1 polish endpoints
+  with an iterated least-squares refit on top of the grid search
+  (higher quality, some extra encode cost; decode is unaffected).  
+  Disable or tune it via `Refinement.LSQIters`
+  (`0` = off, `nil` = quality default, `N` = iterations);
+  set `ColorTries: 0` with `LSQIters > 0` for a cheap LSQ-only refine.
 
 ## Acceleration
 
