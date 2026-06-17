@@ -3,9 +3,11 @@ LINTER      ?= golangci-lint
 ALIGNER     ?= betteralign
 BENCHSTAT   ?= benchstat
 BENCH_COUNT ?= 6
-BENCH_REF   ?= bench_baseline.txt
 FUZZTIME    ?= 20s
 ASMGEN_REF  ?= ./internal/simd/asmgen
+
+BENCH_REF_MULTI  ?= bench_baseline_multi.txt
+BENCH_REF_SINGLE ?= bench_baseline_single.txt
 
 .PHONY: check ci
 
@@ -42,23 +44,47 @@ fuzz:
 		$(GO) test -run '^$$' -fuzz "^$$t$$" -fuzztime $(FUZZTIME) . || exit 1; \
 	done
 
-.PHONY: bench bench-fast bench-reset
+.PHONY: bench bench-multi bench-single \
+	bench-fast bench-multi-fast bench-single-fast \
+	bench-reset bench-multi-reset bench-single-reset
 
-bench:
+bench: bench-multi bench-single
+
+bench-multi:
 	@tmp=$$(mktemp); \
-	$(GO) test ./... -run=^$$ -bench 'Benchmark' -benchmem -count=$(BENCH_COUNT) | tee "$$tmp"; \
-	if [ -f "$(BENCH_REF)" ]; then \
-		$(BENCHSTAT) "$(BENCH_REF)" "$$tmp"; \
+	BCN_BENCH_LARGE=1 $(GO) test ./... -run=^$$ -bench 'Benchmark' -benchmem -count=$(BENCH_COUNT) | tee "$$tmp"; \
+	if [ -f "$(BENCH_REF_MULTI)" ]; then \
+		$(BENCHSTAT) "$(BENCH_REF_MULTI)" "$$tmp"; \
 	else \
-		cp "$$tmp" "$(BENCH_REF)" && echo "Baseline saved to $(BENCH_REF)"; \
+		cp "$$tmp" "$(BENCH_REF_MULTI)" && echo "Baseline multi-thread saved to $(BENCH_REF_MULTI)"; \
 	fi; \
 	rm -f "$$tmp"
 
-bench-fast:
-	$(GO) test ./... -run=^$$ -bench 'Benchmark' -benchmem
+bench-single:
+	@tmp=$$(mktemp); \
+	GOMAXPROCS=1 $(GO) test ./... -run=^$$ -bench 'Benchmark' -benchmem -count=$(BENCH_COUNT) | tee "$$tmp"; \
+	if [ -f "$(BENCH_REF_SINGLE)" ]; then \
+		$(BENCHSTAT) "$(BENCH_REF_SINGLE)" "$$tmp"; \
+	else \
+		cp "$$tmp" "$(BENCH_REF_SINGLE)" && echo "Baseline single-thread saved to $(BENCH_REF_SINGLE)"; \
+	fi; \
+	rm -f "$$tmp"
 
-bench-reset:
-	rm -f "$(BENCH_REF)"
+bench-fast: bench-multi-fast bench-single-fast
+
+bench-multi-fast:
+	BCN_BENCH_LARGE=1 $(GO) test ./... -run=^$$ -bench 'Benchmark' -benchmem
+
+bench-single-fast:
+	GOMAXPROCS=1 $(GO) test ./... -run=^$$ -bench 'Benchmark' -benchmem
+
+bench-reset: bench-multi-reset bench-single-reset
+
+bench-multi-reset:
+	rm -f "$(BENCH_REF_MULTI)"
+
+bench-single-reset:
+	rm -f "$(BENCH_REF_SINGLE)"
 
 .PHONY: download verify vet tidy tidy-check fmt fmt-check lint lint-fix align align-fix
 
