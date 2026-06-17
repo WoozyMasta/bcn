@@ -119,7 +119,7 @@ func lsqColorAccumulateASM(
 		params[k] = int32(palette[k].r)
 		params[4+k] = int32(palette[k].g)
 		params[8+k] = int32(palette[k].b)
-		params[18+k] = int32(betaNum[k])
+		params[18+k] = int32(betaNum[k]) // #nosec G115 -- beta numerators are fixed small palette weights.
 	}
 	params[12] = w.r
 	params[13] = w.g
@@ -128,7 +128,7 @@ func lsqColorAccumulateASM(
 		params[15] = int32(alphaThreshold)
 		params[16] = pack3Penalty
 	}
-	params[17] = int32(d)
+	params[17] = int32(d) // #nosec G115 -- denominator is 2 or 3.
 
 	var out [9]int32
 	simd.LSQColorAccumulateAVX2((*[64]byte)(unsafe.Pointer(block)), &params, &out)
