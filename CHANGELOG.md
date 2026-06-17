@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
-## Unreleased
+## [0.2.0][] - 2026-06-17
 
 ### Added
 
@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning][].
   Quality is unchanged (PSNR within about 0.01 dB),
   but the encoded bytes can differ slightly from previous releases
   at the same quality level.
+
+[0.2.0]: https://github.com/WoozyMasta/bcn/compare/v0.1.5...v0.2.0
 
 ## [0.1.5][] - 2026-02-17
 
