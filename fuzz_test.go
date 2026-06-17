@@ -120,7 +120,7 @@ func FuzzAlphaKernels(f *testing.F) {
 // public entry points never panic and produce the expected output length.
 func FuzzDecodeNoPanic(f *testing.F) {
 	f.Add([]byte{0, 0, 0, 0, 0, 0, 0, 0}, uint8(4), uint8(4), uint8(0))
-	formats := []Format{FormatDXT1, FormatDXT3, FormatDXT5, FormatBC4, FormatBC5}
+	formats := []Format{FormatDXT1, FormatDXT3, FormatDXT5, FormatBC4, FormatBC5, FormatBC7}
 	f.Fuzz(func(t *testing.T, data []byte, w, h, fsel uint8) {
 		width := int(w%64) + 1
 		height := int(h%64) + 1

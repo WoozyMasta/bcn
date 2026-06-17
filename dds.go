@@ -263,6 +263,8 @@ func ddsFormatFromHeader(r io.Reader, header *DDSHeader) (Format, *DDSHeaderDX10
 			return FormatBC4, &dx10, nil
 		case 83:
 			return FormatBC5, &dx10, nil
+		case 98, 99: // BC7_UNORM, BC7_UNORM_SRGB
+			return FormatBC7, &dx10, nil
 		default:
 			return FormatUnknown, &dx10, ErrUnsupportedDX10Format
 		}
