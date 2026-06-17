@@ -13,7 +13,7 @@ import "math"
 // so the result is never worse than the seed and the encoder output stays monotonic in quality.
 //
 // The idea follows the public-domain solver in
-// ref/BCnEncoder.NET/BCnEnc.Net/Encoder/LeastSquares.cs (from GPURealTimeBC6H),
+// BCnEncoder.NET/BCnEnc.Net/Encoder/LeastSquares.cs (from GPURealTimeBC6H),
 // specialized here to integer LDR channels:
 // accumulation is exact integer math and only the final per-endpoint divide is float64 (FMA-free, like dot3),
 // so the result is bit-identical across architectures and the purego/asm builds.
