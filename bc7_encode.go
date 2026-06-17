@@ -6,11 +6,10 @@ package bcn
 
 // BC7 (BPTC unorm) encoding.
 //
-// This first stage emits mode 6 only:
-// a single subset covering all 16 texels,
-// RGBA endpoints at 7 bits + a shared P-bit (effectively 8-bit precision) and 4-bit indices.
-// Mode 6 is the general workhorse for smooth RGBA content;
-// the partition and separate-alpha modes are added separately for blocks with multiple color regions.
+// Each block is encoded by every applicable mode and the lowest-error result wins.
+//  - Mode 6 (single subset, RGBA, 4-bit indices) is the workhorse for smooth content;
+//  - Mode 1 (two subsets, opaque RGB) handles blocks spanning two color regions (see bc7_mode1.go).
+// The separate-alpha and three-subset modes follow.
 //
 // Endpoint fitting reuses the least-squares solver from lsq.go:
 // BC7's non-uniform interpolation weights (bc7Weight4) are just per-texel beta values,
@@ -181,8 +180,37 @@ func bc7MaxDistPair(block [16]rgba8) (rgba8, rgba8) {
 	return block[bi], block[bj]
 }
 
-// encodeBlockBC7 encodes one 4x4 block as BC7 mode 6.
-func encodeBlockBC7(block [16]rgba8, _ EncodeOptions) [16]byte {
+// encodeBlockBC7 encodes one 4x4 block, trying the available modes
+// and keeping the one with the lowest reconstruction error.
+//   - Mode 6 always applies;
+//   - Mode 1 (2-subset opaque RGB) is tried for fully opaque blocks
+//     when the quality level enables partition search.
+func encodeBlockBC7(block [16]rgba8, opts EncodeOptions) [16]byte {
+	best, bestErr := encodeBC7Mode6(block)
+
+	settings := qualitySettingsForOpts(opts)
+	if settings.bc7Partitions > 0 && !bc7BlockHasAlpha(block) {
+		if b, err, ok := encodeBC7Mode1(block, settings.bc7Partitions); ok && err < bestErr {
+			best = b
+		}
+	}
+
+	return best
+}
+
+// bc7BlockHasAlpha reports whether any texel is not fully opaque.
+func bc7BlockHasAlpha(block [16]rgba8) bool {
+	for _, px := range block {
+		if px.a != 255 {
+			return true
+		}
+	}
+	return false
+}
+
+// encodeBC7Mode6 encodes a block as BC7 mode 6
+// and returns the packed block together with its total reconstruction error.
+func encodeBC7Mode6(block [16]rgba8) ([16]byte, int) {
 	c0, c1 := bc7MaxDistPair(block)
 	q0, p0 := bc7QuantizeMode6(c0)
 	q1, p1 := bc7QuantizeMode6(c1)
@@ -220,10 +248,10 @@ func encodeBlockBC7(block [16]rgba8, _ EncodeOptions) [16]byte {
 		q0, q1 = q1, q0
 		p0, p1 = p1, p0
 		pal = bc7Mode6Palette(bc7ExpandMode6(q0, p0), bc7ExpandMode6(q1, p1))
-		idx, _ = bc7Mode6Indices(block, &pal)
+		idx, bestErr = bc7Mode6Indices(block, &pal)
 	}
 
-	return bc7PackMode6(q0, p0, q1, p1, &idx)
+	return bc7PackMode6(q0, p0, q1, p1, &idx), bestErr
 }
 
 // bc7PackMode6 serializes a mode 6 block: the mode bit,

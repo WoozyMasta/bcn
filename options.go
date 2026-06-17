@@ -154,11 +154,12 @@ func normalizeEncodeOptions(opts *EncodeOptions) EncodeOptions {
 
 // qualitySettings stores resolved low-level encoder tuning knobs.
 type qualitySettings struct {
-	usePCA     bool
-	colorTries int
-	colorStep  int
-	alphaTries int
-	lsqIters   int
+	colorTries    int
+	colorStep     int
+	alphaTries    int
+	lsqIters      int
+	bc7Partitions int
+	usePCA        bool
 }
 
 // qualitySettingsForOpts returns cached settings when available, otherwise resolves them.
@@ -216,25 +217,25 @@ func resolveQualitySettings(opts EncodeOptions) qualitySettings {
 func qualitySettingsFromLevel(level int) qualitySettings {
 	switch level {
 	case 1:
-		return qualitySettings{usePCA: false, colorTries: 0, colorStep: 1, alphaTries: 0, lsqIters: 0}
+		return qualitySettings{usePCA: false, colorTries: 0, colorStep: 1, alphaTries: 0, lsqIters: 0, bc7Partitions: 0}
 	case 2:
-		return qualitySettings{usePCA: false, colorTries: 8, colorStep: 1, alphaTries: 8, lsqIters: 2}
+		return qualitySettings{usePCA: false, colorTries: 8, colorStep: 1, alphaTries: 8, lsqIters: 2, bc7Partitions: 4}
 	case 3:
-		return qualitySettings{usePCA: false, colorTries: 16, colorStep: 1, alphaTries: 16, lsqIters: 2}
+		return qualitySettings{usePCA: false, colorTries: 16, colorStep: 1, alphaTries: 16, lsqIters: 2, bc7Partitions: 4}
 	case 4:
-		return qualitySettings{usePCA: false, colorTries: 32, colorStep: 1, alphaTries: 32, lsqIters: 2}
+		return qualitySettings{usePCA: false, colorTries: 32, colorStep: 1, alphaTries: 32, lsqIters: 2, bc7Partitions: 8}
 	case 5:
-		return qualitySettings{usePCA: true, colorTries: 32, colorStep: 1, alphaTries: 32, lsqIters: 2}
+		return qualitySettings{usePCA: true, colorTries: 32, colorStep: 1, alphaTries: 32, lsqIters: 2, bc7Partitions: 8}
 	case 6:
-		return qualitySettings{usePCA: true, colorTries: 64, colorStep: 1, alphaTries: 64, lsqIters: 2}
+		return qualitySettings{usePCA: true, colorTries: 64, colorStep: 1, alphaTries: 64, lsqIters: 2, bc7Partitions: 8}
 	case 7:
-		return qualitySettings{usePCA: true, colorTries: 96, colorStep: 1, alphaTries: 96, lsqIters: 2}
+		return qualitySettings{usePCA: true, colorTries: 96, colorStep: 1, alphaTries: 96, lsqIters: 2, bc7Partitions: 16}
 	case 8:
-		return qualitySettings{usePCA: true, colorTries: 256, colorStep: 2, alphaTries: 256, lsqIters: 4}
+		return qualitySettings{usePCA: true, colorTries: 256, colorStep: 2, alphaTries: 256, lsqIters: 4, bc7Partitions: 16}
 	case 9:
-		return qualitySettings{usePCA: true, colorTries: 384, colorStep: 1, alphaTries: 384, lsqIters: 4}
+		return qualitySettings{usePCA: true, colorTries: 384, colorStep: 1, alphaTries: 384, lsqIters: 4, bc7Partitions: 32}
 	case 10:
-		return qualitySettings{usePCA: true, colorTries: 512, colorStep: 1, alphaTries: 512, lsqIters: 4}
+		return qualitySettings{usePCA: true, colorTries: 512, colorStep: 1, alphaTries: 512, lsqIters: 4, bc7Partitions: 64}
 	default:
 		return qualitySettingsFromLevel(QualityLevelBalanced)
 	}

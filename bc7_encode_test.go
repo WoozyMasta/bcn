@@ -35,6 +35,28 @@ func TestBC7EncodeQuality(t *testing.T) {
 	}
 }
 
+// TestBC7EncodeTwoRegions checks that the partition modes fit
+// a block with two distinct flat color regions (which a single subset cannot),
+// reaching near-lossless quality.
+func TestBC7EncodeTwoRegions(t *testing.T) {
+	const w, h = 4, 4
+	rgba := make([]byte, w*h*4)
+	for y := range h {
+		for x := range w {
+			i := (y*w + x) * 4
+			if x < 2 {
+				rgba[i+0], rgba[i+1], rgba[i+2] = 200, 50, 50
+			} else {
+				rgba[i+0], rgba[i+1], rgba[i+2] = 50, 50, 200
+			}
+			rgba[i+3] = 255
+		}
+	}
+	if p := roundTripPSNR(t, rgba, w, h, FormatBC7); p < 45 {
+		t.Errorf("two-region block PSNR %.2f dB too low (partition mode not selected?)", p)
+	}
+}
+
 // TestBC7EncodeBeatsDXT5 asserts BC7 is at least as good as DXT5 on the same content
 // (BC7 mode 6 has 8-bit endpoints and 4-bit indices vs BC1-style color).
 func TestBC7EncodeBeatsDXT5(t *testing.T) {
