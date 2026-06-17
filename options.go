@@ -4,6 +4,8 @@
 
 package bcn
 
+import "math"
+
 const (
 	// QualityLevelFast prioritizes speed over quality.
 	QualityLevelFast = 1
@@ -31,6 +33,39 @@ var (
 	BalancedRGBWeights = RGBWeights{R: 1.0 / 3.0, G: 1.0 / 3.0, B: 1.0 / 3.0}
 )
 
+// rgbWeightsFP holds fixed-point channel weights normalized to sum ~1024.
+// The error metric is scale-invariant, so normalization keeps per-pixel
+// weighted SSE below 255^2*1026 (fits int32) without changing any decision.
+type rgbWeightsFP struct {
+	r, g, b int32
+}
+
+// Fixed-point forms of the weight presets.
+var (
+	defaultWeightsFP  = fixedRGBWeights(DefaultRGBWeights.R, DefaultRGBWeights.G, DefaultRGBWeights.B)
+	balancedWeightsFP = fixedRGBWeights(BalancedRGBWeights.R, BalancedRGBWeights.G, BalancedRGBWeights.B)
+)
+
+// fixedRGBWeights converts relative float weights to the fixed-point scale.
+// Negative weights are treated as zero; an all-zero set stays all-zero.
+func fixedRGBWeights(rw, gw, bw float64) rgbWeightsFP {
+	rw = math.Max(rw, 0)
+	gw = math.Max(gw, 0)
+	bw = math.Max(bw, 0)
+
+	sum := rw + gw + bw
+	if sum <= 0 {
+		return rgbWeightsFP{}
+	}
+
+	s := 1024.0 / sum
+	return rgbWeightsFP{
+		r: int32(math.Round(rw * s)),
+		g: int32(math.Round(gw * s)),
+		b: int32(math.Round(bw * s)),
+	}
+}
+
 // EncodeOptions configures block encoding and mipmap generation.
 type EncodeOptions struct {
 	// RGBWeights overrides weights for DXT1 palette index selection (R, G, B). Nil = default;
@@ -40,6 +75,8 @@ type EncodeOptions struct {
 	Refinement *RefinementOptions
 	// qualitySettings is an internal cache of quality settings derived from QualityLevel and Refinement.
 	qualitySettings *qualitySettings
+	// weightsFP is an internal fixed-point cache of RGBWeights.
+	weightsFP *rgbWeightsFP
 	// QualityLevel provides a 1..10 quality scale. 0 = default (Balanced).
 	// Recommended: 1=fast, 6=balanced, 8=best, 9-10=extreme.
 	QualityLevel int
@@ -96,6 +133,10 @@ func normalizeEncodeOptions(opts *EncodeOptions) EncodeOptions {
 		ref := *out.Refinement
 		out.Refinement = &ref
 		normalizeRefinement(out.Refinement)
+	}
+	if out.RGBWeights != nil {
+		fp := fixedRGBWeights(out.RGBWeights.R, out.RGBWeights.G, out.RGBWeights.B)
+		out.weightsFP = &fp
 	}
 	qs := resolveQualitySettings(out)
 	out.qualitySettings = &qs
@@ -204,17 +245,25 @@ func clampNonNegative(v int) int {
 	return v
 }
 
-// getRGBWeights returns (rw, gw, bw) for index selection. If opts.RGBWeights is set, uses it;
-// else when blockConstantR (e.g. DXT5 nohq with R=0) returns Balanced; else Default.
-func getRGBWeights(opts *EncodeOptions, blockConstantR bool) (rw, gw, bw float64) {
-	if opts != nil && opts.RGBWeights != nil {
-		w := opts.RGBWeights
-		return w.R, w.G, w.B
+// getRGBWeightsFP returns fixed-point weights for index selection.
+// If opts.RGBWeights is set, uses it;
+// else when blockConstantR (e.g. DXT5 nohq with R=0) returns Balanced;
+// else Default.
+func getRGBWeightsFP(opts *EncodeOptions, blockConstantR bool) rgbWeightsFP {
+	if opts != nil {
+		if opts.weightsFP != nil {
+			return *opts.weightsFP
+		}
+
+		if opts.RGBWeights != nil {
+			// Options that skipped normalizeEncodeOptions: convert on the spot.
+			return fixedRGBWeights(opts.RGBWeights.R, opts.RGBWeights.G, opts.RGBWeights.B)
+		}
 	}
 
 	if blockConstantR {
-		return BalancedRGBWeights.R, BalancedRGBWeights.G, BalancedRGBWeights.B
+		return balancedWeightsFP
 	}
 
-	return DefaultRGBWeights.R, DefaultRGBWeights.G, DefaultRGBWeights.B
+	return defaultWeightsFP
 }

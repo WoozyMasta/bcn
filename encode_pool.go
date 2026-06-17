@@ -8,17 +8,16 @@ import "sync"
 
 // encodeJob carries a contiguous block range for parallel encoding.
 type encodeJob struct {
-	wg        *sync.WaitGroup
-	rgba      []byte
-	out       []byte
-	options   EncodeOptions
-	start     int
-	end       int
-	bx        int
-	width     int
-	height    int
-	blockSize int
-	format    Format
+	rgba    []byte
+	out     []byte
+	wg      *sync.WaitGroup
+	options EncodeOptions
+	format  Format
+	start   int
+	end     int
+	bx      int
+	width   int
+	height  int
 }
 
 // encodePool keeps long-lived workers to avoid per-call goroutine churn.
@@ -40,30 +39,8 @@ func newEncodePool(workers int) *encodePool {
 // worker encodes its assigned block range and signals completion via WaitGroup.
 func (p *encodePool) worker() {
 	for job := range p.jobs {
-		for idx := job.start; idx < job.end; idx++ {
-			x := idx % job.bx
-			y := idx / job.bx
-			block := extractBlock(job.rgba, job.width, job.height, x, y)
-			pos := idx * job.blockSize
-
-			switch job.format {
-			case FormatDXT1:
-				b := encodeBlockDXT1WithOptions(block, job.options)
-				copy(job.out[pos:pos+8], b[:])
-			case FormatDXT3:
-				b := encodeBlockDXT3WithOptions(block, job.options)
-				copy(job.out[pos:pos+16], b[:])
-			case FormatDXT5:
-				b := encodeBlockDXT5WithOptions(block, job.options)
-				copy(job.out[pos:pos+16], b[:])
-			case FormatBC4:
-				b := encodeBlockBC4(block, job.options, func(c rgba8) uint8 { return c.r })
-				copy(job.out[pos:pos+8], b[:])
-			case FormatBC5:
-				b := encodeBlockBC5(block, job.options)
-				copy(job.out[pos:pos+16], b[:])
-			}
-		}
+		// Format is validated by the driver before jobs are submitted.
+		_ = encodeBlockRange(job.format, job.rgba, job.out, job.width, job.height, job.bx, job.start, job.end, job.options)
 		job.wg.Done()
 	}
 }

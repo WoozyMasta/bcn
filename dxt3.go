@@ -48,21 +48,20 @@ func encodeBlockDXT3WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	return out
 }
 
-// decodeBlockDXT3 decodes one BC2/DXT3 block into 16 RGBA pixels.
-func decodeBlockDXT3(data []byte) [16]rgba8 {
+// decodeBlockDXT3 decodes one BC2/DXT3 block into 16 NRGBA pixels
+// laid out as 4 rows of 16 bytes.
+func decodeBlockDXT3(data []byte) [64]byte {
 	alphaBits := binary.LittleEndian.Uint64(data[0:8])
 	c0 := binary.LittleEndian.Uint16(data[8:10])
 	c1 := binary.LittleEndian.Uint16(data[10:12])
-	palette := dxt1Palette(c0, c1)
+	pal := dxt1PaletteLE(c0, c1)
 	idx := binary.LittleEndian.Uint32(data[12:16])
-	var out [16]rgba8
-	for i := range 16 {
-		// #nosec G602 -- index masked to 0..3.
-		c := palette[int(idx&0x3)]
-		// #nosec G115 -- value is in 0..255 after masking.
-		alpha := clampU8(int((alphaBits & 0xF) * 17))
-		c.a = alpha
-		out[i] = c // #nosec G602 -- i comes from range over fixed-size output block.
+
+	var out [64]byte
+	for i := 0; i < 64; i += 4 {
+		// 4-bit alpha expands as a*17, at most 255.
+		a := uint32(alphaBits&0xF) * 17
+		binary.LittleEndian.PutUint32(out[i:i+4], pal[idx&0x3]&0x00FFFFFF|a<<24)
 		idx >>= 2
 		alphaBits >>= 4
 	}

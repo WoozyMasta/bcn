@@ -8,16 +8,15 @@ import "sync"
 
 // decodeJob carries a contiguous block range for parallel decoding.
 type decodeJob struct {
-	wg        *sync.WaitGroup
-	data      []byte
-	out       []byte
-	start     int
-	end       int
-	bx        int
-	width     int
-	height    int
-	blockSize int
-	format    Format
+	wg     *sync.WaitGroup
+	data   []byte
+	out    []byte
+	format Format
+	start  int
+	end    int
+	bx     int
+	width  int
+	height int
 }
 
 // decodePool keeps long-lived workers to avoid per-call goroutine churn.
@@ -39,30 +38,8 @@ func newDecodePool(workers int) *decodePool {
 // worker decodes its assigned block range and signals completion via WaitGroup.
 func (p *decodePool) worker() {
 	for job := range p.jobs {
-		for idx := job.start; idx < job.end; idx++ {
-			pos := idx * job.blockSize
-			x := idx % job.bx
-			y := idx / job.bx
-			var block [16]rgba8
-
-			switch job.format {
-			case FormatDXT1:
-				block = decodeBlockDXT1(job.data[pos : pos+8])
-			case FormatDXT3:
-				block = decodeBlockDXT3(job.data[pos : pos+16])
-			case FormatDXT5:
-				block = decodeBlockDXT5(job.data[pos : pos+16])
-			case FormatBC4:
-				alpha := decodeBlockBC4(job.data[pos : pos+8])
-				for i := range 16 {
-					block[i] = rgba8{r: alpha[i], g: alpha[i], b: alpha[i], a: 255}
-				}
-			case FormatBC5:
-				block = decodeBlockBC5(job.data[pos : pos+16])
-			}
-
-			storeBlock(job.out, job.width, job.height, x, y, block)
-		}
+		// Format is validated by the driver before jobs are submitted.
+		_ = decodeBlockRange(job.format, job.data, job.out, job.width, job.height, job.bx, job.start, job.end)
 		job.wg.Done()
 	}
 }

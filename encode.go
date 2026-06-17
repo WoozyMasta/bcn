@@ -75,59 +75,42 @@ func decodeBlocksWithOptions(data []byte, width, height int, format Format, opts
 		pool := getDecodePool(workers)
 		var wg sync.WaitGroup
 		wg.Add(workers)
+
 		for w := 0; w < workers; w++ {
 			start := (totalBlocks * w) / workers
 			end := (totalBlocks * (w + 1)) / workers
 			pool.jobs <- decodeJob{
-				start:     start,
-				end:       end,
-				bx:        bx,
-				width:     width,
-				height:    height,
-				blockSize: blockSize,
-				format:    format,
-				data:      data,
-				out:       out,
-				wg:        &wg,
+				start:  start,
+				end:    end,
+				bx:     bx,
+				width:  width,
+				height: height,
+				format: format,
+				data:   data,
+				out:    out,
+				wg:     &wg,
 			}
 		}
+
 		wg.Wait()
 		return out, nil
 	}
 
-	pos := 0
-	for y := range by {
-		for x := range bx {
-			var block [16]rgba8
-
-			switch format {
-			case FormatDXT1:
-				block = decodeBlockDXT1(data[pos : pos+8])
-				pos += 8
-			case FormatDXT3:
-				block = decodeBlockDXT3(data[pos : pos+16])
-				pos += 16
-			case FormatDXT5:
-				block = decodeBlockDXT5(data[pos : pos+16])
-				pos += 16
-			case FormatBC4:
-				alpha := decodeBlockBC4(data[pos : pos+8])
-				pos += 8
-				for i := range 16 {
-					block[i] = rgba8{r: alpha[i], g: alpha[i], b: alpha[i], a: 255}
-				}
-			case FormatBC5:
-				block = decodeBlockBC5(data[pos : pos+16])
-				pos += 16
-			default:
-				return nil, ErrUnsupportedFormat
-			}
-
-			storeBlock(out, width, height, x, y, block)
-		}
+	if err := decodeBlockRange(format, data, out, width, height, bx, 0, totalBlocks); err != nil {
+		return nil, err
 	}
 
 	return out, nil
+}
+
+// expandBC4Block replicates 16 scalar samples into NRGBA gray pixels.
+func expandBC4Block(block *[64]byte, alpha *[16]uint8) {
+	for i := range 16 {
+		block[i*4+0] = alpha[i]
+		block[i*4+1] = alpha[i]
+		block[i*4+2] = alpha[i]
+		block[i*4+3] = 255
+	}
 }
 
 // encodeBlocksWithOptions encodes tight RGBA pixels into the selected BCn format.
@@ -185,21 +168,21 @@ func encodeBlocksWithOptions(rgba []byte, width, height int, format Format, opts
 		pool := getEncodePool(workers)
 		var wg sync.WaitGroup
 		wg.Add(workers)
+
 		for w := 0; w < workers; w++ {
 			start := (totalBlocks * w) / workers
 			end := (totalBlocks * (w + 1)) / workers
 			pool.jobs <- encodeJob{
-				start:     start,
-				end:       end,
-				bx:        bx,
-				width:     width,
-				height:    height,
-				blockSize: blockSize,
-				format:    format,
-				options:   options,
-				rgba:      rgba,
-				out:       out,
-				wg:        &wg,
+				start:   start,
+				end:     end,
+				bx:      bx,
+				width:   width,
+				height:  height,
+				format:  format,
+				options: options,
+				rgba:    rgba,
+				out:     out,
+				wg:      &wg,
 			}
 		}
 
@@ -207,36 +190,8 @@ func encodeBlocksWithOptions(rgba []byte, width, height int, format Format, opts
 		return out, nil
 	}
 
-	pos := 0
-
-	for y := range by {
-		for x := range bx {
-			block := extractBlock(rgba, width, height, x, y)
-			switch format {
-			case FormatDXT1:
-				b := encodeBlockDXT1WithOptions(block, options)
-				copy(out[pos:pos+8], b[:])
-				pos += 8
-			case FormatDXT3:
-				b := encodeBlockDXT3WithOptions(block, options)
-				copy(out[pos:pos+16], b[:])
-				pos += 16
-			case FormatDXT5:
-				b := encodeBlockDXT5WithOptions(block, options)
-				copy(out[pos:pos+16], b[:])
-				pos += 16
-			case FormatBC4:
-				b := encodeBlockBC4(block, options, func(c rgba8) uint8 { return c.r })
-				copy(out[pos:pos+8], b[:])
-				pos += 8
-			case FormatBC5:
-				b := encodeBlockBC5(block, options)
-				copy(out[pos:pos+16], b[:])
-				pos += 16
-			default:
-				return nil, ErrUnsupportedFormat
-			}
-		}
+	if err := encodeBlockRange(format, rgba, out, width, height, bx, 0, totalBlocks, options); err != nil {
+		return nil, err
 	}
 
 	return out, nil

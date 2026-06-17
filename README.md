@@ -1,6 +1,7 @@
 # bcn
 
-Minimal, fast BCn/DXT encoder/decoder in Go with DDS and KTX v1 I/O.
+Minimal, fast BCn/DXT encoder/decoder in pure-Go-compatible
+with AVX2 acceleration and with DDS and KTX v1 I/O.
 
 `bcn` provides block compression (BCn/DXT) encode/decode plus container I/O.
 It targets practical texture workflows:
@@ -99,36 +100,59 @@ cfg, _, _ := image.DecodeConfig(f) // width, height only
 * Only compressed KTX v1 is supported (no arrays/3D).
 * DDS DX10 header is read for BC1/3/5 and BC4/5; writing uses legacy FourCC.
 * BC4 uses red channel; BC5 uses red/green.
-* DDS BGRA is converted to RGBA on decode; RGBA/BGRA are supported for uncompressed DDS.
+* DDS BGRA is converted to RGBA on decode;
+  RGBA/BGRA are supported for uncompressed DDS.
 * `Refinement` overrides `QualityLevel` when set.
+
+## Acceleration
+
+On `amd64` the hot encode/decode paths use AVX2/SSE2 assembly kernels
+(in the `internal/simd` package, generated with
+[avo](https://github.com/mmcloughlin/avo))
+selected at runtime via `golang.org/x/sys/cpu`;
+a portable pure-Go fallback handles every other platform
+and any block the kernels do not cover
+(e.g. edge blocks when width or height is not a multiple of 4).
+The two paths are byte-exact -
+validated by exhaustive, randomized and fuzz equivalence tests.
+
+* AVX2 kernels need AVX2
+  (decode of DXT1 needs AVX2; DXT3/DXT5/BC4/BC5 decode needs AVX2+BMI2).
+  Without them the pure-Go path runs.
+* `BCN_PUREGO=1` in the environment forces the pure-Go path at runtime;
+  building with `-tags purego` excludes the assembly entirely.
+* The avo generator lives in its own build-time-only module
+  (`internal/simd/asmgen`), so consumers never pull avo into their module graph;
+  the only runtime dependency is `golang.org/x/sys`.
+* Regenerate kernels after editing `internal/simd/asmgen` with `make generate`;
+  `make generate-check` (part of CI) verifies the committed `.s` is up to date.
+* Set `GOAMD64=v2`/`v3` to let the Go compiler also vectorize the fallback
+  and container helpers;
+  it does not affect the hand-written kernels.
 
 ## Performance
 
-Single-thread, `BCN_BENCH_LARGE=1`, Ryzen 9 5950X
-(approximate averages across 256–2048):
+Single-thread, Ryzen 9 5950X, Go 1.26, 512x512,
+throughput over input RGBA (higher is better):
 
-|  Format  | Quality  | MB/s |
-| -------- | -------- | ---- |
-| **DXT1** | fast     | ~210 |
-| **DXT1** | balanced | ~4.7 |
-| **DXT1** | best     | ~1.2 |
-| **DXT5** | fast     | ~135 |
-| **DXT5** | balanced | ~4.6 |
-| **DXT5** | best     | ~1.2 |
+| Format   | fast, MB/s | balanced, MB/s | best, MB/s | decode, MB/s |
+| -------- | ---------: | -------------: | ---------: | -----------: |
+| **DXT1** |       ~830 |            ~38 |        ~12 |         ~815 |
+| **DXT3** |       ~205 |            ~36 |        ~12 |        ~1650 |
+| **DXT5** |       ~375 |            ~35 |        ~11 |        ~1540 |
+| **BC4**  |       ~460 |            ~76 |        ~22 |        ~1420 |
+| **BC5**  |       ~255 |            ~39 |        ~11 |        ~2460 |
 
-These are rough single-thread reference numbers to compare quality modes.
-Multi-threaded encoding can be significantly faster on large images
+Multi-thread, `Workers=auto` (`GOMAXPROCS=32`), 512x512,
+encode throughput over input RGBA (higher is better):
+
+| Format   | fast, MB/s | balanced, MB/s | best, MB/s |
+| -------- | ---------: | -------------: | ---------: |
+| **DXT1** |     ~4,770 |           ~370 |       ~150 |
+| **DXT5** |     ~2,510 |           ~390 |       ~135 |
+
+Fast/Balanced/Best correspond to
+`QualityLevelFast`, `QualityLevelBalanced`, `QualityLevelBest`.  
+For batch/many small files,
+parallelize across images in your own code and keep `Workers=1`;
 see `EncodeOptions.Workers`.
-Fast/Balanced/Best correspond to `QualityLevelFast`, `QualityLevelBalanced`, `QualityLevelBest`.
-
-Multi-thread, `Workers=auto` (`GOMAXPROCS=32`), `BCN_BENCH_LARGE=1`
-(approximate averages across 256–2048):
-
-|  Format  | Quality  |  MB/s  |
-| -------- | -------- | ------ |
-| **DXT1** | fast     | ~1,580 |
-| **DXT1** | balanced | ~43    |
-| **DXT1** | best     | ~12    |
-| **DXT5** | fast     | ~1,050 |
-| **DXT5** | balanced | ~42    |
-| **DXT5** | best     | ~12    |

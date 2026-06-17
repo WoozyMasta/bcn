@@ -1,0 +1,4 @@
+# Generated assembly and Go sources use LF so `make generate-check` stays
+# stable across platforms.
+*.s   text eol=lf
+*.go  text eol=lf

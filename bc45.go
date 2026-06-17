@@ -4,6 +4,8 @@
 
 package bcn
 
+import "encoding/binary"
+
 // EncodeBC4 encodes an RGBA image into BC4 blocks using the red channel.
 // Other channels are ignored.
 func EncodeBC4(rgba []byte, width, height int) ([]byte, error) {
@@ -36,16 +38,26 @@ func DecodeBC5WithOptions(data []byte, width, height int, opts *DecodeOptions) (
 	return decodeBlocksWithOptions(data, width, height, FormatBC5, opts)
 }
 
+// bc4Channel selects which pixel channel feeds a BC4 alpha block.
+type bc4Channel int
+
+const (
+	bc4ChannelR bc4Channel = iota
+	bc4ChannelG
+)
+
 // encodeBlockBC4 encodes one 4x4 block using a selected channel source.
-func encodeBlockBC4(block [16]rgba8, opts EncodeOptions, channel func(rgba8) uint8) [8]byte {
+func encodeBlockBC4(block [16]rgba8, opts EncodeOptions, channel bc4Channel) [8]byte {
 	var alpha [16]uint8
 
-	blockView := block[:]
-	alphaView := alpha[:]
-	for len(alphaView) > 0 {
-		alphaView[0] = channel(blockView[0])
-		alphaView = alphaView[1:]
-		blockView = blockView[1:]
+	if channel == bc4ChannelG {
+		for i := range block {
+			alpha[i] = block[i].g
+		}
+	} else {
+		for i := range block {
+			alpha[i] = block[i].r
+		}
 	}
 
 	settings := qualitySettingsForOpts(opts)
@@ -60,28 +72,25 @@ func decodeBlockBC4(data []byte) [16]uint8 {
 // encodeBlockBC5 encodes BC5 as two BC4 blocks (R then G).
 func encodeBlockBC5(block [16]rgba8, opts EncodeOptions) [16]byte {
 	var out [16]byte
-	red := encodeBlockBC4(block, opts, func(c rgba8) uint8 { return c.r })
-	green := encodeBlockBC4(block, opts, func(c rgba8) uint8 { return c.g })
+	red := encodeBlockBC4(block, opts, bc4ChannelR)
+	green := encodeBlockBC4(block, opts, bc4ChannelG)
 	copy(out[0:8], red[:])
 	copy(out[8:16], green[:])
 
 	return out
 }
 
-// decodeBlockBC5 decodes BC5 into RG with fixed B=0 and A=255.
-func decodeBlockBC5(data []byte) [16]rgba8 {
+// decodeBlockBC5 decodes BC5 into RG with fixed B=0 and A=255,
+// laid out as 4 NRGBA rows of 16 bytes.
+func decodeBlockBC5(data []byte) [64]byte {
 	red := decodeAlphaBlock(data[0:8])
 	green := decodeAlphaBlock(data[8:16])
-	var out [16]rgba8
-
-	redView := red[:]
-	greenView := green[:]
-	outView := out[:]
-	for len(outView) > 0 {
-		outView[0] = rgba8{r: redView[0], g: greenView[0], b: 0, a: 255}
-		outView = outView[1:]
-		redView = redView[1:]
-		greenView = greenView[1:]
+	var out [64]byte
+	for i := range 16 {
+		out[i*4+0] = red[i]
+		out[i*4+1] = green[i]
+		out[i*4+2] = 0
+		out[i*4+3] = 255
 	}
 
 	return out
@@ -109,7 +118,7 @@ func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
 		}
 	}
 	bestA0, bestA1 := a0, a1
-	bestErr := alphaBlockError(alpha, bestA0, bestA1)
+	bestErr := alphaBlockError(alpha, bestA0, bestA1, 1<<62)
 
 	if alphaTries > 0 && bestErr != 0 {
 		step := 1
@@ -118,7 +127,7 @@ func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
 		for i := range tries {
 			cand0 := clampU8(int(a0) + (i%3-1)*step)
 			cand1 := clampU8(int(a1) + ((i/3)%3-1)*step)
-			err := alphaBlockError(alpha, cand0, cand1)
+			err := alphaBlockError(alpha, cand0, cand1, bestErr)
 			if err < bestErr {
 				bestErr = err
 				bestA0 = cand0
@@ -127,7 +136,33 @@ func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
 		}
 	}
 
-	palette := dxt5AlphaPalette(bestA0, bestA1)
+	idx := packAlphaIndices(bestA0, bestA1, &alpha)
+
+	var out [8]byte
+	out[0] = bestA0
+	out[1] = bestA1
+	putAlphaIndices(out[2:8], idx)
+
+	return out
+}
+
+// putAlphaIndices writes a 48-bit packed alpha index field
+// as 6 little-endian bytes into dst (which must have length >= 6).
+func putAlphaIndices(dst []byte, idx uint64) {
+	var tmp [8]byte
+	binary.LittleEndian.PutUint64(tmp[:], idx)
+	copy(dst[:6], tmp[:6])
+}
+
+// packAlphaIndices returns the 48-bit packed nearest-palette indices
+// for 16 alpha samples (sample i at bit 3i) against the palette
+// of endpoints a0, a1, using the AVX2 kernel when available.
+func packAlphaIndices(a0, a1 uint8, alpha *[16]uint8) uint64 {
+	if idx, ok := bestAlphaIndices16ASM(alpha, a0, a1); ok {
+		return idx
+	}
+
+	palette := dxt5AlphaPalette(a0, a1)
 	var idx uint64
 	for i := 15; i >= 0; i-- {
 		best := bestAlphaIndex(&palette, alpha[i])
@@ -137,17 +172,7 @@ func encodeAlphaBlock(alpha [16]uint8, alphaTries int) [8]byte {
 		}
 	}
 
-	var out [8]byte
-	out[0] = bestA0
-	out[1] = bestA1
-	out[2] = byte(idx)
-	out[3] = byte(idx >> 8)
-	out[4] = byte(idx >> 16)
-	out[5] = byte(idx >> 24)
-	out[6] = byte(idx >> 32)
-	out[7] = byte(idx >> 40)
-
-	return out
+	return idx
 }
 
 // decodeAlphaBlock unpacks one DXT5/BC4 alpha payload to 16 samples.
@@ -169,13 +194,27 @@ func decodeAlphaBlock(data []byte) [16]uint8 {
 }
 
 // alphaBlockError computes total squared error for a candidate alpha endpoint pair.
-func alphaBlockError(alpha [16]uint8, a0, a1 uint8) int {
+// The AVX2 path returns the exact total; the scalar path stops at cutoff.
+// As with dxt1BlockError, callers compare with strict <, so both select the same winner.
+func alphaBlockError(alpha [16]uint8, a0, a1 uint8, cutoff int) int {
+	if e, ok := alphaBlockErrorASM(&alpha, a0, a1); ok {
+		return e
+	}
+
 	palette := dxt5AlphaPalette(a0, a1)
+	return alphaBlockErrorScalar(&palette, &alpha, cutoff)
+}
+
+// alphaBlockErrorScalar is the pure-Go reference for alphaBlockError.
+func alphaBlockErrorScalar(palette *[8]uint8, alpha *[16]uint8, cutoff int) int {
 	err := 0
 
 	for _, a := range alpha {
-		_, bestErr := bestAlphaIndexErr(&palette, a)
+		_, bestErr := bestAlphaIndexErr(palette, a)
 		err += bestErr
+		if err >= cutoff {
+			return err
+		}
 	}
 
 	return err

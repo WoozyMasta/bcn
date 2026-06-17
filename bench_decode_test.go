@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var benchSinkBlock [16]rgba8
+var benchSinkBlock [64]byte
 
 func BenchmarkDecodeBlockDXT1(b *testing.B) {
 	src := benchmarkBlockOpaque()

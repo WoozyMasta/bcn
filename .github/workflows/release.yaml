@@ -17,11 +17,8 @@ jobs:
         with:
           go-version: '1.26'
 
-      - name: Install tools
-        run: make tool-golangci-lint tool-betteralign
-
       - name: Check
-        run: make check
+        run: make ci test-race test-race-pure
 
       - name: Extract changelog
         run: make release-notes > release.md

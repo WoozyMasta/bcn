@@ -8,7 +8,7 @@ import "math"
 
 // dxt1ColorEndpoints chooses initial endpoints using quality settings and optional refinement.
 func dxt1ColorEndpoints(block [16]rgba8, opts EncodeOptions) (uint16, uint16) {
-	rw, gw, bw := getRGBWeights(&opts, blockConstantR(block))
+	w := getRGBWeightsFP(&opts, blockConstantR(block))
 	settings := qualitySettingsForOpts(opts)
 
 	var c0, c1 uint16
@@ -19,10 +19,19 @@ func dxt1ColorEndpoints(block [16]rgba8, opts EncodeOptions) (uint16, uint16) {
 	}
 
 	if settings.colorTries > 0 {
-		c0, c1 = dxt1Refine(block, c0, c1, false, opts.AlphaThreshold, settings.colorStep, settings.colorTries, rw, gw, bw)
+		c0, c1 = dxt1Refine(block, c0, c1, false, opts.AlphaThreshold, settings.colorStep, settings.colorTries, w)
 	}
 
 	return c0, c1
+}
+
+// dot3 computes a 3-component dot product with explicit float64 conversions:
+// per the Go spec they force intermediate rounding and forbid FMA contraction,
+// so the result is bit-identical on every architecture
+// (arm64 fuses x*y+z/ otherwise) and golden hashes stay portable.
+// On amd64 nothing fuses anyway, so codegen is unchanged.
+func dot3(a, b [3]float64) float64 {
+	return float64(a[0]*b[0]) + float64(a[1]*b[1]) + float64(a[2]*b[2])
 }
 
 // pcaMinMax approximates principal-axis color extremes for better endpoint initialization.
@@ -39,18 +48,19 @@ func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {
 		float64(sumB) / 16.0,
 	}
 
-	// Calculate the covariance matrix.
+	// Calculate the covariance matrix. Accumulated products are wrapped in
+	// explicit float64 conversions for the same FMA-free guarantee as dot3.
 	var cov [3][3]float64
 	for _, px := range block {
 		r := float64(px.r) - mean[0]
 		g := float64(px.g) - mean[1]
 		b := float64(px.b) - mean[2]
-		cov[0][0] += r * r
-		cov[0][1] += r * g
-		cov[0][2] += r * b
-		cov[1][1] += g * g
-		cov[1][2] += g * b
-		cov[2][2] += b * b
+		cov[0][0] += float64(r * r)
+		cov[0][1] += float64(r * g)
+		cov[0][2] += float64(r * b)
+		cov[1][1] += float64(g * g)
+		cov[1][2] += float64(g * b)
+		cov[2][2] += float64(b * b)
 	}
 	cov[1][0] = cov[0][1]
 	cov[2][0] = cov[0][2]
@@ -59,10 +69,11 @@ func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {
 	// Power iteration to approximate the principal axis of the covariance matrix.
 	axis := [3]float64{1, 1, 1}
 	for range 8 {
-		x := cov[0][0]*axis[0] + cov[0][1]*axis[1] + cov[0][2]*axis[2] // #nosec G602 -- fixed-size 3x3 matrix.
-		y := cov[1][0]*axis[0] + cov[1][1]*axis[1] + cov[1][2]*axis[2] // #nosec G602 -- fixed-size 3x3 matrix.
-		z := cov[2][0]*axis[0] + cov[2][1]*axis[1] + cov[2][2]*axis[2] // #nosec G602 -- fixed-size 3x3 matrix.
-		axisLen := math.Sqrt(x*x + y*y + z*z)
+		x := dot3(cov[0], axis)
+		y := dot3(cov[1], axis)
+		z := dot3(cov[2], axis)
+		v := [3]float64{x, y, z}
+		axisLen := math.Sqrt(dot3(v, v))
 		if axisLen < 1e-5 {
 			break
 		}
@@ -86,10 +97,7 @@ func pcaMinMax(block [16]rgba8) (rgba8, rgba8) {
 
 	// Iterate over the block to find the principal axis extremes.
 	for _, px := range block {
-		r := float64(px.r)
-		g := float64(px.g)
-		b := float64(px.b)
-		dot := r*axis[0] + g*axis[1] + b*axis[2]
+		dot := dot3([3]float64{float64(px.r), float64(px.g), float64(px.b)}, axis)
 
 		if !hasExtremes {
 			minDot = dot
