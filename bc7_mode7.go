@@ -271,6 +271,8 @@ func encodeBC7Mode7(block [16]rgba8, maxPartitions int) ([16]byte, int, bool) {
 // bc7Mode7TryPartition fits both subsets of one partition,
 // resolves the anchor constraints,
 // and returns the packed block with its total error.
+//
+//nolint:dupl // per-mode BC7 partition encoders are intentionally kept separate.
 func bc7Mode7TryPartition(block *[16]rgba8, p int) ([16]byte, int) {
 	part := &bc7PartitionSets[0][p]
 

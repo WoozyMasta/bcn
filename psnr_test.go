@@ -31,8 +31,8 @@ var psnrFloorsDB = map[string]float64{
 	"BC7/opaque/q6":       34.6708,
 	"BC7/opaque/q8":       35.2756,
 	"BC7/translucent/q1":  22.6344,
-	"BC7/translucent/q6":  29.3747,
-	"BC7/translucent/q8":  29.6312,
+	"BC7/translucent/q6":  29.3890,
+	"BC7/translucent/q8":  29.6463,
 }
 
 const psnrToleranceDB = 0.05

@@ -7,9 +7,8 @@ package bcn
 // BC7 (BPTC unorm) encoding.
 //
 // Each block is encoded by every applicable mode and the lowest-error result wins.
-//  - Mode 6 (single subset, RGBA, 4-bit indices) is the workhorse for smooth content;
-//  - Mode 1 (two subsets, opaque RGB) handles blocks spanning two color regions (see bc7_mode1.go).
-// The separate-alpha and three-subset modes follow.
+// Opaque blocks use modes 6, 1, 3 and the three-subset modes 0/2;
+// alpha blocks use modes 6, 5, 4 and 7. Each mode lives in its own bc7_mode*.go file.
 //
 // Endpoint fitting reuses the least-squares solver from lsq.go:
 // BC7's non-uniform interpolation weights (bc7Weight4) are just per-texel beta values,
@@ -202,9 +201,12 @@ func encodeBlockBC7(block [16]rgba8, opts EncodeOptions) [16]byte {
 	if bc7BlockHasAlpha(block) {
 		b5, e5 := encodeBC7Mode5(block)
 		consider(b5, e5, true)
+		b4, e4 := encodeBC7Mode4(block)
+		consider(b4, e4, true)
 		consider(encodeBC7Mode7(block, n))
 	} else {
 		consider(encodeBC7Mode1(block, n))
+		consider(encodeBC7Mode3(block, n))
 		if n >= 8 { // 3-subset search is reserved for the higher quality levels
 			consider(encodeBC7Mode02(bc7Mode0Params, block, n))
 			consider(encodeBC7Mode02(bc7Mode2Params, block, n))

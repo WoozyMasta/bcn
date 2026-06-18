@@ -189,6 +189,8 @@ func bc7SubsetError(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[8]rgb
 
 // bc7SubsetLSQ refits continuous RGB endpoints for a subset from its current
 // nearest-index assignment. ok is false on a degenerate weight distribution.
+//
+//nolint:dupl // per-mode BC7 subset fits are intentionally kept separate.
 func bc7SubsetLSQ(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[8]rgba8) (rgba8, rgba8, bool) {
 	var saa, sbb, sab int
 	var sap, sbp [3]int
