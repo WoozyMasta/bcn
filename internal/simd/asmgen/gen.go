@@ -22,6 +22,7 @@ func main() {
 	consts := genDecodeConsts()
 	alphaConsts := genAlphaConsts()
 	genMiscConsts()
+	mipmapConsts := genMipmapConsts()
 	genDecodeDXT1Row(consts)
 	genDecodeDXT3Row(consts)
 	genDecodeDXT5Row(consts, alphaConsts)
@@ -36,6 +37,7 @@ func main() {
 	genBestAlphaIndices(alphaConsts, alphaShifts)
 	genLSQColorAccumulate()
 	genLSQAlphaAccumulate(alphaConsts)
+	genDownscaleNRGBARow2x(mipmapConsts)
 
 	Generate()
 }

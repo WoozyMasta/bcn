@@ -239,3 +239,14 @@ func decodeRangeBC5ASM(data, out []byte, width, height, bx, start, end int) bool
 	decodeRangeRows(simd.DecodeBC5RowAVX2, data, out, width, bx, start, end, 16)
 	return true
 }
+
+// downscaleNRGBARow2xASM downsamples one row using the AVX2 mipmap kernel.
+// n must be even; odd tails and clamp edges are handled by the Go caller.
+func downscaleNRGBARow2xASM(dst, row0, row1 []byte, n int) bool {
+	if !simd.HasAVX2 || n < 2 {
+		return false
+	}
+
+	simd.DownscaleNRGBARow2xAVX2(&dst[0], &row0[0], &row1[0], n)
+	return true
+}
