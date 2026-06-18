@@ -14,6 +14,21 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
+## [0.4.1][] - 2026-06-18
+
+### Changed
+
+* `EncodeImageWithOptions` reads an already-tight,
+  origin-anchored `*image.NRGBA` in place instead of allocating
+  and copying a full `width*height*4` buffer.
+* `DecodeImage` / `DecodeImageWithOptions` decode straight into the destination
+  `image.NRGBA.Pix` instead of decoding into a temporary buffer and copying.
+
+Both cut about `width*height*4` bytes per call (~4 MiB on 1024^2)
+with byte-identical output.
+
+[0.4.1]: https://github.com/WoozyMasta/bcn/compare/v0.3.0...v0.4.1
+
 ## [0.4.0][] - 2026-06-18
 
 ### Added
