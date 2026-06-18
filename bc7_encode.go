@@ -180,32 +180,34 @@ func bc7MaxDistPair(block [16]rgba8) (rgba8, rgba8) {
 	return block[bi], block[bj]
 }
 
-// encodeBlockBC7 encodes one 4x4 block, trying the available modes
-// and keeping the one with the lowest reconstruction error.
-//   - Mode 6 always applies;
-//   - Mode 1 (2-subset opaque RGB) is tried for fully opaque blocks;
-//   - Modes 5 (separate color/alpha) and 7 (2-subset RGBA)
-//     are tried for alpha-bearing blocks;
-//
-// the extra modes run only when the quality level enables them.
+// encodeBlockBC7 encodes one 4x4 block, trying the applicable modes
+// and keeping the one with the lowest reconstruction error. Mode 6 always applies.
+// Opaque blocks also try mode 1 (2-subset RGB) and, at higher quality,
+// the 3-subset modes 0 and 2;
+// alpha blocks try mode 5 (separate color/alpha) and mode 7 (2-subset RGBA).
+// The extra modes run only when the quality level enables them.
 func encodeBlockBC7(block [16]rgba8, opts EncodeOptions) [16]byte {
 	best, bestErr := encodeBC7Mode6(block)
+	consider := func(b [16]byte, err int, ok bool) {
+		if ok && err < bestErr {
+			best, bestErr = b, err
+		}
+	}
 
-	settings := qualitySettingsForOpts(opts)
-	if settings.bc7Partitions > 0 {
-		if bc7BlockHasAlpha(block) {
-			// Single-subset separate alpha, then two-subset RGBA.
-			if b, err := encodeBC7Mode5(block); err < bestErr {
-				best, bestErr = b, err
-			}
-			if b, err, ok := encodeBC7Mode7(block, settings.bc7Partitions); ok && err < bestErr {
-				best = b
-			}
-		} else {
-			// Two-subset opaque RGB.
-			if b, err, ok := encodeBC7Mode1(block, settings.bc7Partitions); ok && err < bestErr {
-				best = b
-			}
+	n := qualitySettingsForOpts(opts).bc7Partitions
+	if n == 0 {
+		return best
+	}
+
+	if bc7BlockHasAlpha(block) {
+		b5, e5 := encodeBC7Mode5(block)
+		consider(b5, e5, true)
+		consider(encodeBC7Mode7(block, n))
+	} else {
+		consider(encodeBC7Mode1(block, n))
+		if n >= 8 { // 3-subset search is reserved for the higher quality levels
+			consider(encodeBC7Mode02(bc7Mode0Params, block, n))
+			consider(encodeBC7Mode02(bc7Mode2Params, block, n))
 		}
 	}
 

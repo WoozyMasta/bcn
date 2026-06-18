@@ -75,6 +75,12 @@ func TestBC7EncoderSelfConsistent(t *testing.T) {
 		if b, e, ok := encodeBC7Mode7(blk, 16); ok && bc7DecodeSSE(blk, b) != e {
 			t.Errorf("%s mode7: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
 		}
+		if b, e, ok := encodeBC7Mode02(bc7Mode0Params, blk, 16); ok && bc7DecodeSSE(blk, b) != e {
+			t.Errorf("%s mode0: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
+		}
+		if b, e, ok := encodeBC7Mode02(bc7Mode2Params, blk, 64); ok && bc7DecodeSSE(blk, b) != e {
+			t.Errorf("%s mode2: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
+		}
 	}
 }
 
