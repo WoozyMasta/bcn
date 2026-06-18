@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
-## Unreleased
+## [0.4.0][] - 2026-06-18
 
 ### Added
 
@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning][].
 * Faster mipmap generation for `*image.NRGBA`,
   including direct byte access, integer averaging,
   and an AVX2 downscale row kernel on `amd64` with pure-Go fallback.
+
+[0.4.0]: https://github.com/WoozyMasta/bcn/compare/v0.3.0...v0.4.0
 
 ## [0.3.0][] - 2026-06-17
 
