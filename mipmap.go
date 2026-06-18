@@ -46,11 +46,56 @@ func GenerateMipmapsN(img image.Image, maxMipmaps int, useSRGB bool) []*image.NR
 		if h > 1 {
 			h >>= 1
 		}
-		base = downscaleNRGBA(base, w, h, useSRGB)
+		base = downscaleNRGBAInto(nil, base, w, h, useSRGB)
 		mips = append(mips, base)
 	}
 
 	return mips
+}
+
+// GenerateMipmapsInto builds a mip chain reusing the buffers in dst across calls.
+// Level 0 is the input image itself (not copied);
+// levels 1..N-1 reuse the matching dst[i] Pix buffer when large enough, otherwise allocate.
+// Pass the returned slice back on the next call to reuse buffers across images of varying sizes.
+// The chain is identical to GenerateMipmapsN.
+func GenerateMipmapsInto(dst []*image.NRGBA, img image.Image, maxMipmaps int, useSRGB bool) []*image.NRGBA {
+	base := toNRGBA(img)
+	w := base.Rect.Dx()
+	h := base.Rect.Dy()
+	mipCount := fullMipCount(w, h)
+	if maxMipmaps > 0 && maxMipmaps < mipCount {
+		mipCount = maxMipmaps
+	}
+
+	// Reuse the slice header's backing array when it is large enough.
+	// out may alias dst: at each step we read the reuse buffer from dst[i]
+	// before append writes index i, so reuse stays valid.
+	out := dst[:0]
+	if cap(out) < mipCount {
+		out = make([]*image.NRGBA, 0, mipCount)
+	}
+	out = append(out, base)
+
+	for len(out) < mipCount {
+		if w > 1 {
+			w >>= 1
+		}
+		if h > 1 {
+			h >>= 1
+		}
+
+		i := len(out)
+		var reuse *image.NRGBA
+		if i < len(dst) {
+			reuse = dst[i]
+		}
+
+		level := downscaleNRGBAInto(reuse, base, w, h, useSRGB)
+		out = append(out, level)
+		base = level
+	}
+
+	return out
 }
 
 func fullMipCount(w, h int) int {
@@ -109,10 +154,20 @@ func toNRGBA(img image.Image) *image.NRGBA {
 	return out
 }
 
-// downscaleNRGBA downsamples by 2x using a box filter.
-// For non-power-of-two edges, the last row/column is replicated.
-func downscaleNRGBA(src *image.NRGBA, dstW, dstH int, useSRGB bool) *image.NRGBA {
-	dst := image.NewNRGBA(image.Rect(0, 0, dstW, dstH))
+// downscaleNRGBAInto downsamples src by 2x into dst using a box filter,
+// reusing dst's Pix buffer when its capacity is large enough
+// (otherwise a new image is allocated).
+// For non-power-of-two edges the last row/column is replicated.
+// dst must not alias src; a nil dst always allocates.
+func downscaleNRGBAInto(dst, src *image.NRGBA, dstW, dstH int, useSRGB bool) *image.NRGBA {
+	need := dstW * dstH * 4
+	if dst != nil && cap(dst.Pix) >= need {
+		dst.Pix = dst.Pix[:need]
+		dst.Stride = dstW * 4
+		dst.Rect = image.Rect(0, 0, dstW, dstH)
+	} else {
+		dst = image.NewNRGBA(image.Rect(0, 0, dstW, dstH))
+	}
 	srcW := src.Rect.Dx()
 	srcH := src.Rect.Dy()
 	if useSRGB {

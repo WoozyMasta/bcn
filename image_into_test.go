@@ -121,3 +121,52 @@ func TestDecodeImageIntoMatchesAndReuses(t *testing.T) {
 		t.Fatal("reused decode output differs from DecodeImageWithOptions")
 	}
 }
+
+func TestGenerateMipmapsIntoMatches(t *testing.T) {
+	// Non-power-of-two so the chain exercises edge replication.
+	img := intoGradient(40, 24)
+	want := GenerateMipmapsN(img, 0, false)
+	got := GenerateMipmapsInto(nil, img, 0, false)
+
+	if len(got) != len(want) {
+		t.Fatalf("len %d != %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i].Rect != want[i].Rect {
+			t.Fatalf("level %d rect %v != %v", i, got[i].Rect, want[i].Rect)
+		}
+		if !bytes.Equal(got[i].Pix, want[i].Pix) {
+			t.Fatalf("level %d pixels differ", i)
+		}
+	}
+}
+
+func TestGenerateMipmapsIntoReuses(t *testing.T) {
+	big := intoGradient(64, 64)
+	pool := GenerateMipmapsInto(nil, big, 0, false)
+	if len(pool) < 2 {
+		t.Fatalf("expected multiple mips, got %d", len(pool))
+	}
+	level1 := pool[1]
+	level1Cap := cap(level1.Pix)
+
+	// Reuse for a smaller image: the level-1 struct and Pix buffer must be reused.
+	small := intoGradient(32, 32)
+	got := GenerateMipmapsInto(pool, small, 0, false)
+	if got[1] != level1 {
+		t.Fatal("expected level-1 NRGBA struct to be reused")
+	}
+	if cap(got[1].Pix) != level1Cap {
+		t.Fatalf("expected Pix reuse, cap %d != %d", cap(got[1].Pix), level1Cap)
+	}
+
+	want := GenerateMipmapsN(small, 0, false)
+	if len(got) != len(want) {
+		t.Fatalf("len %d != %d", len(got), len(want))
+	}
+	for i := range want {
+		if !bytes.Equal(got[i].Pix, want[i].Pix) {
+			t.Fatalf("reused level %d pixels differ", i)
+		}
+	}
+}
