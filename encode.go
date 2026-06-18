@@ -127,43 +127,77 @@ func expandBC4Block(block *[64]byte, alpha *[16]uint8) {
 
 // encodeBlocksWithOptions encodes tight RGBA pixels into the selected BCn format.
 func encodeBlocksWithOptions(rgba []byte, width, height int, format Format, opts *EncodeOptions) ([]byte, error) {
-	if width <= 0 || height <= 0 {
-		return nil, ErrInvalidDimensions
+	n, err := encodedBlocksSize(rgba, width, height, format)
+	if err != nil {
+		return nil, err
 	}
 
+	out := make([]byte, n)
+	if err := encodeBlocksInto(out, rgba, width, height, format, opts); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
+// encodedBlocksSize validates the inputs
+// and returns the encoded byte length for the format
+// (block payload size when compressed, len(rgba) when uncompressed).
+func encodedBlocksSize(rgba []byte, width, height int, format Format) (int, error) {
+	if width <= 0 || height <= 0 {
+		return 0, ErrInvalidDimensions
+	}
 	if len(rgba) != width*height*4 {
-		return nil, ErrInvalidRGBALength
+		return 0, ErrInvalidRGBALength
 	}
 
 	blockSize := format.blockSize()
 	if blockSize == 0 {
-		return nil, ErrUnsupportedFormat
+		return 0, ErrUnsupportedFormat
 	}
+
+	if !format.isCompressed() {
+		return width * height * 4, nil
+	}
+
+	return ((width + 3) / 4) * ((height + 3) / 4) * blockSize, nil
+}
+
+// encodeBlocksInto encodes rgba into dst,
+// which must be at least encodedBlocksSize bytes.
+// It lets callers reuse a buffer across encodes
+// (the bytes are identical to encodeBlocksWithOptions).
+func encodeBlocksInto(dst, rgba []byte, width, height int, format Format, opts *EncodeOptions) error {
+	n, err := encodedBlocksSize(rgba, width, height, format)
+	if err != nil {
+		return err
+	}
+	if len(dst) < n {
+		return ErrBufferTooSmall
+	}
+	out := dst[:n]
 
 	if !format.isCompressed() {
 		switch format {
 		case FormatRGBA8:
-			out := make([]byte, len(rgba))
 			copy(out, rgba)
-			return out, nil
+			return nil
 		case FormatBGRA8:
-			out := make([]byte, len(rgba))
 			for i := 0; i < len(rgba); i += 4 {
 				out[i] = rgba[i+2]
 				out[i+1] = rgba[i+1]
 				out[i+2] = rgba[i]
 				out[i+3] = rgba[i+3]
 			}
-			return out, nil
+			return nil
 		default:
-			return nil, ErrUnsupportedUncompressedFormat
+			return ErrUnsupportedUncompressedFormat
 		}
 	}
 
 	options := normalizeEncodeOptions(opts)
 	bx := (width + 3) / 4
 	by := (height + 3) / 4
-	out := make([]byte, bx*by*blockSize)
 	totalBlocks := bx * by
 
 	workers := options.Workers
@@ -199,12 +233,8 @@ func encodeBlocksWithOptions(rgba []byte, width, height int, format Format, opts
 		}
 
 		wg.Wait()
-		return out, nil
+		return nil
 	}
 
-	if err := encodeBlockRange(format, rgba, out, width, height, bx, 0, totalBlocks, options); err != nil {
-		return nil, err
-	}
-
-	return out, nil
+	return encodeBlockRange(format, rgba, out, width, height, bx, 0, totalBlocks, options)
 }
