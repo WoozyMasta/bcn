@@ -6,19 +6,40 @@ package bcn
 
 import (
 	"image"
-	"image/color"
 	"math"
 	"sync"
+)
+
+var (
+	// gammaOnce initializes conversion lookup tables once per process.
+	gammaOnce sync.Once
+	// srgbToLinear maps 8-bit sRGB to linear intensity.
+	srgbToLinear [256]float32
+	// linearToSRGB maps linear intensity to nearest 8-bit sRGB via 12-bit index.
+	linearToSRGB [4096]uint8
 )
 
 // GenerateMipmaps builds a full mip chain from the input image.
 // If useSRGB is true, RGB is averaged in linear space and converted back to sRGB.
 func GenerateMipmaps(img image.Image, useSRGB bool) []*image.NRGBA {
+	return GenerateMipmapsN(img, 0, useSRGB)
+}
+
+// GenerateMipmapsN builds a mip chain from the input image with an optional level limit.
+// maxMipmaps <= 0 builds a full chain, maxMipmaps == 1 returns only the base level.
+// If useSRGB is true, RGB is averaged in linear space and converted back to sRGB.
+func GenerateMipmapsN(img image.Image, maxMipmaps int, useSRGB bool) []*image.NRGBA {
 	base := toNRGBA(img)
-	mips := []*image.NRGBA{base}
 	w := base.Rect.Dx()
 	h := base.Rect.Dy()
-	for w > 1 || h > 1 {
+	mipCount := fullMipCount(w, h)
+	if maxMipmaps > 0 && maxMipmaps < mipCount {
+		mipCount = maxMipmaps
+	}
+
+	mips := make([]*image.NRGBA, 1, mipCount)
+	mips[0] = base
+	for len(mips) < mipCount {
 		if w > 1 {
 			w >>= 1
 		}
@@ -32,14 +53,47 @@ func GenerateMipmaps(img image.Image, useSRGB bool) []*image.NRGBA {
 	return mips
 }
 
+func fullMipCount(w, h int) int {
+	count := 1
+	for w > 1 || h > 1 {
+		if w > 1 {
+			w >>= 1
+		}
+		if h > 1 {
+			h >>= 1
+		}
+		count++
+	}
+
+	return count
+}
+
 // toNRGBA converts an image.Image to NRGBA (no premultiply), copying pixels.
 func toNRGBA(img image.Image) *image.NRGBA {
-	if nrgba, ok := img.(*image.NRGBA); ok {
+	if nrgba, ok := img.(*image.NRGBA); ok && nrgba.Rect.Min.X == 0 && nrgba.Rect.Min.Y == 0 {
 		return nrgba
 	}
 
 	b := img.Bounds()
 	out := image.NewNRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+	if nrgba, ok := img.(*image.NRGBA); ok {
+		for y := 0; y < b.Dy(); y++ {
+			srcOff := nrgba.PixOffset(b.Min.X, b.Min.Y+y)
+			dstOff := y * out.Stride
+			copy(out.Pix[dstOff:dstOff+b.Dx()*4], nrgba.Pix[srcOff:srcOff+b.Dx()*4])
+		}
+		return out
+	}
+
+	if rgba, ok := img.(*image.RGBA); ok {
+		for y := 0; y < b.Dy(); y++ {
+			srcOff := rgba.PixOffset(b.Min.X, b.Min.Y+y)
+			dstOff := y * out.Stride
+			copy(out.Pix[dstOff:dstOff+b.Dx()*4], rgba.Pix[srcOff:srcOff+b.Dx()*4])
+		}
+		return out
+	}
+
 	idx := 0
 	for y := b.Min.Y; y < b.Max.Y; y++ {
 		for x := b.Min.X; x < b.Max.X; x++ {
@@ -59,80 +113,69 @@ func toNRGBA(img image.Image) *image.NRGBA {
 // For non-power-of-two edges, the last row/column is replicated.
 func downscaleNRGBA(src *image.NRGBA, dstW, dstH int, useSRGB bool) *image.NRGBA {
 	dst := image.NewNRGBA(image.Rect(0, 0, dstW, dstH))
-	initGamma()
+	srcW := src.Rect.Dx()
+	srcH := src.Rect.Dy()
+	if useSRGB {
+		initGamma()
+	}
 
 	for y := range dstH {
-		for x := range dstW {
-			sx := x * 2
-			sy := y * 2
-			samples := [4]color.NRGBA{
-				atNRGBA(src, sx, sy),
-				atNRGBA(src, sx+1, sy),
-				atNRGBA(src, sx, sy+1),
-				atNRGBA(src, sx+1, sy+1),
+		sy0 := y * 2
+		sy1 := sy0 + 1
+		if sy1 >= srcH {
+			sy1 = srcH - 1
+		}
+		row0 := src.PixOffset(src.Rect.Min.X, src.Rect.Min.Y+sy0)
+		row1 := src.PixOffset(src.Rect.Min.X, src.Rect.Min.Y+sy1)
+		dstOff := y * dst.Stride
+		x0 := 0
+		if !useSRGB && srcW > 1 {
+			n := dstW &^ 1
+			if downscaleNRGBARow2xASM(dst.Pix[dstOff:], src.Pix[row0:], src.Pix[row1:], n) {
+				x0 = n
 			}
+		}
 
-			var r, g, b float64
-			var a int
-			for i := range 4 {
-				if useSRGB {
-					r += float64(srgbToLinear[samples[i].R])
-					g += float64(srgbToLinear[samples[i].G])
-					b += float64(srgbToLinear[samples[i].B])
-				} else {
-					r += float64(samples[i].R)
-					g += float64(samples[i].G)
-					b += float64(samples[i].B)
-				}
-				a += int(samples[i].A)
+		for x := x0; x < dstW; x++ {
+			sx0 := x * 2
+			sx1 := sx0 + 1
+			if sx1 >= srcW {
+				sx1 = srcW - 1
 			}
+			i00 := row0 + sx0*4
+			i10 := row0 + sx1*4
+			i01 := row1 + sx0*4
+			i11 := row1 + sx1*4
+			o := dstOff + x*4
 
 			if useSRGB {
-				r /= 4
-				g /= 4
-				b /= 4
-				dst.Pix[(y*dst.Stride)+x*4+0] = linearToSRGB[clampIndex(r)]
-				dst.Pix[(y*dst.Stride)+x*4+1] = linearToSRGB[clampIndex(g)]
-				dst.Pix[(y*dst.Stride)+x*4+2] = linearToSRGB[clampIndex(b)]
+				dst.Pix[o+0] = linearToSRGB[clampIndex(avg4LinearSRGB(src.Pix[i00+0], src.Pix[i10+0], src.Pix[i01+0], src.Pix[i11+0]))]
+				dst.Pix[o+1] = linearToSRGB[clampIndex(avg4LinearSRGB(src.Pix[i00+1], src.Pix[i10+1], src.Pix[i01+1], src.Pix[i11+1]))]
+				dst.Pix[o+2] = linearToSRGB[clampIndex(avg4LinearSRGB(src.Pix[i00+2], src.Pix[i10+2], src.Pix[i01+2], src.Pix[i11+2]))]
 			} else {
-				dst.Pix[(y*dst.Stride)+x*4+0] = uint8(math.Round(r / 4))
-				dst.Pix[(y*dst.Stride)+x*4+1] = uint8(math.Round(g / 4))
-				dst.Pix[(y*dst.Stride)+x*4+2] = uint8(math.Round(b / 4))
+				dst.Pix[o+0] = avg4U8(src.Pix[i00+0], src.Pix[i10+0], src.Pix[i01+0], src.Pix[i11+0])
+				dst.Pix[o+1] = avg4U8(src.Pix[i00+1], src.Pix[i10+1], src.Pix[i01+1], src.Pix[i11+1])
+				dst.Pix[o+2] = avg4U8(src.Pix[i00+2], src.Pix[i10+2], src.Pix[i01+2], src.Pix[i11+2])
 			}
 
-			dst.Pix[(y*dst.Stride)+x*4+3] = clampU8((a + 2) / 4)
+			dst.Pix[o+3] = avg4U8(src.Pix[i00+3], src.Pix[i10+3], src.Pix[i01+3], src.Pix[i11+3])
 		}
 	}
 
 	return dst
 }
 
-// atNRGBA fetches one pixel with clamp-to-edge semantics.
-func atNRGBA(img *image.NRGBA, x, y int) color.NRGBA {
-	if x >= img.Rect.Dx() {
-		x = img.Rect.Dx() - 1
-	}
-	if y >= img.Rect.Dy() {
-		y = img.Rect.Dy() - 1
-	}
-	off := y*img.Stride + x*4
-
-	return color.NRGBA{
-		R: img.Pix[off+0],
-		G: img.Pix[off+1],
-		B: img.Pix[off+2],
-		A: img.Pix[off+3],
-	}
+func avg4U8(a, b, c, d uint8) uint8 {
+	// #nosec G115 -- max ((255*4)+2)>>2 = 255, always fits uint8.
+	return uint8((uint32(a) + uint32(b) + uint32(c) + uint32(d) + 2) >> 2)
 }
 
-var (
-	// gammaOnce initializes conversion lookup tables once per process.
-	gammaOnce sync.Once
-	// srgbToLinear maps 8-bit sRGB to linear intensity.
-	srgbToLinear [256]float32
-	// linearToSRGB maps linear intensity to nearest 8-bit sRGB via 12-bit index.
-	linearToSRGB [4096]uint8
-)
+func avg4LinearSRGB(a, b, c, d uint8) float64 {
+	return (float64(srgbToLinear[a]) +
+		float64(srgbToLinear[b]) +
+		float64(srgbToLinear[c]) +
+		float64(srgbToLinear[d])) * 0.25
+}
 
 // initGamma precomputes sRGB<->linear lookup tables used by mip generation.
 func initGamma() {

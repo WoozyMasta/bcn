@@ -65,3 +65,8 @@ func lsqColorAccumulateASM(_ *[16]rgba8, _ *[4]rgba8, _ bool, _ uint8, _ rgbWeig
 func lsqAlphaAccumulateASM(_ *[16]uint8, _, _ uint8) (lsqAlphaSums, bool) {
 	return lsqAlphaSums{}, false
 }
+
+// downscaleNRGBARow2xASM is unavailable without assembly support.
+func downscaleNRGBARow2xASM(_, _, _ []byte, _ int) bool {
+	return false
+}

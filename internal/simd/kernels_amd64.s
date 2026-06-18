@@ -121,6 +121,18 @@ GLOBL decodeAlphaPalConsts<>(SB), RODATA|NOPTR, $128
 DATA decodeGrayMul<>+0(SB)/4, $0x00010101
 GLOBL decodeGrayMul<>(SB), RODATA|NOPTR, $4
 
+DATA mipmapEvenPixelMask<>+0(SB)/8, $0x0b0a090803020100
+DATA mipmapEvenPixelMask<>+8(SB)/8, $0x8080808080808080
+GLOBL mipmapEvenPixelMask<>(SB), RODATA|NOPTR, $16
+
+DATA mipmapOddPixelMask<>+0(SB)/8, $0x0f0e0d0c07060504
+DATA mipmapOddPixelMask<>+8(SB)/8, $0x8080808080808080
+GLOBL mipmapOddPixelMask<>(SB), RODATA|NOPTR, $16
+
+DATA mipmapAvg4Bias<>+0(SB)/8, $0x0002000200020002
+DATA mipmapAvg4Bias<>+8(SB)/8, $0x0002000200020002
+GLOBL mipmapAvg4Bias<>(SB), RODATA|NOPTR, $16
+
 // func DecodeDXT1RowAVX2(dst *byte, src *byte, n int, stride int)
 // Requires: AVX, AVX2
 TEXT ·DecodeDXT1RowAVX2(SB), NOSPLIT, $0-32
@@ -2074,4 +2086,46 @@ TEXT ·LSQAlphaAccumulateAVX2(SB), NOSPLIT, $32-24
 	VMOVD        X0, AX
 	ADDL         AX, 16(DX)
 	VZEROUPPER
+	RET
+
+// func DownscaleNRGBARow2xAVX2(dst *byte, row0 *byte, row1 *byte, n int)
+// Requires: AVX
+TEXT ·DownscaleNRGBARow2xAVX2(SB), NOSPLIT, $0-32
+	MOVQ    dst+0(FP), AX
+	MOVQ    row0+8(FP), CX
+	MOVQ    row1+16(FP), DX
+	MOVQ    n+24(FP), BX
+	SHRQ    $0x01, BX
+	CMPQ    BX, $0x00
+	JE      done
+	VMOVDQU mipmapEvenPixelMask<>+0(SB), X0
+	VMOVDQU mipmapOddPixelMask<>+0(SB), X1
+	VMOVDQU mipmapAvg4Bias<>+0(SB), X2
+	VPXOR   X3, X3, X3
+
+loop:
+	VMOVDQU    (CX), X4
+	VMOVDQU    (DX), X5
+	VPSHUFB    X0, X4, X6
+	VPSHUFB    X1, X4, X4
+	VPSHUFB    X0, X5, X7
+	VPSHUFB    X1, X5, X5
+	VPUNPCKLBW X3, X6, X6
+	VPUNPCKLBW X3, X4, X4
+	VPADDW     X4, X6, X6
+	VPUNPCKLBW X3, X7, X4
+	VPADDW     X4, X6, X6
+	VPUNPCKLBW X3, X5, X4
+	VPADDW     X4, X6, X6
+	VPADDW     X2, X6, X6
+	VPSRLW     $0x02, X6, X6
+	VPACKUSWB  X6, X6, X6
+	VMOVQ      X6, (AX)
+	ADDQ       $0x10, CX
+	ADDQ       $0x10, DX
+	ADDQ       $0x08, AX
+	DECQ       BX
+	JNZ        loop
+
+done:
 	RET
