@@ -14,6 +14,20 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
+## Unreleased
+
+### Added
+
+* `GenerateMipmapsN` for generating mipmap chains
+  with an optional maximum mip level count while keeping `GenerateMipmaps`
+  as the compatibility wrapper.
+
+### Changed
+
+* Faster mipmap generation for `*image.NRGBA`,
+  including direct byte access, integer averaging,
+  and an AVX2 downscale row kernel on `amd64` with pure-Go fallback.
+
 ## [0.3.0][] - 2026-06-17
 
 ### Added
