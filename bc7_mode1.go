@@ -274,30 +274,32 @@ func bc7Rank2Subset(block *[16]rgba8) [64]int {
 	var score [64]int
 	for p := range 64 {
 		part := &bc7PartitionSets[0][p]
-		var sum [2][3]int
+		var sum [2][4]int
 		var cnt [2]int
 		for i := range 16 {
 			s := part[i] & 0x03
 			sum[s][0] += int(block[i].r)
 			sum[s][1] += int(block[i].g)
 			sum[s][2] += int(block[i].b)
+			sum[s][3] += int(block[i].a)
 			cnt[s]++
 		}
-		var mean [2][3]int
+		var mean [2][4]int
 		for s := range 2 {
 			if cnt[s] > 0 {
-				mean[s][0] = sum[s][0] / cnt[s]
-				mean[s][1] = sum[s][1] / cnt[s]
-				mean[s][2] = sum[s][2] / cnt[s]
+				for c := range 4 {
+					mean[s][c] = sum[s][c] / cnt[s]
+				}
 			}
 		}
 		total := 0
 		for i := range 16 {
 			s := part[i] & 0x03
-			dr := int(block[i].r) - mean[s][0]
-			dg := int(block[i].g) - mean[s][1]
-			db := int(block[i].b) - mean[s][2]
-			total += dr*dr + dg*dg + db*db
+			px := [4]int{int(block[i].r), int(block[i].g), int(block[i].b), int(block[i].a)}
+			for c := range 4 {
+				d := px[c] - mean[s][c]
+				total += d * d
+			}
 		}
 		score[p] = total
 	}
