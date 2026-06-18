@@ -24,10 +24,20 @@ func EncodeImageWithOptions(img image.Image, format Format, opts *EncodeOptions)
 	b := nrgba.Bounds()
 	width := b.Dx()
 	height := b.Dy()
-	rgba := make([]byte, width*height*4)
-	for y := range height {
-		src := nrgba.Pix[nrgba.PixOffset(b.Min.X, b.Min.Y+y):]
-		copy(rgba[y*width*4:(y+1)*width*4], src[:width*4])
+
+	// encodeBlocksWithOptions only reads rgba and requires a tight width*height*4 buffer.
+	// When nrgba is already tight and origin-anchored
+	// (the common case: toNRGBA returns a fresh tight NRGBA, or the caller passed one),
+	// read Pix in place instead of allocating and copying a full-image buffer.
+	var rgba []byte
+	if nrgba.Rect.Min.X == 0 && nrgba.Rect.Min.Y == 0 && nrgba.Stride == width*4 && len(nrgba.Pix) >= width*height*4 {
+		rgba = nrgba.Pix[: width*height*4 : width*height*4]
+	} else {
+		rgba = make([]byte, width*height*4)
+		for y := range height {
+			src := nrgba.Pix[nrgba.PixOffset(b.Min.X, b.Min.Y+y):]
+			copy(rgba[y*width*4:(y+1)*width*4], src[:width*4])
+		}
 	}
 
 	data, err := encodeBlocksWithOptions(rgba, width, height, format, opts)
