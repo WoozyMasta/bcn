@@ -114,7 +114,7 @@ func bc7Mode1FitSubset(block *[16]rgba8, part *[16]uint8, subset uint8) (rgba8, 
 
 	const maxIters = 8
 	for range maxIters {
-		nc0, nc1, ok := bc7SubsetLSQ(block, part, subset, &pal)
+		nc0, nc1, ok := bc7SubsetLSQ(block, part, subset, pal[:], bc7Weight3[:])
 		if !ok {
 			break
 		}
@@ -185,57 +185,6 @@ func bc7SubsetError(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[8]rgb
 	}
 
 	return total
-}
-
-// bc7SubsetLSQ refits continuous RGB endpoints for a subset from its current
-// nearest-index assignment. ok is false on a degenerate weight distribution.
-//
-//nolint:dupl // per-mode BC7 subset fits are intentionally kept separate.
-func bc7SubsetLSQ(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[8]rgba8) (rgba8, rgba8, bool) {
-	var saa, sbb, sab int
-	var sap, sbp [3]int
-
-	// TODO(avo): per-texel nearest-index search + accumulation is the hot loop.
-	for i := range 16 {
-		if part[i]&0x03 != subset {
-			continue
-		}
-
-		idx := 0
-		bestErr := bc7RGBErr(block[i], pal[0])
-		for k := 1; k < 8; k++ {
-			if e := bc7RGBErr(block[i], pal[k]); e < bestErr {
-				bestErr, idx = e, k
-			}
-		}
-
-		b := int(bc7Weight3[idx])
-		a := 64 - b
-		saa += a * a
-		sbb += b * b
-		sab += a * b
-		ch := [3]int{int(block[i].r), int(block[i].g), int(block[i].b)}
-		for c := range 3 {
-			sap[c] += a * ch[c]
-			sbp[c] += b * ch[c]
-		}
-	}
-
-	denom := int64(saa)*int64(sbb) - int64(sab)*int64(sab)
-	if denom == 0 {
-		return rgba8{}, rgba8{}, false
-	}
-
-	var e0, e1 rgba8
-	dst0 := [3]*uint8{&e0.r, &e0.g, &e0.b}
-	dst1 := [3]*uint8{&e1.r, &e1.g, &e1.b}
-	for c := range 3 {
-		v0, v1 := lsqSolvePair(64, saa, sbb, sab, sap[c], sbp[c], denom)
-		*dst0[c] = clampU8(v0)
-		*dst1[c] = clampU8(v1)
-	}
-
-	return e0, e1, true
 }
 
 // bc7Mode1Anchor1 returns the texel index of subset 1's anchor

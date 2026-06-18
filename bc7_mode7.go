@@ -245,67 +245,19 @@ func bc7Mode7Assign(block *[16]rgba8, part *[16]uint8, pal *[2][4]rgba8) [16]uin
 	return idx
 }
 
-// encodeBC7Mode7 encodes a block as BC7 mode 7,
-// trying the top maxPartitions ranked partitions
-// and keeping the lowest-error result.
-func encodeBC7Mode7(block [16]rgba8, maxPartitions int) ([16]byte, int, bool) {
-	order := bc7Rank2Subset(&block)
-	tries := min(maxPartitions, 64)
-
-	var bestBytes [16]byte
-	bestErr := 1 << 30
-	found := false
-	for t := range tries {
-		b, err := bc7Mode7TryPartition(&block, order[t])
-		if err < bestErr {
-			bestErr, bestBytes, found = err, b, true
-			if bestErr == 0 {
-				break
-			}
-		}
-	}
-
-	return bestBytes, bestErr, found
+// bc7Mode7 is the two-subset driver instantiated for mode 7.
+var bc7Mode7 = bc72Subset{
+	fit: bc7Mode7FitSubset,
+	palette: func(q0 rgba8, pb0 uint8, q1 rgba8, pb1 uint8) [4]rgba8 {
+		return bc7Mode7Palette(bc7ExpandMode7(q0, pb0), bc7ExpandMode7(q1, pb1))
+	},
+	assign: bc7Mode7Assign,
+	pack:   bc7PackMode7,
 }
 
-// bc7Mode7TryPartition fits both subsets of one partition,
-// resolves the anchor constraints,
-// and returns the packed block with its total error.
-//
-//nolint:dupl // per-mode BC7 partition encoders are intentionally kept separate.
-func bc7Mode7TryPartition(block *[16]rgba8, p int) ([16]byte, int) {
-	part := &bc7PartitionSets[0][p]
-
-	var q [4]rgba8
-	var pbit [4]uint8
-	var pal [2][4]rgba8
-	for s := range 2 {
-		// #nosec G115 -- s is 0 or 1.
-		e0, e1, pb0, pb1 := bc7Mode7FitSubset(block, part, uint8(s))
-		q[s*2], q[s*2+1] = e0, e1
-		pbit[s*2], pbit[s*2+1] = pb0, pb1
-		pal[s] = bc7Mode7Palette(bc7ExpandMode7(e0, pb0), bc7ExpandMode7(e1, pb1))
-	}
-
-	idx := bc7Mode7Assign(block, part, &pal)
-
-	// Each subset's anchor index must have its MSB clear (2-bit -> 1-bit).
-	anchors := [2]int{0, bc7Mode1Anchor1(p)}
-	for s := range 2 {
-		if idx[anchors[s]]&0x02 != 0 {
-			q[s*2], q[s*2+1] = q[s*2+1], q[s*2]
-			pbit[s*2], pbit[s*2+1] = pbit[s*2+1], pbit[s*2]
-			pal[s] = bc7Mode7Palette(bc7ExpandMode7(q[s*2], pbit[s*2]), bc7ExpandMode7(q[s*2+1], pbit[s*2+1]))
-			idx = bc7Mode7Assign(block, part, &pal)
-		}
-	}
-
-	total := 0
-	for i := range 16 {
-		total += bc7SSE(block[i], pal[part[i]&0x03][idx[i]])
-	}
-
-	return bc7PackMode7(&q, &pbit, &idx, p), total
+// encodeBC7Mode7 encodes a block as BC7 mode 7.
+func encodeBC7Mode7(block [16]rgba8, maxPartitions int) ([16]byte, int, bool) {
+	return bc7Mode7.encode(block, maxPartitions)
 }
 
 // bc7PackMode7 serializes a mode 7 block: mode bits, partition id,
