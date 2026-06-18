@@ -183,14 +183,24 @@ func bc7MaxDistPair(block [16]rgba8) (rgba8, rgba8) {
 // encodeBlockBC7 encodes one 4x4 block, trying the available modes
 // and keeping the one with the lowest reconstruction error.
 //   - Mode 6 always applies;
-//   - Mode 1 (2-subset opaque RGB) is tried for fully opaque blocks
-//     when the quality level enables partition search.
+//   - Mode 1 (2-subset opaque RGB) is tried for fully opaque blocks;
+//   - Mode 5 (separate color/alpha) is tried for alpha-bearing blocks;
+//
+// the extra modes run only when the quality level enables them.
 func encodeBlockBC7(block [16]rgba8, opts EncodeOptions) [16]byte {
 	best, bestErr := encodeBC7Mode6(block)
 
 	settings := qualitySettingsForOpts(opts)
-	if settings.bc7Partitions > 0 && !bc7BlockHasAlpha(block) {
-		if b, err, ok := encodeBC7Mode1(block, settings.bc7Partitions); ok && err < bestErr {
+	if settings.bc7Partitions > 0 {
+		var b [16]byte
+		var err int
+		ok := true
+		if bc7BlockHasAlpha(block) {
+			b, err = encodeBC7Mode5(block)
+		} else {
+			b, err, ok = encodeBC7Mode1(block, settings.bc7Partitions)
+		}
+		if ok && err < bestErr {
 			best = b
 		}
 	}

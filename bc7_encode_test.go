@@ -35,6 +35,46 @@ func TestBC7EncodeQuality(t *testing.T) {
 	}
 }
 
+// bc7DecodeSSE decodes a packed block and returns its RGBA error against the source,
+// used to confirm an encoder's reported error matches the decoder.
+func bc7DecodeSSE(block [16]rgba8, enc [16]byte) int {
+	dec := decodeBlockBC7(enc[:])
+	total := 0
+	for i := range 16 {
+		o := i * 4
+		total += bc7SSE(block[i], rgba8{dec[o], dec[o+1], dec[o+2], dec[o+3]})
+	}
+	return total
+}
+
+// TestBC7EncoderSelfConsistent checks that each mode encoder's
+// reported error equals the error of its own packed block after decoding.
+// A mismatch means the packing or quantization disagrees with the decoder.
+func TestBC7EncoderSelfConsistent(t *testing.T) {
+	var grad, region, alpha [16]rgba8
+	for i := range 16 {
+		grad[i] = rgba8{uint8(i * 16), uint8(i * 8), uint8(100 + i*4), 255}
+		region[i] = rgba8{50, 50, 200, 255}
+		if i%4 < 2 {
+			region[i] = rgba8{200, 50, 50, 255}
+		}
+		alpha[i] = rgba8{uint8(i * 12), 80, uint8(200 - i*10), uint8(i * 16)}
+	}
+	blocks := map[string][16]rgba8{"gradient": grad, "region": region, "alpha": alpha}
+
+	for name, blk := range blocks {
+		if b, e := encodeBC7Mode6(blk); bc7DecodeSSE(blk, b) != e {
+			t.Errorf("%s mode6: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
+		}
+		if b, e := encodeBC7Mode5(blk); bc7DecodeSSE(blk, b) != e {
+			t.Errorf("%s mode5: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
+		}
+		if b, e, ok := encodeBC7Mode1(blk, 16); ok && bc7DecodeSSE(blk, b) != e {
+			t.Errorf("%s mode1: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
+		}
+	}
+}
+
 // TestBC7EncodeTwoRegions checks that the partition modes fit
 // a block with two distinct flat color regions (which a single subset cannot),
 // reaching near-lossless quality.
