@@ -14,6 +14,45 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
+## [0.5.0][] - 2026-06-18
+
+### Added
+
+* `EncodeImageInto` and `DecodeImageInto` encode/decode
+  into a caller-owned buffer (reallocated only when too small).
+* `GenerateMipmapsInto` builds a mip chain reusing
+  the per-level NRGBA buffers across calls.
+* `ErrBufferTooSmall` for a destination buffer smaller than the encoded size.
+
+### Changed
+
+* `EncodeImageWithOptions` reads an already-tight,
+  origin-anchored `*image.NRGBA` in place instead of allocating
+  and copying a full `width*height*4` buffer.
+* `DecodeImage` / `DecodeImageWithOptions` decode straight into the destination
+  `image.NRGBA.Pix` instead of decoding into a temporary buffer and copying.
+
+Both cut about `width*height*4` bytes per call (~4 MiB on 1024^2)
+with byte-identical output.
+
+[0.5.0]: https://github.com/WoozyMasta/bcn/compare/v0.4.0...v0.5.0
+
+## [0.4.0][] - 2026-06-18
+
+### Added
+
+* `GenerateMipmapsN` for generating mipmap chains
+  with an optional maximum mip level count while keeping `GenerateMipmaps`
+  as the compatibility wrapper.
+
+### Changed
+
+* Faster mipmap generation for `*image.NRGBA`,
+  including direct byte access, integer averaging,
+  and an AVX2 downscale row kernel on `amd64` with pure-Go fallback.
+
+[0.4.0]: https://github.com/WoozyMasta/bcn/compare/v0.3.0...v0.4.0
+
 ## [0.3.0][] - 2026-06-17
 
 ### Added

@@ -12,6 +12,8 @@ var (
 	ErrInvalidDimensions = errors.New("invalid dimensions")
 	// ErrInvalidRGBALength indicates RGBA slice length mismatch.
 	ErrInvalidRGBALength = errors.New("invalid rgba length")
+	// ErrBufferTooSmall indicates a caller-provided destination buffer is too small.
+	ErrBufferTooSmall = errors.New("destination buffer too small")
 	// ErrInsufficientData indicates compressed/uncompressed data is too short.
 	ErrInsufficientData = errors.New("insufficient data")
 	// ErrUnsupportedFormat indicates an unsupported pixel format.

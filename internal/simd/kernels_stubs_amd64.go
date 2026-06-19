@@ -79,3 +79,9 @@ func LSQColorAccumulateAVX2(block *[64]byte, params *[22]int32, out *[9]int32)
 //
 //go:noescape
 func LSQAlphaAccumulateAVX2(samples *[16]uint8, aa uint32, out *[5]int32)
+
+// DownscaleNRGBARow2xAVX2 downsamples one NRGBA row by 2x using an exact rounded 2x2 box filter.
+// n is the even number of output pixels to write; odd tails and clamp edges are handled by Go.
+//
+//go:noescape
+func DownscaleNRGBARow2xAVX2(dst *byte, row0 *byte, row1 *byte, n int)
