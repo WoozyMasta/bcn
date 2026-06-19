@@ -9,8 +9,7 @@ package bcn
 // alpha uses full 8-bit endpoints with its own 2-bit indices.
 // Decoupling the two lets alpha-bearing blocks keep crisp color and crisp alpha independently,
 // which the shared index of mode 6 cannot.
-// Rotation is fixed at 0 here (color = RGB, alpha = A);
-// rotating a color channel into the alpha slot is a later refinement.
+// The encoder searches the channel rotations (color <-> alpha) and keeps the best.
 
 // bc7Expand7NoP expands a 7-bit color value to 8 bits (mode 5 has no P-bit).
 func bc7Expand7NoP(stored uint8) uint8 {
@@ -265,9 +264,46 @@ func bc7Mode5AlphaLSQ(block *[16]rgba8, lv *[4]uint8) (uint8, uint8, bool) {
 	return clampU8(v0), clampU8(v1), true
 }
 
-// encodeBC7Mode5 encodes a block as BC7 mode 5 (rotation 0)
-// and returns the packed block with its total RGBA error.
-func encodeBC7Mode5(block [16]rgba8) ([16]byte, int) {
+// bc7RotateBlock swaps one color channel with alpha per the BC7 rotation field (0 = identity).
+// Modes 4 and 5 fit the rotated block so the separately-indexed "alpha" slot
+// can carry whichever channel decorrelates from the rest; the decoder undoes the swap.
+// RGBA error is invariant under the swap, so fitting the rotated block measures the true error.
+func bc7RotateBlock(block [16]rgba8, rotation int) [16]rgba8 {
+	if rotation == 0 {
+		return block
+	}
+	var out [16]rgba8
+	for i, c := range block {
+		switch rotation {
+		case 1:
+			out[i] = rgba8{r: c.a, g: c.g, b: c.b, a: c.r}
+		case 2:
+			out[i] = rgba8{r: c.r, g: c.a, b: c.b, a: c.g}
+		case 3:
+			out[i] = rgba8{r: c.r, g: c.g, b: c.a, a: c.b}
+		}
+	}
+	return out
+}
+
+// encodeBC7Mode5 encodes a block as BC7 mode 5,
+// trying the given number of channel rotations (1 = rotation 0 only, 4 = all)
+// and keeping the best.
+func encodeBC7Mode5(block [16]rgba8, rotations int) ([16]byte, int) {
+	var bestBytes [16]byte
+	bestErr := -1
+	for r := range rotations {
+		// #nosec G115 -- r is in [0,3].
+		if b, e := bc7Mode5Rotated(bc7RotateBlock(block, r), uint8(r)); bestErr < 0 || e < bestErr {
+			bestErr, bestBytes = e, b
+		}
+	}
+	return bestBytes, bestErr
+}
+
+// bc7Mode5Rotated encodes one already-rotated block as mode 5 with the given
+// rotation field, returning the packed block and its (rotation-invariant) error.
+func bc7Mode5Rotated(block [16]rgba8, rotation uint8) ([16]byte, int) {
 	cq0, cq1 := bc7Mode5FitColor(&block)
 	a0, a1 := bc7Mode5FitAlpha(&block)
 
@@ -311,17 +347,17 @@ func encodeBC7Mode5(block [16]rgba8) ([16]byte, int) {
 		total += bc7SSE(block[i], rec)
 	}
 
-	return bc7PackMode5(cq0, cq1, a0, a1, &cidx, &aidx), total
+	return bc7PackMode5(rotation, cq0, cq1, a0, a1, &cidx, &aidx), total
 }
 
-// bc7PackMode5 serializes a mode 5 block: mode bits, rotation (0),
+// bc7PackMode5 serializes a mode 5 block: mode bits, rotation,
 // 7-bit RGB endpoints (channel-major),
 // 8-bit alpha endpoints,
 // then the color and alpha index sets (texel 0 anchored to one fewer bit in each set).
-func bc7PackMode5(cq0, cq1 rgba8, a0, a1 uint8, cidx, aidx *[16]uint8) [16]byte {
+func bc7PackMode5(rotation uint8, cq0, cq1 rgba8, a0, a1 uint8, cidx, aidx *[16]uint8) [16]byte {
 	var w bptcWriter
-	w.put(1<<5, 6) // mode 5
-	w.put(0, 2)    // rotation 0
+	w.put(1<<5, 6)             // mode 5
+	w.put(uint32(rotation), 2) // rotation
 
 	w.put(uint32(cq0.r), 7)
 	w.put(uint32(cq1.r), 7)

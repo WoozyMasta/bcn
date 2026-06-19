@@ -199,9 +199,13 @@ func encodeBlockBC7(block [16]rgba8, opts EncodeOptions) [16]byte {
 	}
 
 	if bc7BlockHasAlpha(block) {
-		b5, e5 := encodeBC7Mode5(block)
+		rotations := 1
+		if n >= 8 { // channel-rotation search is reserved for higher quality
+			rotations = 4
+		}
+		b5, e5 := encodeBC7Mode5(block, rotations)
 		consider(b5, e5, true)
-		b4, e4 := encodeBC7Mode4(block)
+		b4, e4 := encodeBC7Mode4(block, rotations)
 		consider(b4, e4, true)
 		consider(encodeBC7Mode7(block, n))
 	} else {

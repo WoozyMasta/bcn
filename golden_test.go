@@ -96,13 +96,13 @@ var goldenEncodeHashes = map[string]string{
 	"BC7/translucent/q1":   "80f1cd8d9ca86319",
 	"BC7/translucent/q2":   "f4c2e8252dbe4fc8",
 	"BC7/translucent/q3":   "f4c2e8252dbe4fc8",
-	"BC7/translucent/q4":   "407753f127d626d1",
-	"BC7/translucent/q5":   "407753f127d626d1",
-	"BC7/translucent/q6":   "407753f127d626d1",
-	"BC7/translucent/q7":   "fd783b8c7c9789ca",
-	"BC7/translucent/q8":   "fd783b8c7c9789ca",
-	"BC7/translucent/q9":   "5e4e9a4b46bedb23",
-	"BC7/translucent/q10":  "6989da00fbf183e9",
+	"BC7/translucent/q4":   "004f46b918859a66",
+	"BC7/translucent/q5":   "004f46b918859a66",
+	"BC7/translucent/q6":   "004f46b918859a66",
+	"BC7/translucent/q7":   "a092a73d21ea9d17",
+	"BC7/translucent/q8":   "a092a73d21ea9d17",
+	"BC7/translucent/q9":   "bdd359b7d3e6f0a9",
+	"BC7/translucent/q10":  "2020711052772849",
 }
 
 // goldenImage returns a deterministic 64x64 test image per scenario.

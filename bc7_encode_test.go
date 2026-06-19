@@ -66,7 +66,7 @@ func TestBC7EncoderSelfConsistent(t *testing.T) {
 		if b, e := encodeBC7Mode6(blk); bc7DecodeSSE(blk, b) != e {
 			t.Errorf("%s mode6: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
 		}
-		if b, e := encodeBC7Mode5(blk); bc7DecodeSSE(blk, b) != e {
+		if b, e := encodeBC7Mode5(blk, 4); bc7DecodeSSE(blk, b) != e {
 			t.Errorf("%s mode5: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
 		}
 		if b, e, ok := encodeBC7Mode1(blk, 16); ok && bc7DecodeSSE(blk, b) != e {
@@ -84,7 +84,7 @@ func TestBC7EncoderSelfConsistent(t *testing.T) {
 		if b, e, ok := encodeBC7Mode3(blk, 16); ok && bc7DecodeSSE(blk, b) != e {
 			t.Errorf("%s mode3: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
 		}
-		if b, e := encodeBC7Mode4(blk); bc7DecodeSSE(blk, b) != e {
+		if b, e := encodeBC7Mode4(blk, 4); bc7DecodeSSE(blk, b) != e {
 			t.Errorf("%s mode4: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
 		}
 	}

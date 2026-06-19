@@ -10,7 +10,7 @@ package bcn
 // Endpoints are lower precision (5-bit RGB, 6-bit alpha),
 // so mode 4 wins when one channel needs more interpolation levels
 // than mode 5's fixed 2-bit pair can provide.
-// Rotation is fixed at 0; both index-selection settings are tried.
+// Both channel rotations and index-selection settings are searched.
 
 // bc7Quant5NoP rounds an 8-bit channel to the nearest 5-bit value (precision 5).
 func bc7Quant5NoP(target uint8) uint8 {
@@ -263,10 +263,26 @@ func bc7Mode4AlphaLSQ(block *[16]rgba8, lv *[8]uint8, weights []int32, n int) (u
 	return clampU8(v0), clampU8(v1), true
 }
 
-// encodeBC7Mode4 encodes a block as BC7 mode 4 (rotation 0),
+// encodeBC7Mode4 encodes a block as BC7 mode 4,
+// trying the given number of channel rotations
+// (1 = rotation 0 only, 4 = all) and keeping the best.
+func encodeBC7Mode4(block [16]rgba8, rotations int) ([16]byte, int) {
+	var bestBytes [16]byte
+	bestErr := -1
+	for r := range rotations {
+		// #nosec G115 -- r is in [0,3].
+		if b, e := bc7Mode4Rotated(bc7RotateBlock(block, r), uint8(r)); bestErr < 0 || e < bestErr {
+			bestErr, bestBytes = e, b
+		}
+	}
+	return bestBytes, bestErr
+}
+
+// bc7Mode4Rotated encodes one already-rotated block
+// as mode 4 with the given rotation field,
 // trying both index-selection settings
-// (3-bit index given to color or to alpha).
-func encodeBC7Mode4(block [16]rgba8) ([16]byte, int) {
+// (the 3-bit index given to color or to alpha).
+func bc7Mode4Rotated(block [16]rgba8, rotation uint8) ([16]byte, int) {
 	var bestBytes [16]byte
 	bestErr := -1
 
@@ -323,7 +339,7 @@ func encodeBC7Mode4(block [16]rgba8) ([16]byte, int) {
 		if bestErr < 0 || total < bestErr {
 			bestErr = total
 			// #nosec G115 -- idxMode is 0 or 1.
-			bestBytes = bc7PackMode4(uint8(idxMode), cq0, cq1, a0, a1, &cidx, &aidx, colorN)
+			bestBytes = bc7PackMode4(rotation, uint8(idxMode), cq0, cq1, a0, a1, &cidx, &aidx, colorN)
 		}
 	}
 
@@ -335,10 +351,10 @@ func encodeBC7Mode4(block [16]rgba8) ([16]byte, int) {
 // and the 3-bit set second (secondary);
 // idxMode selects which of color/alpha is which.
 // colorN tells whether color holds the 2- or 3-bit set.
-func bc7PackMode4(idxMode uint8, cq0, cq1 rgba8, a0, a1 uint8, cidx, aidx *[16]uint8, colorN int) [16]byte {
+func bc7PackMode4(rotation, idxMode uint8, cq0, cq1 rgba8, a0, a1 uint8, cidx, aidx *[16]uint8, colorN int) [16]byte {
 	var w bptcWriter
-	w.put(1<<4, 5) // mode 4
-	w.put(0, 2)    // rotation 0
+	w.put(1<<4, 5)             // mode 4
+	w.put(uint32(rotation), 2) // rotation
 	w.put(uint32(idxMode), 1)
 
 	w.put(uint32(cq0.r), 5)
