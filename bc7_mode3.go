@@ -76,16 +76,16 @@ func bc7Mode3SubsetError(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[
 // bc7Mode3FitSubset fits one subset's RGB endpoints
 // (max-distance seed plus iterated least-squares refinement)
 // at mode 3 precision.
-func bc7Mode3FitSubset(block *[16]rgba8, part *[16]uint8, subset uint8) (rgba8, rgba8, uint8, uint8) {
-	c0, c1 := bc73SubsetMaxDist(block, part, subset)
+func bc7Mode3FitSubset(block [16]rgba8, part [16]uint8, subset uint8) (rgba8, rgba8, uint8, uint8) {
+	c0, c1 := bc7SubsetMaxDist(&block, &part, subset)
 	q0, pb0 := bc7QuantMode3(c0)
 	q1, pb1 := bc7QuantMode3(c1)
 	pal := bc7Mode3Palette(bc7ExpandMode3(q0, pb0), bc7ExpandMode3(q1, pb1))
-	bestErr := bc7Mode3SubsetError(block, part, subset, &pal)
+	bestErr := bc7Mode3SubsetError(&block, &part, subset, &pal)
 
 	const maxIters = 8
 	for range maxIters {
-		nc0, nc1, ok := bc7SubsetLSQ(block, part, subset, pal[:], bc7Weight2[:])
+		nc0, nc1, ok := bc7SubsetLSQ(&block, &part, subset, pal[:], bc7Weight2[:])
 		if !ok {
 			break
 		}
@@ -93,7 +93,7 @@ func bc7Mode3FitSubset(block *[16]rgba8, part *[16]uint8, subset uint8) (rgba8, 
 		nq0, npb0 := bc7QuantMode3(nc0)
 		nq1, npb1 := bc7QuantMode3(nc1)
 		npal := bc7Mode3Palette(bc7ExpandMode3(nq0, npb0), bc7ExpandMode3(nq1, npb1))
-		if err := bc7Mode3SubsetError(block, part, subset, &npal); err < bestErr {
+		if err := bc7Mode3SubsetError(&block, &part, subset, &npal); err < bestErr {
 			bestErr, q0, q1, pb0, pb1, pal = err, nq0, nq1, npb0, npb1, npal
 			if bestErr == 0 {
 				break
@@ -109,7 +109,7 @@ func bc7Mode3FitSubset(block *[16]rgba8, part *[16]uint8, subset uint8) (rgba8, 
 }
 
 // bc7Mode3Assign assigns every texel its nearest 2-bit index within its subset.
-func bc7Mode3Assign(block *[16]rgba8, part *[16]uint8, pal *[2][4]rgba8) [16]uint8 {
+func bc7Mode3Assign(block [16]rgba8, part [16]uint8, pal [2][4]rgba8) [16]uint8 {
 	var idx [16]uint8
 	for i := range 16 {
 		s := part[i] & 0x03
@@ -145,7 +145,7 @@ func encodeBC7Mode3(block [16]rgba8, maxPartitions int) ([16]byte, int, bool) {
 // bc7PackMode3 serializes a mode 3 block: mode bits, partition id,
 // RGB endpoints (7 bits each, channel-major over four endpoints),
 // four per-endpoint P-bits, and 2-bit indices (anchored texels use one fewer bit).
-func bc7PackMode3(q *[4]rgba8, pbit *[4]uint8, idx *[16]uint8, p int) [16]byte {
+func bc7PackMode3(q [4]rgba8, pbit [4]uint8, idx [16]uint8, p int) [16]byte {
 	var w bptcWriter
 	w.put(1<<3, 4) // mode 3
 	// #nosec G115 -- p is in [0,63].

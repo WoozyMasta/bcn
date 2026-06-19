@@ -203,7 +203,7 @@ func (m bc73Mode) subsetLSQ(block *[16]rgba8, part *[16]uint8, subset uint8, pal
 
 // fitSubset fits one subset's RGB endpoints (max-distance seed + least squares).
 func (m bc73Mode) fitSubset(block *[16]rgba8, part *[16]uint8, subset uint8) (rgba8, rgba8, uint8, uint8) {
-	c0, c1 := bc73SubsetMaxDist(block, part, subset)
+	c0, c1 := bc7SubsetMaxDist(block, part, subset)
 	q0, pb0 := m.quant(c0)
 	q1, pb1 := m.quant(c1)
 	pal := m.palette(m.expand(q0, pb0), m.expand(q1, pb1))
@@ -246,37 +246,6 @@ func (m bc73Mode) assign(block *[16]rgba8, part *[16]uint8, pal *[3][8]rgba8) [1
 	return idx
 }
 
-// bc73SubsetMaxDist returns the two most distant RGB pixels of a subset.
-func bc73SubsetMaxDist(block *[16]rgba8, part *[16]uint8, subset uint8) (rgba8, rgba8) {
-	var first rgba8
-	haveFirst := false
-	bi, bj, bestD := -1, -1, -1
-	for i := range 16 {
-		if part[i]&0x03 != subset {
-			continue
-		}
-
-		if !haveFirst {
-			first, haveFirst = block[i], true
-		}
-
-		for j := i + 1; j < 16; j++ {
-			if part[j]&0x03 != subset {
-				continue
-			}
-			if d := bc7RGBErr(block[i], block[j]); d > bestD {
-				bestD, bi, bj = d, i, j
-			}
-		}
-	}
-
-	if bi < 0 {
-		return first, first
-	}
-
-	return block[bi], block[bj]
-}
-
 // bc73Anchors returns the anchor texel of each subset: subset 0 is texel 0,
 // the others are the entries tagged 0x80 with subset id 1 and 2.
 func bc73Anchors(p int) [3]int {
@@ -296,8 +265,10 @@ func bc73Anchors(p int) [3]int {
 
 // bc7Rank3Subset orders the first numParts three-subset partitions best-first
 // by within-subset RGB variance, ties broken by partition index.
-func bc7Rank3Subset(block *[16]rgba8, numParts int) []int {
-	scores := make([]int, numParts)
+// The result is a fixed array (only the first numParts entries are meaningful)
+// to keep the hot path allocation-free.
+func bc7Rank3Subset(block *[16]rgba8, numParts int) [64]int {
+	var scores [64]int
 	for p := range numParts {
 		part := &bc7PartitionSets[1][p]
 		var sum [3][3]int
@@ -332,13 +303,13 @@ func bc7Rank3Subset(block *[16]rgba8, numParts int) []int {
 		scores[p] = total
 	}
 
-	keys := make([]int, numParts)
+	var keys [64]int
 	for p := range numParts {
 		keys[p] = scores[p]<<6 | p
 	}
-	sort.Ints(keys)
+	sort.Ints(keys[:numParts])
 
-	order := make([]int, numParts)
+	var order [64]int
 	for i := range numParts {
 		order[i] = keys[i] & 0x3F
 	}

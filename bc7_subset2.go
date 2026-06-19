@@ -64,11 +64,15 @@ func bc7SubsetLSQ(block *[16]rgba8, part *[16]uint8, subset uint8, pal []rgba8, 
 // fit returns a subset's two endpoints and their P-bits;
 // palette expands an endpoint pair into the 4-entry interpolation table;
 // assign picks the nearest index per texel; pack serializes the block.
+// The block, palette, and packing fields take their arrays by value
+// so that the driver's locals never have their address passed to a func value
+// (which would force them to the heap);
+// the copies are cheap and keep the hot path allocation-free.
 type bc72Subset struct {
-	fit     func(block *[16]rgba8, part *[16]uint8, subset uint8) (rgba8, rgba8, uint8, uint8)
+	fit     func(block [16]rgba8, part [16]uint8, subset uint8) (rgba8, rgba8, uint8, uint8)
 	palette func(q0 rgba8, pb0 uint8, q1 rgba8, pb1 uint8) [4]rgba8
-	assign  func(block *[16]rgba8, part *[16]uint8, pal *[2][4]rgba8) [16]uint8
-	pack    func(q *[4]rgba8, pbit *[4]uint8, idx *[16]uint8, p int) [16]byte
+	assign  func(block [16]rgba8, part [16]uint8, pal [2][4]rgba8) [16]uint8
+	pack    func(q [4]rgba8, pbit [4]uint8, idx [16]uint8, p int) [16]byte
 }
 
 // encode tries the top maxPartitions ranked two-subset partitions
@@ -81,7 +85,7 @@ func (m bc72Subset) encode(block [16]rgba8, maxPartitions int) ([16]byte, int, b
 	bestErr := 1 << 30
 	found := false
 	for t := range tries {
-		b, err := m.tryPartition(&block, order[t])
+		b, err := m.tryPartition(block, order[t])
 		if err < bestErr {
 			bestErr, bestBytes, found = err, b, true
 			if bestErr == 0 {
@@ -97,8 +101,8 @@ func (m bc72Subset) encode(block [16]rgba8, maxPartitions int) ([16]byte, int, b
 // resolves the per-subset anchor constraints
 // (the anchor index MSB must be clear),
 // and returns the packed block with its total error.
-func (m bc72Subset) tryPartition(block *[16]rgba8, p int) ([16]byte, int) {
-	part := &bc7PartitionSets[0][p]
+func (m bc72Subset) tryPartition(block [16]rgba8, p int) ([16]byte, int) {
+	part := bc7PartitionSets[0][p]
 
 	var q [4]rgba8
 	var pbit [4]uint8
@@ -111,7 +115,7 @@ func (m bc72Subset) tryPartition(block *[16]rgba8, p int) ([16]byte, int) {
 		pal[s] = m.palette(e0, pb0, e1, pb1)
 	}
 
-	idx := m.assign(block, part, &pal)
+	idx := m.assign(block, part, pal)
 
 	anchors := [2]int{0, bc7Mode1Anchor1(p)}
 	for s := range 2 {
@@ -119,7 +123,7 @@ func (m bc72Subset) tryPartition(block *[16]rgba8, p int) ([16]byte, int) {
 			q[s*2], q[s*2+1] = q[s*2+1], q[s*2]
 			pbit[s*2], pbit[s*2+1] = pbit[s*2+1], pbit[s*2]
 			pal[s] = m.palette(q[s*2], pbit[s*2], q[s*2+1], pbit[s*2+1])
-			idx = m.assign(block, part, &pal)
+			idx = m.assign(block, part, pal)
 		}
 	}
 
@@ -128,5 +132,5 @@ func (m bc72Subset) tryPartition(block *[16]rgba8, p int) ([16]byte, int) {
 		total += bc7SSE(block[i], pal[part[i]&0x03][idx[i]])
 	}
 
-	return m.pack(&q, &pbit, &idx, p), total
+	return m.pack(q, pbit, idx, p), total
 }

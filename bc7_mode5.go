@@ -78,20 +78,6 @@ func bc7Color5Nearest(px rgba8, pal *[4]rgba8) (int, int) {
 	return best, bestErr
 }
 
-// bc7MaxDistRGB returns the two most distant texels by RGB error.
-func bc7MaxDistRGB(block *[16]rgba8) (rgba8, rgba8) {
-	bi, bj, bestD := 0, 0, -1
-	for i := range 16 {
-		for j := i + 1; j < 16; j++ {
-			if d := bc7RGBErr(block[i], block[j]); d > bestD {
-				bestD, bi, bj = d, i, j
-			}
-		}
-	}
-
-	return block[bi], block[bj]
-}
-
 // bc7Mode5FitColor fits the RGB endpoints:
 // a max-distance seed plus iterated least-squares refinement, quantized to 7 bits.
 func bc7Mode5FitColor(block *[16]rgba8) (rgba8, rgba8) {

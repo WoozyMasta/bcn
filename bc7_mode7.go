@@ -195,16 +195,16 @@ func bc7Mode7SubsetLSQ(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[4]
 
 // bc7Mode7FitSubset fits one subset's RGBA endpoints with a max-distance seed
 // and iterated least-squares refinement, quantized to mode 7 precision.
-func bc7Mode7FitSubset(block *[16]rgba8, part *[16]uint8, subset uint8) (rgba8, rgba8, uint8, uint8) {
-	c0, c1 := bc7Mode7SubsetMaxDist(block, part, subset)
+func bc7Mode7FitSubset(block [16]rgba8, part [16]uint8, subset uint8) (rgba8, rgba8, uint8, uint8) {
+	c0, c1 := bc7Mode7SubsetMaxDist(&block, &part, subset)
 	q0, pb0 := bc7QuantMode7(c0)
 	q1, pb1 := bc7QuantMode7(c1)
 	pal := bc7Mode7Palette(bc7ExpandMode7(q0, pb0), bc7ExpandMode7(q1, pb1))
-	bestErr := bc7Mode7SubsetError(block, part, subset, &pal)
+	bestErr := bc7Mode7SubsetError(&block, &part, subset, &pal)
 
 	const maxIters = 8
 	for range maxIters {
-		nc0, nc1, ok := bc7Mode7SubsetLSQ(block, part, subset, &pal)
+		nc0, nc1, ok := bc7Mode7SubsetLSQ(&block, &part, subset, &pal)
 		if !ok {
 			break
 		}
@@ -212,7 +212,7 @@ func bc7Mode7FitSubset(block *[16]rgba8, part *[16]uint8, subset uint8) (rgba8, 
 		nq0, npb0 := bc7QuantMode7(nc0)
 		nq1, npb1 := bc7QuantMode7(nc1)
 		npal := bc7Mode7Palette(bc7ExpandMode7(nq0, npb0), bc7ExpandMode7(nq1, npb1))
-		if err := bc7Mode7SubsetError(block, part, subset, &npal); err < bestErr {
+		if err := bc7Mode7SubsetError(&block, &part, subset, &npal); err < bestErr {
 			bestErr, q0, q1, pb0, pb1, pal = err, nq0, nq1, npb0, npb1, npal
 			if bestErr == 0 {
 				break
@@ -227,7 +227,7 @@ func bc7Mode7FitSubset(block *[16]rgba8, part *[16]uint8, subset uint8) (rgba8, 
 }
 
 // bc7Mode7Assign assigns every texel its nearest 2-bit index within its subset.
-func bc7Mode7Assign(block *[16]rgba8, part *[16]uint8, pal *[2][4]rgba8) [16]uint8 {
+func bc7Mode7Assign(block [16]rgba8, part [16]uint8, pal [2][4]rgba8) [16]uint8 {
 	var idx [16]uint8
 	for i := range 16 {
 		s := part[i] & 0x03
@@ -263,7 +263,7 @@ func encodeBC7Mode7(block [16]rgba8, maxPartitions int) ([16]byte, int, bool) {
 // bc7PackMode7 serializes a mode 7 block: mode bits, partition id,
 // RGBA endpoints (5 bits each, channel-major over the four endpoints),
 // four per-endpoint P-bits, and 2-bit indices (anchored texels use one fewer bit).
-func bc7PackMode7(q *[4]rgba8, pbit *[4]uint8, idx *[16]uint8, p int) [16]byte {
+func bc7PackMode7(q [4]rgba8, pbit [4]uint8, idx [16]uint8, p int) [16]byte {
 	var w bptcWriter
 	w.put(1<<7, 8) // mode 7
 	// #nosec G115 -- p is in [0,63].
