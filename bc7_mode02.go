@@ -39,6 +39,40 @@ var (
 	}
 )
 
+var (
+	// bc7Mode0StoreTable stores the exact mode 0 scalar channel quantization
+	// result for each 8-bit input and endpoint P-bit.
+	bc7Mode0StoreTable = bc7MakeMode0StoreTable()
+
+	// bc7Mode2StoreTable stores the exact mode 2 scalar channel quantization
+	// result for each 8-bit input.
+	bc7Mode2StoreTable = bc7MakeMode2StoreTable()
+)
+
+// bc7MakeMode0StoreTable builds the mode 0 channel quantization table.
+func bc7MakeMode0StoreTable() [2][256]uint8 {
+	var table [2][256]uint8
+	for pbit := range 2 {
+		for target := range 256 {
+			// #nosec G115 -- pbit is 0/1 and target is in [0,255].
+			table[pbit][target] = bc7Mode0StoreSlow(uint8(target), uint8(pbit))
+		}
+	}
+
+	return table
+}
+
+// bc7MakeMode2StoreTable builds the mode 2 channel quantization table.
+func bc7MakeMode2StoreTable() [256]uint8 {
+	var table [256]uint8
+	for target := range 256 {
+		// #nosec G115 -- target is in [0,255].
+		table[target] = bc7Mode2StoreSlow(uint8(target))
+	}
+
+	return table
+}
+
 // bc7Expand5 expands a 5-bit raw value (4 bits plus a P-bit, or a bare 5-bit value) to 8 bits,
 // matching the decoder's 5-bit-precision unquantize.
 func bc7Expand5(raw uint8) uint8 {
@@ -48,12 +82,18 @@ func bc7Expand5(raw uint8) uint8 {
 
 // store rounds an 8-bit channel to this mode's stored width for the given P-bit.
 func (m bc73Mode) store(target, pbit uint8) uint8 {
-	maxS := (1 << m.colorBits) - 1
-	rawSeed := int(target) * 31 / 255
-	seed := rawSeed
 	if m.hasPBit {
-		seed = (rawSeed - int(pbit)) >> 1
+		return bc7Mode0StoreTable[pbit&1][target]
 	}
+
+	return bc7Mode2StoreTable[target]
+}
+
+// bc7Mode0StoreSlow computes the mode 0 channel quantization directly.
+func bc7Mode0StoreSlow(target, pbit uint8) uint8 {
+	const maxS = 15
+	rawSeed := int(target) * 31 / 255
+	seed := (rawSeed - int(pbit)) >> 1
 
 	best, bestErr := 0, 1<<30
 	for ds := -1; ds <= 2; ds++ {
@@ -62,16 +102,35 @@ func (m bc73Mode) store(target, pbit uint8) uint8 {
 			continue
 		}
 
-		var raw uint8
-		if m.hasPBit {
-			// #nosec G115 -- s <= 31, pbit is 0/1.
-			raw = uint8(s<<1) | pbit
-		} else {
-			// #nosec G115 -- s <= 31.
-			raw = uint8(s)
+		// #nosec G115 -- s <= 15, pbit is 0/1.
+		raw := uint8(s<<1) | pbit
+		d := int(bc7Expand5(raw)) - int(target)
+		if d < 0 {
+			d = -d
+		}
+		if d < bestErr {
+			bestErr, best = d, s
+		}
+	}
+
+	// #nosec G115 -- best <= 31.
+	return uint8(best)
+}
+
+// bc7Mode2StoreSlow computes the mode 2 channel quantization directly.
+func bc7Mode2StoreSlow(target uint8) uint8 {
+	const maxS = 31
+	seed := int(target) * 31 / 255
+
+	best, bestErr := 0, 1<<30
+	for ds := -1; ds <= 2; ds++ {
+		s := seed + ds
+		if s < 0 || s > maxS {
+			continue
 		}
 
-		d := int(bc7Expand5(raw)) - int(target)
+		// #nosec G115 -- s <= 31.
+		d := int(bc7Expand5(uint8(s))) - int(target)
 		if d < 0 {
 			d = -d
 		}
@@ -135,11 +194,52 @@ func (m bc73Mode) palette(e0, e1 rgba8) [8]rgba8 {
 
 // nearest returns the nearest palette index (RGB) and its error.
 func (m bc73Mode) nearest(px rgba8, pal *[8]rgba8) (int, int) {
+	if m.nLevels == 4 {
+		return bc7NearestRGB4(px, pal)
+	}
+
+	return bc7NearestRGB8(px, pal)
+}
+
+// bc7NearestRGB4 returns the nearest entry in a 4-color RGB palette.
+func bc7NearestRGB4(px rgba8, pal *[8]rgba8) (int, int) {
 	best, bestErr := 0, bc7RGBErr(px, pal[0])
-	for k := 1; k < m.nLevels; k++ {
-		if e := bc7RGBErr(px, pal[k]); e < bestErr {
-			best, bestErr = k, e
-		}
+	if e := bc7RGBErr(px, pal[1]); e < bestErr {
+		best, bestErr = 1, e
+	}
+	if e := bc7RGBErr(px, pal[2]); e < bestErr {
+		best, bestErr = 2, e
+	}
+	if e := bc7RGBErr(px, pal[3]); e < bestErr {
+		best, bestErr = 3, e
+	}
+
+	return best, bestErr
+}
+
+// bc7NearestRGB8 returns the nearest entry in an 8-color RGB palette.
+func bc7NearestRGB8(px rgba8, pal *[8]rgba8) (int, int) {
+	best, bestErr := 0, bc7RGBErr(px, pal[0])
+	if e := bc7RGBErr(px, pal[1]); e < bestErr {
+		best, bestErr = 1, e
+	}
+	if e := bc7RGBErr(px, pal[2]); e < bestErr {
+		best, bestErr = 2, e
+	}
+	if e := bc7RGBErr(px, pal[3]); e < bestErr {
+		best, bestErr = 3, e
+	}
+	if e := bc7RGBErr(px, pal[4]); e < bestErr {
+		best, bestErr = 4, e
+	}
+	if e := bc7RGBErr(px, pal[5]); e < bestErr {
+		best, bestErr = 5, e
+	}
+	if e := bc7RGBErr(px, pal[6]); e < bestErr {
+		best, bestErr = 6, e
+	}
+	if e := bc7RGBErr(px, pal[7]); e < bestErr {
+		best, bestErr = 7, e
 	}
 
 	return best, bestErr
@@ -263,40 +363,45 @@ func bc73Anchors(p int) [3]int {
 	return a
 }
 
-// bc7Rank3Subset orders the first numParts three-subset partitions best-first
-// by within-subset RGB variance, ties broken by partition index.
-// The result is a fixed array (only the first numParts entries are meaningful)
-// to keep the hot path allocation-free.
-func bc7Rank3Subset(block *[16]rgba8, numParts int) [64]int {
+// bc7Rank3SubsetN orders only the first maxPartitions three-subset partitions needed by the caller.
+// The first N entries match a full numParts sort,
+// while the unused tail is left unspecified to avoid unnecessary hot-path work.
+func bc7Rank3SubsetN(block *[16]rgba8, numParts, maxPartitions int) [64]int {
+	numParts = min(max(numParts, 0), 64)
+	limit := min(max(maxPartitions, 0), numParts)
+	if limit == 0 {
+		return [64]int{}
+	}
+
 	var scores [64]int
 	for p := range numParts {
 		part := &bc7PartitionSets[1][p]
 		var sum [3][3]int
+		var sumSq [3][3]int
 		var cnt [3]int
 		for i := range 16 {
 			s := part[i] & 0x03
-			sum[s][0] += int(block[i].r)
-			sum[s][1] += int(block[i].g)
-			sum[s][2] += int(block[i].b)
+			r := int(block[i].r)
+			g := int(block[i].g)
+			b := int(block[i].b)
+			sum[s][0] += r
+			sum[s][1] += g
+			sum[s][2] += b
+			sumSq[s][0] += r * r
+			sumSq[s][1] += g * g
+			sumSq[s][2] += b * b
 			cnt[s]++
 		}
 
-		var mean [3][3]int
+		total := 0
 		for s := range 3 {
 			if cnt[s] > 0 {
 				for c := range 3 {
-					mean[s][c] = sum[s][c] / cnt[s]
+					// Match the old two-pass score exactly: mean is integer
+					// truncated toward zero, then sum((x - mean)^2).
+					mean := sum[s][c] / cnt[s]
+					total += sumSq[s][c] - 2*mean*sum[s][c] + cnt[s]*mean*mean
 				}
-			}
-		}
-
-		total := 0
-		for i := range 16 {
-			s := part[i] & 0x03
-			px := [3]int{int(block[i].r), int(block[i].g), int(block[i].b)}
-			for c := range 3 {
-				d := px[c] - mean[s][c]
-				total += d * d
 			}
 		}
 
@@ -307,10 +412,14 @@ func bc7Rank3Subset(block *[16]rgba8, numParts int) [64]int {
 	for p := range numParts {
 		keys[p] = scores[p]<<6 | p
 	}
-	sort.Ints(keys[:numParts])
+	if limit == numParts {
+		sort.Ints(keys[:numParts])
+	} else {
+		sortTopKeys(keys[:numParts], limit)
+	}
 
 	var order [64]int
-	for i := range numParts {
+	for i := range limit {
 		order[i] = keys[i] & 0x3F
 	}
 
@@ -320,8 +429,8 @@ func bc7Rank3Subset(block *[16]rgba8, numParts int) [64]int {
 // encodeBC7Mode02 encodes a fully opaque block with one three-subset mode,
 // trying the top maxPartitions ranked partitions.
 func encodeBC7Mode02(m bc73Mode, block [16]rgba8, maxPartitions int) ([16]byte, int, bool) {
-	order := bc7Rank3Subset(&block, m.numParts)
 	tries := min(maxPartitions, m.numParts)
+	order := bc7Rank3SubsetN(&block, m.numParts, tries)
 
 	var bestBytes [16]byte
 	bestErr := 1 << 30

@@ -54,8 +54,11 @@ func encodeBlockBC7(block [16]rgba8, opts EncodeOptions) [16]byte {
 		consider(b4, e4, true)
 		consider(encodeBC7Mode7(block, n))
 	} else {
-		consider(encodeBC7Mode1(block, n))
-		consider(encodeBC7Mode3(block, n))
+		// Modes 1 and 3 use the same two-subset partition table,
+		// so rank once and reuse the candidate order for both expensive fit passes.
+		rank2Order := bc7Rank2SubsetN(&block, n)
+		consider(encodeBC7Mode1WithOrder(block, rank2Order, n))
+		consider(encodeBC7Mode3WithOrder(block, rank2Order, n))
 		if n >= 8 { // 3-subset search is reserved for the higher quality levels
 			consider(encodeBC7Mode02(bc7Mode0Params, block, n))
 			consider(encodeBC7Mode02(bc7Mode2Params, block, n))

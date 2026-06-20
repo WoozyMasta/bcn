@@ -11,6 +11,23 @@ package bcn
 // Structure mirrors mode 1 (partition search + per-subset fit)
 // but carries alpha and uses a P-bit per endpoint.
 
+// bc7Store5Table stores the exact scalar quantization result
+// for each 8-bit input channel and P-bit used by mode 7.
+var bc7Store5Table = bc7MakeStore5Table()
+
+// bc7MakeStore5Table builds the mode 7 channel quantization table.
+func bc7MakeStore5Table() [2][256]uint8 {
+	var table [2][256]uint8
+	for pbit := range 2 {
+		for target := range 256 {
+			// #nosec G115 -- pbit is 0/1 and target is in [0,255].
+			table[pbit][target] = bc7Store5Slow(uint8(target), uint8(pbit))
+		}
+	}
+
+	return table
+}
+
 // bc7Expand6 expands a 6-bit raw value (5 bits plus a P-bit) to 8 bits,
 // matching the decoder's unquantize (left-align the MSB, replicate downward).
 func bc7Expand6(raw uint8) uint8 {
@@ -21,6 +38,11 @@ func bc7Expand6(raw uint8) uint8 {
 // bc7Store5 rounds an 8-bit channel to the nearest 5-bit value
 // reachable with the given P-bit (precision 6).
 func bc7Store5(target, pbit uint8) uint8 {
+	return bc7Store5Table[pbit&1][target]
+}
+
+// bc7Store5Slow computes the mode 7 channel quantization directly.
+func bc7Store5Slow(target, pbit uint8) uint8 {
 	seed := (int(target)*63/255 - int(pbit)) >> 1
 	best, bestErr := 0, 1<<30
 	for ds := -1; ds <= 2; ds++ {
@@ -150,7 +172,6 @@ func bc7Mode7SubsetLSQ(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[4]
 	var saa, sbb, sab int
 	var sap, sbp [4]int
 
-	// TODO(avo): per-texel nearest-index search + accumulation is the hot loop.
 	for i := range 16 {
 		if part[i]&0x03 != subset {
 			continue

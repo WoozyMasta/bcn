@@ -63,13 +63,15 @@ func TestBC7EncoderSelfConsistent(t *testing.T) {
 	blocks := map[string][16]rgba8{"gradient": grad, "region": region, "alpha": alpha}
 
 	for name, blk := range blocks {
+		rank2Order := bc7Rank2SubsetN(&blk, 16)
+
 		if b, e := encodeBC7Mode6(blk); bc7DecodeSSE(blk, b) != e {
 			t.Errorf("%s mode6: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
 		}
 		if b, e := encodeBC7Mode5(blk, 4); bc7DecodeSSE(blk, b) != e {
 			t.Errorf("%s mode5: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
 		}
-		if b, e, ok := encodeBC7Mode1(blk, 16); ok && bc7DecodeSSE(blk, b) != e {
+		if b, e, ok := encodeBC7Mode1WithOrder(blk, rank2Order, 16); ok && bc7DecodeSSE(blk, b) != e {
 			t.Errorf("%s mode1: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
 		}
 		if b, e, ok := encodeBC7Mode7(blk, 16); ok && bc7DecodeSSE(blk, b) != e {
@@ -81,11 +83,131 @@ func TestBC7EncoderSelfConsistent(t *testing.T) {
 		if b, e, ok := encodeBC7Mode02(bc7Mode2Params, blk, 64); ok && bc7DecodeSSE(blk, b) != e {
 			t.Errorf("%s mode2: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
 		}
-		if b, e, ok := encodeBC7Mode3(blk, 16); ok && bc7DecodeSSE(blk, b) != e {
+		if b, e, ok := encodeBC7Mode3WithOrder(blk, rank2Order, 16); ok && bc7DecodeSSE(blk, b) != e {
 			t.Errorf("%s mode3: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
 		}
 		if b, e := encodeBC7Mode4(blk, 4); bc7DecodeSSE(blk, b) != e {
 			t.Errorf("%s mode4: reported %d, decoded %d", name, e, bc7DecodeSSE(blk, b))
+		}
+	}
+}
+
+// TestBC7Mode6IndicesASMMatchesScalar verifies that
+// the AVX2 mode 6 nearest-index kernel preserves scalar tie-breaking
+// and total-error semantics.
+func TestBC7Mode6IndicesASMMatchesScalar(t *testing.T) {
+	block := benchmarkBlockAlpha()
+	q0, p0 := bc7QuantizeMode6(rgba8{r: 8, g: 32, b: 80, a: 16})
+	q1, p1 := bc7QuantizeMode6(rgba8{r: 240, g: 210, b: 170, a: 230})
+	pal := bc7Mode6Palette(bc7ExpandMode6(q0, p0), bc7ExpandMode6(q1, p1))
+
+	wantIdx, wantErr := bc7Mode6IndicesScalarForTest(block, &pal)
+	gotIdx, gotErr, ok := bc7Mode6IndicesASM(&block, &pal)
+	if !ok {
+		t.Skip("BC7 mode 6 AVX2 kernel unavailable")
+	}
+
+	if gotErr != wantErr {
+		t.Fatalf("total error: got %d want %d", gotErr, wantErr)
+	}
+	if gotIdx != wantIdx {
+		t.Fatalf("indices: got %v want %v", gotIdx, wantIdx)
+	}
+}
+
+// bc7Mode6IndicesScalarForTest mirrors the scalar mode 6 assignment loop
+// so the assembly wrapper can be tested without calling the accelerated path.
+func bc7Mode6IndicesScalarForTest(block [16]rgba8, pal *[16]rgba8) ([16]uint8, int) {
+	var idx [16]uint8
+	total := 0
+	for i, px := range block {
+		best := 0
+		bestErr := bc7SSE(px, pal[0])
+		for k := 1; k < 16; k++ {
+			if e := bc7SSE(px, pal[k]); e < bestErr {
+				bestErr = e
+				best = k
+			}
+		}
+		idx[i] = uint8(best) // #nosec G115 -- best is in [0,15].
+		total += bestErr
+	}
+	return idx, total
+}
+
+// TestBC7Color4LSQASMMatchesScalar verifies
+// the shared 4-entry RGB LSQ wrapper used by BC7 mode 5 color fitting.
+func TestBC7Color4LSQASMMatchesScalar(t *testing.T) {
+	block := benchmarkBlockAlpha()
+	pal := bc7Color5Palette(
+		bc7ExpandColor5(bc7QuantColor5(rgba8{r: 8, g: 32, b: 80})),
+		bc7ExpandColor5(bc7QuantColor5(rgba8{r: 240, g: 210, b: 170})),
+	)
+
+	want := bc7Color4LSQScalarSumsForTest(&block, &pal)
+	got, ok := bc7Color4LSQASM(&block, &pal)
+	if !ok {
+		t.Skip("BC7 color4 AVX2 LSQ kernel unavailable")
+	}
+
+	if got != want {
+		t.Fatalf("LSQ sums: got %+v want %+v", got, want)
+	}
+}
+
+// bc7Color4LSQScalarSumsForTest mirrors BC7 mode 5 color LSQ accumulation
+// so the assembly wrapper can be checked independently from the production path.
+func bc7Color4LSQScalarSumsForTest(block *[16]rgba8, pal *[4]rgba8) lsqColorSums {
+	var sums lsqColorSums
+	for i := range 16 {
+		idx, _ := bc7Color5Nearest(block[i], pal)
+		b := int(bc7Weight2[idx])
+		a := 64 - b
+		sums.saa += a * a
+		sums.sbb += b * b
+		sums.sab += a * b
+		sums.sapR += a * int(block[i].r)
+		sums.sapG += a * int(block[i].g)
+		sums.sapB += a * int(block[i].b)
+		sums.sbpR += b * int(block[i].r)
+		sums.sbpG += b * int(block[i].g)
+		sums.sbpB += b * int(block[i].b)
+	}
+	return sums
+}
+
+// TestBC7Rank2SubsetNMatchesFullPrefix verifies that bounded two-subset ranking
+// preserves the exact candidate order used by the full sort.
+func TestBC7Rank2SubsetNMatchesFullPrefix(t *testing.T) {
+	block := benchmarkBlockAlpha()
+	full := bc7Rank2SubsetN(&block, 64)
+
+	for _, n := range []int{0, 1, 4, 8, 16, 32, 64, 128} {
+		got := bc7Rank2SubsetN(&block, n)
+		limit := min(max(n, 0), 64)
+		for i := range limit {
+			if got[i] != full[i] {
+				t.Fatalf("n=%d index=%d: got partition %d want %d", n, i, got[i], full[i])
+			}
+		}
+	}
+}
+
+// TestBC7Rank3SubsetNMatchesFullPrefix verifies that bounded three-subset ranking
+// preserves the exact candidate order for both mode 0 and mode 2 tables.
+func TestBC7Rank3SubsetNMatchesFullPrefix(t *testing.T) {
+	block := benchmarkBlockOpaque()
+
+	for _, numParts := range []int{16, 64} {
+		full := bc7Rank3SubsetN(&block, numParts, numParts)
+		for _, n := range []int{0, 1, 4, 8, 16, 32, 64, 128} {
+			got := bc7Rank3SubsetN(&block, numParts, n)
+			limit := min(min(max(n, 0), numParts), 64)
+			for i := range limit {
+				if got[i] != full[i] {
+					t.Fatalf("numParts=%d n=%d index=%d: got partition %d want %d", numParts, n, i, got[i], full[i])
+				}
+			}
 		}
 	}
 }

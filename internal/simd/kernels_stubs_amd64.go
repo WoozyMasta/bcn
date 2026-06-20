@@ -55,6 +55,12 @@ func PackDXT1IndicesAVX2(block *[64]byte, params *[20]int32) uint32
 //go:noescape
 func ScoreDXT1PaletteAVX2(block *[64]byte, cc uint32, weights *[4]int32) uint32
 
+// BC7Mode6IndicesAVX2 assigns 16 RGBA pixels to the nearest mode 6 palette entry.
+// params stores palette channels as 16 R, 16 G, 16 B, 16 A int32 values.
+//
+//go:noescape
+func BC7Mode6IndicesAVX2(block *[64]byte, params *[64]int32, idx *[16]int32) uint32
+
 // AlphaBlockErrorAVX2 returns the summed minimum squared error of 16 alpha
 // samples against the palette of endpoints aa = a0 | a1<<8 (BC3/BC4 scoring).
 //

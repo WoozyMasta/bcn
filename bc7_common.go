@@ -98,60 +98,89 @@ func bc7SubsetMaxDist(block *[16]rgba8, part *[16]uint8, subset uint8) (rgba8, r
 	return block[bi], block[bj]
 }
 
-// bc7Rank2Subset orders the 64 two-subset partitions best-first by within-subset variance
-// (lower means cleaner separation), ties broken by partition index.
-// Returns a fixed array (keeps the hot path allocation-free).
-func bc7Rank2Subset(block *[16]rgba8) [64]int {
+// bc7Rank2SubsetN orders only the first maxPartitions two-subset partitions
+// needed by the caller. The first N entries match a full 64-partition sort,
+// but the unsorted tail is intentionally unspecified.
+func bc7Rank2SubsetN(block *[16]rgba8, maxPartitions int) [64]int {
+	limit := min(max(maxPartitions, 0), 64)
+	if limit == 0 {
+		return [64]int{}
+	}
+
 	var score [64]int
+	var keys [64]int
 	for p := range 64 {
 		part := &bc7PartitionSets[0][p]
 		var sum [2][4]int
+		var sumSq [2][4]int
 		var cnt [2]int
 		for i := range 16 {
 			s := part[i] & 0x03
-			sum[s][0] += int(block[i].r)
-			sum[s][1] += int(block[i].g)
-			sum[s][2] += int(block[i].b)
-			sum[s][3] += int(block[i].a)
+			r := int(block[i].r)
+			g := int(block[i].g)
+			b := int(block[i].b)
+			a := int(block[i].a)
+			sum[s][0] += r
+			sum[s][1] += g
+			sum[s][2] += b
+			sum[s][3] += a
+			sumSq[s][0] += r * r
+			sumSq[s][1] += g * g
+			sumSq[s][2] += b * b
+			sumSq[s][3] += a * a
 			cnt[s]++
 		}
 
-		var mean [2][4]int
+		total := 0
 		for s := range 2 {
 			if cnt[s] > 0 {
 				for c := range 4 {
-					mean[s][c] = sum[s][c] / cnt[s]
+					// Match the old two-pass score exactly: mean is integer
+					// truncated toward zero, then sum((x - mean)^2).
+					mean := sum[s][c] / cnt[s]
+					total += sumSq[s][c] - 2*mean*sum[s][c] + cnt[s]*mean*mean
 				}
-			}
-		}
-
-		total := 0
-		for i := range 16 {
-			s := part[i] & 0x03
-			px := [4]int{int(block[i].r), int(block[i].g), int(block[i].b), int(block[i].a)}
-			for c := range 4 {
-				d := px[c] - mean[s][c]
-				total += d * d
 			}
 		}
 
 		score[p] = total
 	}
 
-	// Pack (score, index) into one key so a plain int sort orders by score
-	// and then by partition index, deterministically and without a closure alloc.
-	var keys [64]int
 	for p := range 64 {
 		keys[p] = score[p]<<6 | p
 	}
-	sort.Ints(keys[:])
+	if limit == 64 {
+		sort.Ints(keys[:])
+	} else {
+		sortTopKeys(keys[:], limit)
+	}
 
 	var order [64]int
-	for i := range 64 {
+	for i := range limit {
 		order[i] = keys[i] & 0x3F
 	}
 
 	return order
+}
+
+// sortTopKeys sorts only the smallest limit keys in-place.
+// It preserves the same ordering as sort.Ints(keys) for keys[:limit],
+// including tie-breaking already encoded into the key value.
+func sortTopKeys(keys []int, limit int) {
+	if limit <= 0 {
+		return
+	}
+
+	for i := range limit {
+		minPos := i
+		for j := i + 1; j < len(keys); j++ {
+			if keys[j] < keys[minPos] {
+				minPos = j
+			}
+		}
+
+		keys[i], keys[minPos] = keys[minPos], keys[i]
+	}
 }
 
 // bc7Mode1Anchor1 returns the texel index of subset 1's anchor for a two-subset partition

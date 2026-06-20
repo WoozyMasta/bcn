@@ -12,8 +12,43 @@ package bcn
 // than mode 5's fixed 2-bit pair can provide.
 // Both channel rotations and index-selection settings are searched.
 
+var (
+	// bc7Quant5NoPTable stores exact scalar 5-bit quantization for mode 4 RGB.
+	bc7Quant5NoPTable = bc7MakeQuant5NoPTable()
+
+	// bc7Quant6NoPTable stores exact scalar 6-bit quantization for mode 4 alpha.
+	bc7Quant6NoPTable = bc7MakeQuant6NoPTable()
+)
+
+// bc7MakeQuant5NoPTable builds the mode 4 5-bit channel quantization table.
+func bc7MakeQuant5NoPTable() [256]uint8 {
+	var table [256]uint8
+	for target := range 256 {
+		// #nosec G115 -- target is in [0,255].
+		table[target] = bc7Quant5NoPSlow(uint8(target))
+	}
+
+	return table
+}
+
+// bc7MakeQuant6NoPTable builds the mode 4 6-bit channel quantization table.
+func bc7MakeQuant6NoPTable() [256]uint8 {
+	var table [256]uint8
+	for target := range 256 {
+		// #nosec G115 -- target is in [0,255].
+		table[target] = bc7Quant6NoPSlow(uint8(target))
+	}
+
+	return table
+}
+
 // bc7Quant5NoP rounds an 8-bit channel to the nearest 5-bit value (precision 5).
 func bc7Quant5NoP(target uint8) uint8 {
+	return bc7Quant5NoPTable[target]
+}
+
+// bc7Quant5NoPSlow computes the mode 4 5-bit channel quantization directly.
+func bc7Quant5NoPSlow(target uint8) uint8 {
 	seed := int(target) * 31 / 255
 	best, bestErr := 0, 1<<30
 
@@ -39,6 +74,11 @@ func bc7Quant5NoP(target uint8) uint8 {
 
 // bc7Quant6NoP rounds an 8-bit channel to the nearest 6-bit value (precision 6).
 func bc7Quant6NoP(target uint8) uint8 {
+	return bc7Quant6NoPTable[target]
+}
+
+// bc7Quant6NoPSlow computes the mode 4 6-bit channel quantization directly.
+func bc7Quant6NoPSlow(target uint8) uint8 {
 	seed := int(target) * 63 / 255
 	best, bestErr := 0, 1<<30
 	for ds := -1; ds <= 1; ds++ {
@@ -77,31 +117,43 @@ func bc7Mode4ColorPalette(e0, e1 rgba8, weights []int32, n int) [8]rgba8 {
 
 // bc7Mode4ColorNearest returns the nearest color index (RGB) and its error.
 func bc7Mode4ColorNearest(px rgba8, pal *[8]rgba8, n int) (int, int) {
-	best, bestErr := 0, bc7RGBErr(px, pal[0])
-	for k := 1; k < n; k++ {
-		if e := bc7RGBErr(px, pal[k]); e < bestErr {
-			best, bestErr = k, e
-		}
+	if n == 4 {
+		return bc7NearestRGB4(px, pal)
 	}
 
-	return best, bestErr
+	return bc7NearestRGB8(px, pal)
 }
 
 // bc7Mode4ColorLSQ refits continuous 5-bit RGB endpoints from the assignment.
 func bc7Mode4ColorLSQ(block *[16]rgba8, pal *[8]rgba8, weights []int32, n int) (rgba8, rgba8, bool) {
 	var saa, sbb, sab int
 	var sap, sbp [3]int
-	for i := range 16 {
-		idx, _ := bc7Mode4ColorNearest(block[i], pal, n)
-		b := int(weights[idx])
-		a := 64 - b
-		saa += a * a
-		sbb += b * b
-		sab += a * b
-		ch := [3]int{int(block[i].r), int(block[i].g), int(block[i].b)}
-		for c := range 3 {
-			sap[c] += a * ch[c]
-			sbp[c] += b * ch[c]
+
+	// The 2-bit color-index variant uses the same 4-entry RGB LSQ shape as mode 5 color.
+	// The 3-bit variant has 8 entries and stays scalar.
+	if n == 4 {
+		var pal4 [4]rgba8
+		copy(pal4[:], pal[:4])
+		if sums, ok := bc7Color4LSQASM(block, &pal4); ok {
+			saa, sbb, sab = sums.saa, sums.sbb, sums.sab
+			sap = [3]int{sums.sapR, sums.sapG, sums.sapB}
+			sbp = [3]int{sums.sbpR, sums.sbpG, sums.sbpB}
+		}
+	}
+
+	if saa == 0 && sbb == 0 && sab == 0 {
+		for i := range 16 {
+			idx, _ := bc7Mode4ColorNearest(block[i], pal, n)
+			b := int(weights[idx])
+			a := 64 - b
+			saa += a * a
+			sbb += b * b
+			sab += a * b
+			ch := [3]int{int(block[i].r), int(block[i].g), int(block[i].b)}
+			for c := range 3 {
+				sap[c] += a * ch[c]
+				sbp[c] += b * ch[c]
+			}
 		}
 	}
 
@@ -181,8 +233,31 @@ func bc7Mode4AlphaLevels(a0, a1 uint8, weights []int32, n int) [8]uint8 {
 
 // bc7Mode4AlphaNearest returns the nearest alpha index and its squared error.
 func bc7Mode4AlphaNearest(a uint8, lv *[8]uint8, n int) (int, int) {
+	if n == 4 {
+		return bc7Mode4AlphaNearest4(a, lv)
+	}
+
+	return bc7Mode4AlphaNearest8(a, lv)
+}
+
+// bc7Mode4AlphaNearest4 returns the nearest entry in a 4-value alpha palette.
+func bc7Mode4AlphaNearest4(a uint8, lv *[8]uint8) (int, int) {
 	best, bestErr := 0, 0
-	for k := range n {
+	for k := range 4 {
+		d := int(a) - int(lv[k])
+		e := d * d
+		if k == 0 || e < bestErr {
+			best, bestErr = k, e
+		}
+	}
+
+	return best, bestErr
+}
+
+// bc7Mode4AlphaNearest8 returns the nearest entry in an 8-value alpha palette.
+func bc7Mode4AlphaNearest8(a uint8, lv *[8]uint8) (int, int) {
+	best, bestErr := 0, 0
+	for k := range 8 {
 		d := int(a) - int(lv[k])
 		e := d * d
 		if k == 0 || e < bestErr {

@@ -11,7 +11,7 @@ and read/write DDS/KTX with mipmaps and cubemaps.
 
 ## Implemented
 
-* BC1/DXT1, BC2/DXT3, BC3/DXT5, BC4, BC5 encode/decode
+* BC1/DXT1, BC2/DXT3, BC3/DXT5, BC4, BC5, BC7/BPTC encode/decode
 * DDS read/write (2D + cubemap, mipmaps, uncompressed RGBA/BGRA)
 * KTX v1 read/write (2D + cubemap, mipmaps)
 * Mipmap generation with optional sRGB-aware downscale

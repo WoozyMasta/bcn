@@ -126,18 +126,23 @@ func bc7Mode5ColorLSQ(block *[16]rgba8, pal *[4]rgba8) (rgba8, rgba8, bool) {
 	var saa, sbb, sab int
 	var sap, sbp [3]int
 
-	// TODO(avo): per-texel nearest-index search + accumulation is the hot loop.
-	for i := range 16 {
-		idx, _ := bc7Color5Nearest(block[i], pal)
-		b := int(bc7Weight2[idx])
-		a := 64 - b
-		saa += a * a
-		sbb += b * b
-		sab += a * b
-		ch := [3]int{int(block[i].r), int(block[i].g), int(block[i].b)}
-		for c := range 3 {
-			sap[c] += a * ch[c]
-			sbp[c] += b * ch[c]
+	if sums, ok := bc7Color4LSQASM(block, pal); ok {
+		saa, sbb, sab = sums.saa, sums.sbb, sums.sab
+		sap = [3]int{sums.sapR, sums.sapG, sums.sapB}
+		sbp = [3]int{sums.sbpR, sums.sbpG, sums.sbpB}
+	} else {
+		for i := range 16 {
+			idx, _ := bc7Color5Nearest(block[i], pal)
+			b := int(bc7Weight2[idx])
+			a := 64 - b
+			saa += a * a
+			sbb += b * b
+			sab += a * b
+			ch := [3]int{int(block[i].r), int(block[i].g), int(block[i].b)}
+			for c := range 3 {
+				sap[c] += a * ch[c]
+				sbp[c] += b * ch[c]
+			}
 		}
 	}
 

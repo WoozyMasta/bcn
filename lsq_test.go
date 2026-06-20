@@ -5,6 +5,30 @@ import (
 	"testing"
 )
 
+// TestRoundRatioMatchesMathRoundCases checks the integer LSQ rounding helper
+// against the half-away-from-zero behavior previously provided by math.Round.
+func TestRoundRatioMatchesMathRoundCases(t *testing.T) {
+	for _, tc := range []struct {
+		num   int64
+		denom int64
+		want  int
+	}{
+		{num: 0, denom: 5, want: 0},
+		{num: 2, denom: 5, want: 0},
+		{num: 3, denom: 5, want: 1},
+		{num: 5, denom: 10, want: 1},
+		{num: -2, denom: 5, want: 0},
+		{num: -3, denom: 5, want: -1},
+		{num: -5, denom: 10, want: -1},
+		{num: 2550, denom: 10, want: 255},
+		{num: -2550, denom: 10, want: -255},
+	} {
+		if got := roundRatio(tc.num, tc.denom); got != tc.want {
+			t.Fatalf("roundRatio(%d, %d) = %d, want %d", tc.num, tc.denom, got, tc.want)
+		}
+	}
+}
+
 // TestRefinementLSQItersOverride verifies that RefinementOptions.LSQIters is an effective, independent knob:
 // disabling it changes the output and never beats the default (which includes LSQ),
 // and it can run decoupled from the grid search (ColorTries=0) as a cheap polish-only mode.

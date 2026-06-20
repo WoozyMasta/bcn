@@ -12,6 +12,23 @@ package bcn
 // Candidate partitions are ranked by a cheap within-subset variance
 // and only the top few are fully fitted.
 
+// bc7Quant7Table stores the exact scalar quantization result
+// for each 8-bit input channel and P-bit used by mode 1.
+var bc7Quant7Table = bc7MakeQuant7Table()
+
+// bc7MakeQuant7Table builds the mode 1 channel quantization table.
+func bc7MakeQuant7Table() [2][256]uint8 {
+	var table [2][256]uint8
+	for pbit := range 2 {
+		for target := range 256 {
+			// #nosec G115 -- pbit is 0/1 and target is in [0,255].
+			table[pbit][target] = bc7Quant7Slow(uint8(target), uint8(pbit))
+		}
+	}
+
+	return table
+}
+
 // bc7Expand7 expands a 6-bit stored value plus the shared P-bit to 8 bits,
 // matching the decoder's 7-bit (incl. P-bit) unquantize.
 func bc7Expand7(stored, pbit uint8) uint8 {
@@ -23,6 +40,11 @@ func bc7Expand7(stored, pbit uint8) uint8 {
 // bc7Quant7 rounds an 8-bit channel
 // to the nearest 6-bit value reachable with the given P-bit.
 func bc7Quant7(target, pbit uint8) uint8 {
+	return bc7Quant7Table[pbit&1][target]
+}
+
+// bc7Quant7Slow computes the mode 1 channel quantization directly.
+func bc7Quant7Slow(target, pbit uint8) uint8 {
 	seed := (int(target)*127/255 - int(pbit)) >> 1
 	best, bestErr := 0, 1<<30
 	for ds := -1; ds <= 2; ds++ {
@@ -165,12 +187,8 @@ func bc7Mode1Assign(block *[16]rgba8, part *[16]uint8, pal *[2][8]rgba8) [16]uin
 	return idx
 }
 
-// encodeBC7Mode1 encodes a fully opaque block as BC7 mode 1, trying the top
-// maxPartitions ranked partitions and keeping the lowest-error result.
-func encodeBC7Mode1(block [16]rgba8, maxPartitions int) ([16]byte, int, bool) {
-	order := bc7Rank2Subset(&block)
-	tries := min(maxPartitions, 64)
-
+// encodeBC7Mode1WithOrder encodes mode 1 using a pre-ranked partition order.
+func encodeBC7Mode1WithOrder(block [16]rgba8, order [64]int, tries int) ([16]byte, int, bool) {
 	var bestBytes [16]byte
 	bestErr := 1 << 30
 	found := false

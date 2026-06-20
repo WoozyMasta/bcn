@@ -137,9 +137,9 @@ var bc7Mode3 = bc72Subset{
 	pack:   bc7PackMode3,
 }
 
-// encodeBC7Mode3 encodes a fully opaque block as BC7 mode 3.
-func encodeBC7Mode3(block [16]rgba8, maxPartitions int) ([16]byte, int, bool) {
-	return bc7Mode3.encode(block, maxPartitions)
+// encodeBC7Mode3WithOrder encodes mode 3 using a pre-ranked partition order.
+func encodeBC7Mode3WithOrder(block [16]rgba8, order [64]int, tries int) ([16]byte, int, bool) {
+	return bc7Mode3.encodeWithOrder(block, order, tries)
 }
 
 // bc7PackMode3 serializes a mode 3 block: mode bits, partition id,

@@ -77,6 +77,42 @@ func scoreDXT1PaletteASM(block *[16]rgba8, c0, c1 uint16, w rgbWeightsFP) (int64
 	return int64(e), true
 }
 
+// bc7Mode6IndicesASM assigns each texel to the nearest mode 6 palette entry.
+// Returns ok=false when AVX2 is unavailable.
+func bc7Mode6IndicesASM(block *[16]rgba8, pal *[16]rgba8) ([16]uint8, int, bool) {
+	var idx [16]uint8
+	if !simd.HasAVX2 {
+		return idx, 0, false
+	}
+
+	var params [64]int32
+	for k := range 16 {
+		params[k] = int32(pal[k].r)
+		params[16+k] = int32(pal[k].g)
+		params[32+k] = int32(pal[k].b)
+		params[48+k] = int32(pal[k].a)
+	}
+
+	var idx32 [16]int32
+	total := simd.BC7Mode6IndicesAVX2((*[64]byte)(unsafe.Pointer(block)), &params, &idx32)
+	for i := range 16 {
+		idx[i] = uint8(idx32[i]) // #nosec G115 -- kernel writes values in [0,15].
+	}
+
+	return idx, int(total), true
+}
+
+// bc7Color4LSQASM assigns texels to a 4-entry BC7 RGB palette
+// and accumulates least-squares sums with BC7 weight2 beta numerators.
+// Returns ok=false when AVX2 is unavailable.
+func bc7Color4LSQASM(block *[16]rgba8, pal *[4]rgba8) (lsqColorSums, bool) {
+	betaNum := [4]int{0, int(bc7Weight2[1]), int(bc7Weight2[2]), int(bc7Weight2[3])}
+
+	// Equal positive weights preserve the unweighted bc7RGBErr argmin while
+	// reusing the existing weighted BC1 LSQ kernel.
+	return lsqColorAccumulateASM(block, pal, false, 0, rgbWeightsFP{r: 1, g: 1, b: 1}, 64, &betaNum)
+}
+
 // alphaBlockErrorASM scores 16 alpha samples against
 // palette of endpoints a0, a1 via AVX2 (the kernel builds the palette).
 // Returns ok=false when AVX2 is unavailable.

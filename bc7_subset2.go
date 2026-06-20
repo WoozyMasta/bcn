@@ -17,7 +17,6 @@ func bc7SubsetLSQ(block *[16]rgba8, part *[16]uint8, subset uint8, pal []rgba8, 
 	var saa, sbb, sab int
 	var sap, sbp [3]int
 
-	// TODO(avo): per-texel nearest-index search + accumulation is the hot loop.
 	for i := range 16 {
 		if part[i]&0x03 != subset {
 			continue
@@ -78,8 +77,16 @@ type bc72Subset struct {
 // encode tries the top maxPartitions ranked two-subset partitions
 // and keeps the lowest-error result.
 func (m bc72Subset) encode(block [16]rgba8, maxPartitions int) ([16]byte, int, bool) {
-	order := bc7Rank2Subset(&block)
 	tries := min(maxPartitions, 64)
+	order := bc7Rank2SubsetN(&block, tries)
+
+	return m.encodeWithOrder(block, order, tries)
+}
+
+// encodeWithOrder tries the caller-provided ranked two-subset partitions.
+// Sharing the order lets the opaque path reuse one rank2 pass for mode 1 and mode 3.
+func (m bc72Subset) encodeWithOrder(block [16]rgba8, order [64]int, tries int) ([16]byte, int, bool) {
+	tries = min(max(tries, 0), 64)
 
 	var bestBytes [16]byte
 	bestErr := 1 << 30

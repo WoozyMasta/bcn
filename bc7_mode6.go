@@ -69,6 +69,10 @@ func bc7Mode6Palette(e0, e1 rgba8) [16]rgba8 {
 // bc7Mode6Indices assigns each texel its nearest palette index
 // and returns the indices together with the total block error.
 func bc7Mode6Indices(block [16]rgba8, pal *[16]rgba8) ([16]uint8, int) {
+	if idx, total, ok := bc7Mode6IndicesASM(&block, pal); ok {
+		return idx, total
+	}
+
 	var idx [16]uint8
 	total := 0
 
