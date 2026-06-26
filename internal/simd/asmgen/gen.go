@@ -33,6 +33,8 @@ func main() {
 	genPackDXT1Indices(consts)
 	genScoreDXT1Palette()
 	genBC7Mode6Indices(bc7Consts)
+	genBC7SubsetEval()
+	genBC7Mode7SubsetEval()
 
 	alphaShifts := genAlphaIdxShifts()
 	genAlphaBlockError(alphaConsts)

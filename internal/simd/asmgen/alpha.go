@@ -68,8 +68,8 @@ func genAlphaBlockError(ac Mem) {
 	TEXT("AlphaBlockErrorAVX2", NOSPLIT, "func(samples *[16]uint8, aa uint32) uint32")
 	Pragma("noescape")
 	Doc(
-		"AlphaBlockErrorAVX2 returns the summed minimum squared error of 16 alpha",
-		"samples against the palette of endpoints aa = a0 | a1<<8 (BC3/BC4 scoring).",
+		"AlphaBlockErrorAVX2 returns the summed minimum squared error of 16 alpha samples",
+		"against the palette of endpoints aa = a0 | a1<<8 (BC3/BC4 scoring).",
 	)
 
 	sp := Load(Param("samples"), GP64())

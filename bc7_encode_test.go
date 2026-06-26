@@ -176,6 +176,142 @@ func bc7Color4LSQScalarSumsForTest(block *[16]rgba8, pal *[4]rgba8) lsqColorSums
 	return sums
 }
 
+// TestBC7SubsetEvalASMMatchesScalar verifies the shared partition-mode kernel:
+// for each subset it must reproduce the scalar least-squares sums
+// and the total nearest-entry error,
+// for both an 8-entry (mode 1/0) and a 4-entry (mode 3/2) palette
+// (the latter exercises the entry-0 padding path).
+func TestBC7SubsetEvalASMMatchesScalar(t *testing.T) {
+	block := benchmarkBlockOpaque()
+	pal8 := bc7Mode1Palette(rgba8{r: 20, g: 40, b: 60, a: 255}, rgba8{r: 200, g: 180, b: 150, a: 255})
+	pal4 := bc7Mode3Palette(rgba8{r: 30, g: 70, b: 110, a: 255}, rgba8{r: 210, g: 160, b: 120, a: 255})
+	cases := []struct {
+		name    string
+		pal     []rgba8
+		weights []int32
+	}{
+		{name: "8-entry", pal: pal8[:], weights: bc7Weight3[:]},
+		{name: "4-entry", pal: pal4[:], weights: bc7Weight2[:]},
+	}
+
+	for _, p := range []int{0, 13, 34} {
+		part := bc7PartitionSets[0][p]
+		for _, tc := range cases {
+			for _, subset := range []uint8{0, 1} {
+				wantSums, wantErr := bc7SubsetEvalScalarForTest(&block, &part, subset, tc.pal, tc.weights)
+				gotSums, gotErr, ok := bc7SubsetEvalASM(&block, &part, subset, tc.pal, tc.weights)
+				if !ok {
+					t.Skip("BC7 subset-eval AVX2 kernel unavailable")
+				}
+
+				if gotSums != wantSums {
+					t.Fatalf("p=%d %s subset=%d sums: got %+v want %+v", p, tc.name, subset, gotSums, wantSums)
+				}
+				if gotErr != wantErr {
+					t.Fatalf("p=%d %s subset=%d error: got %d want %d", p, tc.name, subset, gotErr, wantErr)
+				}
+			}
+		}
+	}
+}
+
+// bc7SubsetEvalScalarForTest mirrors the partition-mode kernel:
+// masked nearest-of-N RGB search with least-squares accumulation and error sum.
+func bc7SubsetEvalScalarForTest(block *[16]rgba8, part *[16]uint8, subset uint8, pal []rgba8, weights []int32) (lsqColorSums, int) {
+	var s lsqColorSums
+	total := 0
+	for i := range 16 {
+		if part[i]&0x03 != subset {
+			continue
+		}
+
+		idx := 0
+		bestErr := bc7RGBErr(block[i], pal[0])
+		for k := 1; k < len(pal); k++ {
+			if e := bc7RGBErr(block[i], pal[k]); e < bestErr {
+				bestErr, idx = e, k
+			}
+		}
+
+		b := 0
+		if idx < len(weights) {
+			b = int(weights[idx])
+		}
+		a := 64 - b
+		s.saa += a * a
+		s.sbb += b * b
+		s.sab += a * b
+		s.sapR += a * int(block[i].r)
+		s.sapG += a * int(block[i].g)
+		s.sapB += a * int(block[i].b)
+		s.sbpR += b * int(block[i].r)
+		s.sbpG += b * int(block[i].g)
+		s.sbpB += b * int(block[i].b)
+		total += bestErr
+	}
+
+	return s, total
+}
+
+// TestBC7Mode7SubsetEvalASMMatchesScalar verifies the RGBA partition-mode kernel
+// reproduces the scalar mode 7 least-squares sums and total error per subset.
+func TestBC7Mode7SubsetEvalASMMatchesScalar(t *testing.T) {
+	block := benchmarkBlockAlpha()
+	pal := bc7Mode7Palette(rgba8{r: 20, g: 40, b: 60, a: 30}, rgba8{r: 200, g: 180, b: 150, a: 220})
+
+	for _, p := range []int{0, 13, 34} {
+		part := bc7PartitionSets[0][p]
+		for _, subset := range []uint8{0, 1} {
+			wantSums, wantErr := bc7Mode7SubsetEvalScalarForTest(&block, &part, subset, &pal)
+			gotSums, gotErr, ok := bc7Mode7SubsetEvalASM(&block, &part, subset, &pal)
+			if !ok {
+				t.Skip("BC7 mode 7 subset-eval AVX2 kernel unavailable")
+			}
+
+			if gotSums != wantSums {
+				t.Fatalf("p=%d subset=%d sums: got %+v want %+v", p, subset, gotSums, wantSums)
+			}
+			if gotErr != wantErr {
+				t.Fatalf("p=%d subset=%d error: got %d want %d", p, subset, gotErr, wantErr)
+			}
+		}
+	}
+}
+
+// bc7Mode7SubsetEvalScalarForTest mirrors the mode 7 kernel:
+// masked nearest-of-4 RGBA search with full RGBA least-squares accumulation and error sum.
+func bc7Mode7SubsetEvalScalarForTest(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[4]rgba8) (bc7Mode7Sums, int) {
+	var s bc7Mode7Sums
+	total := 0
+	for i := range 16 {
+		if part[i]&0x03 != subset {
+			continue
+		}
+
+		idx := 0
+		bestErr := bc7SSE(block[i], pal[0])
+		for k := 1; k < 4; k++ {
+			if e := bc7SSE(block[i], pal[k]); e < bestErr {
+				bestErr, idx = e, k
+			}
+		}
+
+		b := int(bc7Weight2[idx])
+		a := 64 - b
+		s.saa += a * a
+		s.sbb += b * b
+		s.sab += a * b
+		ch := [4]int{int(block[i].r), int(block[i].g), int(block[i].b), int(block[i].a)}
+		for c := range 4 {
+			s.sap[c] += a * ch[c]
+			s.sbp[c] += b * ch[c]
+		}
+		total += bestErr
+	}
+
+	return s, total
+}
+
 // TestBC7Rank2SubsetNMatchesFullPrefix verifies that bounded two-subset ranking
 // preserves the exact candidate order used by the full sort.
 func TestBC7Rank2SubsetNMatchesFullPrefix(t *testing.T) {

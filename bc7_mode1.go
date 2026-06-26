@@ -150,6 +150,10 @@ func bc7Mode1FitSubset(block *[16]rgba8, part *[16]uint8, subset uint8) (rgba8, 
 // bc7SubsetError assigns each subset pixel its nearest palette entry
 // and returns the total RGB error.
 func bc7SubsetError(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[8]rgba8) int {
+	if _, total, ok := bc7SubsetEvalASM(block, part, subset, pal[:], nil); ok {
+		return total
+	}
+
 	total := 0
 	for i := range 16 {
 		if part[i]&0x03 != subset {

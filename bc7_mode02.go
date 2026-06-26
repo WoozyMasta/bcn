@@ -247,6 +247,10 @@ func bc7NearestRGB8(px rgba8, pal *[8]rgba8) (int, int) {
 
 // subsetError sums the nearest-entry RGB error over the pixels of one subset.
 func (m bc73Mode) subsetError(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[8]rgba8) int {
+	if _, total, ok := bc7SubsetEvalASM(block, part, subset, pal[:m.nLevels], nil); ok {
+		return total
+	}
+
 	total := 0
 	for i := range 16 {
 		if part[i]&0x03 != subset {
@@ -266,21 +270,26 @@ func (m bc73Mode) subsetLSQ(block *[16]rgba8, part *[16]uint8, subset uint8, pal
 	var saa, sbb, sab int
 	var sap, sbp [3]int
 
-	// TODO(avo): per-texel nearest-index search + accumulation is the hot loop.
-	for i := range 16 {
-		if part[i]&0x03 != subset {
-			continue
-		}
-		idx, _ := m.nearest(block[i], pal)
-		b := int(m.weights[idx])
-		a := 64 - b
-		saa += a * a
-		sbb += b * b
-		sab += a * b
-		ch := [3]int{int(block[i].r), int(block[i].g), int(block[i].b)}
-		for c := range 3 {
-			sap[c] += a * ch[c]
-			sbp[c] += b * ch[c]
+	if sums, _, ok := bc7SubsetEvalASM(block, part, subset, pal[:m.nLevels], m.weights); ok {
+		saa, sbb, sab = sums.saa, sums.sbb, sums.sab
+		sap = [3]int{sums.sapR, sums.sapG, sums.sapB}
+		sbp = [3]int{sums.sbpR, sums.sbpG, sums.sbpB}
+	} else {
+		for i := range 16 {
+			if part[i]&0x03 != subset {
+				continue
+			}
+			idx, _ := m.nearest(block[i], pal)
+			b := int(m.weights[idx])
+			a := 64 - b
+			saa += a * a
+			sbb += b * b
+			sab += a * b
+			ch := [3]int{int(block[i].r), int(block[i].g), int(block[i].b)}
+			for c := range 3 {
+				sap[c] += a * ch[c]
+				sbp[c] += b * ch[c]
+			}
 		}
 	}
 

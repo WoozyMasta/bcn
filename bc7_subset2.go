@@ -17,28 +17,34 @@ func bc7SubsetLSQ(block *[16]rgba8, part *[16]uint8, subset uint8, pal []rgba8, 
 	var saa, sbb, sab int
 	var sap, sbp [3]int
 
-	for i := range 16 {
-		if part[i]&0x03 != subset {
-			continue
-		}
-
-		idx := 0
-		bestErr := bc7RGBErr(block[i], pal[0])
-		for k := 1; k < len(pal); k++ {
-			if e := bc7RGBErr(block[i], pal[k]); e < bestErr {
-				bestErr, idx = e, k
+	if sums, _, ok := bc7SubsetEvalASM(block, part, subset, pal, weights); ok {
+		saa, sbb, sab = sums.saa, sums.sbb, sums.sab
+		sap = [3]int{sums.sapR, sums.sapG, sums.sapB}
+		sbp = [3]int{sums.sbpR, sums.sbpG, sums.sbpB}
+	} else {
+		for i := range 16 {
+			if part[i]&0x03 != subset {
+				continue
 			}
-		}
 
-		b := int(weights[idx])
-		a := 64 - b
-		saa += a * a
-		sbb += b * b
-		sab += a * b
-		ch := [3]int{int(block[i].r), int(block[i].g), int(block[i].b)}
-		for c := range 3 {
-			sap[c] += a * ch[c]
-			sbp[c] += b * ch[c]
+			idx := 0
+			bestErr := bc7RGBErr(block[i], pal[0])
+			for k := 1; k < len(pal); k++ {
+				if e := bc7RGBErr(block[i], pal[k]); e < bestErr {
+					bestErr, idx = e, k
+				}
+			}
+
+			b := int(weights[idx])
+			a := 64 - b
+			saa += a * a
+			sbb += b * b
+			sab += a * b
+			ch := [3]int{int(block[i].r), int(block[i].g), int(block[i].b)}
+			for c := range 3 {
+				sap[c] += a * ch[c]
+				sbp[c] += b * ch[c]
+			}
 		}
 	}
 

@@ -54,6 +54,10 @@ func bc7Mode3Palette(e0, e1 rgba8) [4]rgba8 {
 
 // bc7Mode3SubsetError sums the nearest-entry RGB error over the pixels of one subset.
 func bc7Mode3SubsetError(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[4]rgba8) int {
+	if _, total, ok := bc7SubsetEvalASM(block, part, subset, pal[:], nil); ok {
+		return total
+	}
+
 	total := 0
 	for i := range 16 {
 		if part[i]&0x03 != subset {

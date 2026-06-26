@@ -56,16 +56,22 @@ type bptcWriter struct {
 }
 
 // put appends the low n bits of v at the current position and advances.
+// The field is inserted in one shift-and-mask step,
+// splitting across the 64-bit halves only when it straddles the boundary (n is 1..32).
 func (w *bptcWriter) put(v uint32, n int) {
-	for k := range n {
-		if v&(1<<uint(k)) != 0 {
-			if w.pos < 64 {
-				w.lo |= 1 << uint(w.pos)
-			} else {
-				w.hi |= 1 << uint(w.pos-64)
-			}
-		}
-		w.pos++
+	val := uint64(v) & (1<<uint(n) - 1)
+	pos := w.pos
+	w.pos += n
+
+	if pos >= 64 {
+		w.hi |= val << uint(pos-64)
+		return
+	}
+
+	w.lo |= val << uint(pos)
+	if pos+n > 64 {
+		// The field crosses the lo/hi boundary; the high bits spill into hi.
+		w.hi |= val >> uint(64-pos)
 	}
 }
 

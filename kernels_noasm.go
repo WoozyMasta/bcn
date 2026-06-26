@@ -56,6 +56,16 @@ func bc7Color4LSQASM(_ *[16]rgba8, _ *[4]rgba8) (lsqColorSums, bool) {
 	return lsqColorSums{}, false
 }
 
+// bc7SubsetEvalASM is unavailable without assembly support.
+func bc7SubsetEvalASM(_ *[16]rgba8, _ *[16]uint8, _ uint8, _ []rgba8, _ []int32) (lsqColorSums, int, bool) {
+	return lsqColorSums{}, 0, false
+}
+
+// bc7Mode7SubsetEvalASM is unavailable without assembly support.
+func bc7Mode7SubsetEvalASM(_ *[16]rgba8, _ *[16]uint8, _ uint8, _ *[4]rgba8) (bc7Mode7Sums, int, bool) {
+	return bc7Mode7Sums{}, 0, false
+}
+
 // alphaBlockErrorASM is unavailable without assembly support.
 func alphaBlockErrorASM(_ *[16]uint8, _, _ uint8) (int, bool) {
 	return 0, false

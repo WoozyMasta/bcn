@@ -146,8 +146,18 @@ func bc7Mode7SubsetMaxDist(block *[16]rgba8, part *[16]uint8, subset uint8) (rgb
 	return block[bi], block[bj]
 }
 
+// bc7Mode7Sums holds the RGBA least-squares normal-equation sums for one subset.
+type bc7Mode7Sums struct {
+	saa, sbb, sab int    // sum(a*a), sum(b*b), sum(a*b)
+	sap, sbp      [4]int // sum(a*ch), sum(b*ch) for ch in R,G,B,A
+}
+
 // bc7Mode7SubsetError sums the nearest-entry RGBA error over a subset.
 func bc7Mode7SubsetError(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[4]rgba8) int {
+	if _, total, ok := bc7Mode7SubsetEvalASM(block, part, subset, pal); ok {
+		return total
+	}
+
 	total := 0
 	for i := range 16 {
 		if part[i]&0x03 != subset {
@@ -172,28 +182,33 @@ func bc7Mode7SubsetLSQ(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[4]
 	var saa, sbb, sab int
 	var sap, sbp [4]int
 
-	for i := range 16 {
-		if part[i]&0x03 != subset {
-			continue
-		}
-
-		idx := 0
-		bestErr := bc7SSE(block[i], pal[0])
-		for k := 1; k < 4; k++ {
-			if e := bc7SSE(block[i], pal[k]); e < bestErr {
-				bestErr, idx = e, k
+	if sums, _, ok := bc7Mode7SubsetEvalASM(block, part, subset, pal); ok {
+		saa, sbb, sab = sums.saa, sums.sbb, sums.sab
+		sap, sbp = sums.sap, sums.sbp
+	} else {
+		for i := range 16 {
+			if part[i]&0x03 != subset {
+				continue
 			}
-		}
 
-		b := int(bc7Weight2[idx])
-		a := 64 - b
-		saa += a * a
-		sbb += b * b
-		sab += a * b
-		ch := [4]int{int(block[i].r), int(block[i].g), int(block[i].b), int(block[i].a)}
-		for c := range 4 {
-			sap[c] += a * ch[c]
-			sbp[c] += b * ch[c]
+			idx := 0
+			bestErr := bc7SSE(block[i], pal[0])
+			for k := 1; k < 4; k++ {
+				if e := bc7SSE(block[i], pal[k]); e < bestErr {
+					bestErr, idx = e, k
+				}
+			}
+
+			b := int(bc7Weight2[idx])
+			a := 64 - b
+			saa += a * a
+			sbb += b * b
+			sab += a * b
+			ch := [4]int{int(block[i].r), int(block[i].g), int(block[i].b), int(block[i].a)}
+			for c := range 4 {
+				sap[c] += a * ch[c]
+				sbp[c] += b * ch[c]
+			}
 		}
 	}
 

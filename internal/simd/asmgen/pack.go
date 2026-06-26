@@ -31,10 +31,10 @@ func genPackDXT1Indices(c decodeConsts) {
 	TEXT("PackDXT1IndicesAVX2", NOSPLIT, "func(block *[64]byte, params *[20]int32) uint32")
 	Pragma("noescape")
 	Doc(
-		"PackDXT1IndicesAVX2 maps 16 NRGBA pixels to weighted-SSE-nearest palette",
-		"entries and packs the 2-bit indices. Alpha mode is driven by the params",
-		"block: a sub-threshold pixel is forced to index 3 and the entry-3 penalty",
-		"keeps that entry from winning the argmin. Ties keep the lowest index.",
+		"PackDXT1IndicesAVX2 maps 16 NRGBA pixels to weighted-SSE-nearest palette entries",
+		"and packs the 2-bit indices. Alpha mode is driven by the params block:",
+		"a sub-threshold pixel is forced to index 3 and the entry-3 penalty keeps that entry from winning the argmin.",
+		"Ties keep the lowest index.",
 	)
 
 	block := Load(Param("block"), GP64())
