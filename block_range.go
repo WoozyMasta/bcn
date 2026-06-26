@@ -29,6 +29,9 @@ func decodeBlockRange(format Format, data, out []byte, width, height, bx, start,
 	case FormatBC7:
 		decodeRangeBC7(data, out, width, height, bx, start, end)
 
+	case FormatBC6HU, FormatBC6HS:
+		return ErrBC6HUsesHDRAPI
+
 	default:
 		return ErrUnsupportedFormat
 	}
@@ -56,6 +59,9 @@ func encodeBlockRange(format Format, rgba, out []byte, width, height, bx, start,
 
 	case FormatBC7:
 		encodeRangeBC7(rgba, out, width, height, bx, start, end, options)
+
+	case FormatBC6HU, FormatBC6HS:
+		return ErrBC6HUsesHDRAPI
 
 	default:
 		return ErrUnsupportedFormat

@@ -314,6 +314,10 @@ func ktxHeaderFormats(format Format) (glType, glTypeSize, glFormat, glInternalFo
 		return 0, 1, 0, KTXGLCompressedRGRGTC2, KTXGLRG, nil
 	case FormatBC7:
 		return 0, 1, 0, KTXGLCompressedRGBABPTCUnorm, KTXGLRGBA, nil
+	case FormatBC6HU:
+		return 0, 1, 0, KTXGLCompressedRGBBPTCUnsignedFloat, KTXGLRGB, nil
+	case FormatBC6HS:
+		return 0, 1, 0, KTXGLCompressedRGBBPTCSignedFloat, KTXGLRGB, nil
 	case FormatRGBA8:
 		return KTXGLUnsignedByte, 1, KTXGLRGBA, KTXGLRGBA8, KTXGLRGBA, nil
 	case FormatBGRA8:
@@ -353,6 +357,10 @@ func ktxFormatFromHeader(header *KTXHeader) (Format, error) {
 		return FormatBC5, nil
 	case KTXGLCompressedRGBABPTCUnorm, KTXGLCompressedSRGBAlphaBPTCUnorm:
 		return FormatBC7, nil
+	case KTXGLCompressedRGBBPTCUnsignedFloat:
+		return FormatBC6HU, nil
+	case KTXGLCompressedRGBBPTCSignedFloat:
+		return FormatBC6HS, nil
 	default:
 		return FormatUnknown, ErrUnsupportedKTXInternalFormat
 	}

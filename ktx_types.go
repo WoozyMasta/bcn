@@ -44,6 +44,10 @@ const (
 	KTXGLCompressedRGBABPTCUnorm = 0x8E8C
 	// KTXGLCompressedSRGBAlphaBPTCUnorm is GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM (BC7 sRGB).
 	KTXGLCompressedSRGBAlphaBPTCUnorm = 0x8E8D
+	// KTXGLCompressedRGBBPTCUnsignedFloat is GL_COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT (BC6H UF16).
+	KTXGLCompressedRGBBPTCUnsignedFloat = 0x8E8E
+	// KTXGLCompressedRGBBPTCSignedFloat is GL_COMPRESSED_RGB_BPTC_SIGNED_FLOAT (BC6H SF16).
+	KTXGLCompressedRGBBPTCSignedFloat = 0x8E8F
 )
 
 // KTXHeader represents a KTX v1 header.

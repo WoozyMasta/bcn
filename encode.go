@@ -20,6 +20,10 @@ func decodeBlocksWithOptions(data []byte, width, height int, format Format, opts
 		return nil, ErrInvalidDimensions
 	}
 
+	if format == FormatBC6HU || format == FormatBC6HS {
+		return nil, ErrBC6HUsesHDRAPI
+	}
+
 	out := make([]byte, width*height*4)
 	if err := decodeBlocksInto(out, data, width, height, format, opts); err != nil {
 		return nil, err
@@ -127,6 +131,10 @@ func expandBC4Block(block *[64]byte, alpha *[16]uint8) {
 
 // encodeBlocksWithOptions encodes tight RGBA pixels into the selected BCn format.
 func encodeBlocksWithOptions(rgba []byte, width, height int, format Format, opts *EncodeOptions) ([]byte, error) {
+	if format == FormatBC6HU || format == FormatBC6HS {
+		return nil, ErrBC6HUsesHDRAPI
+	}
+
 	n, err := encodedBlocksSize(rgba, width, height, format)
 	if err != nil {
 		return nil, err

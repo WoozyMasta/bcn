@@ -176,27 +176,45 @@ func (d *DDS) Write(w io.Writer) error {
 		hdr.Flags |= DDSFlagLinearSize
 		hdr.PixelFormat.Flags = DDSPFFourCC
 		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', 'T', '1')
+
 	case FormatDXT3:
 		hdr.Flags |= DDSFlagLinearSize
 		hdr.PixelFormat.Flags = DDSPFFourCC
 		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', 'T', '3')
+
 	case FormatDXT5:
 		hdr.Flags |= DDSFlagLinearSize
 		hdr.PixelFormat.Flags = DDSPFFourCC
 		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', 'T', '5')
+
 	case FormatBC4:
 		hdr.Flags |= DDSFlagLinearSize
 		hdr.PixelFormat.Flags = DDSPFFourCC
 		hdr.PixelFormat.FourCC = makeFourCC('A', 'T', 'I', '1')
+
 	case FormatBC5:
 		hdr.Flags |= DDSFlagLinearSize
 		hdr.PixelFormat.Flags = DDSPFFourCC
 		hdr.PixelFormat.FourCC = makeFourCC('A', 'T', 'I', '2')
+
+	case FormatBC6HU:
+		hdr.Flags |= DDSFlagLinearSize
+		hdr.PixelFormat.Flags = DDSPFFourCC
+		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', '1', '0')
+		dx10Format = 95 // DXGI_FORMAT_BC6H_UF16
+
+	case FormatBC6HS:
+		hdr.Flags |= DDSFlagLinearSize
+		hdr.PixelFormat.Flags = DDSPFFourCC
+		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', '1', '0')
+		dx10Format = 96 // DXGI_FORMAT_BC6H_SF16
+
 	case FormatBC7:
 		hdr.Flags |= DDSFlagLinearSize
 		hdr.PixelFormat.Flags = DDSPFFourCC
 		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', '1', '0')
 		dx10Format = 98 // DXGI_FORMAT_BC7_UNORM
+
 	case FormatRGBA8:
 		hdr.Flags |= DDSFlagPitch
 		hdr.PixelFormat.Flags = DDSPFRGB | DDSPFAlphaPixels
@@ -206,6 +224,7 @@ func (d *DDS) Write(w io.Writer) error {
 		hdr.PixelFormat.BBitMask = 0x00ff0000
 		hdr.PixelFormat.ABitMask = 0xff000000
 		hdr.PitchOrLinearSize = u32(d.Width * 4)
+
 	case FormatBGRA8:
 		hdr.Flags |= DDSFlagPitch
 		hdr.PixelFormat.Flags = DDSPFRGB | DDSPFAlphaPixels
@@ -215,6 +234,7 @@ func (d *DDS) Write(w io.Writer) error {
 		hdr.PixelFormat.BBitMask = 0x000000ff
 		hdr.PixelFormat.ABitMask = 0xff000000
 		hdr.PitchOrLinearSize = u32(d.Width * 4)
+
 	default:
 		return ErrUnsupportedDDSFormat
 	}
@@ -285,6 +305,10 @@ func ddsFormatFromHeader(r io.Reader, header *DDSHeader) (Format, *DDSHeaderDX10
 			return FormatBC4, &dx10, nil
 		case 83:
 			return FormatBC5, &dx10, nil
+		case 95: // BC6H_UF16 (unsigned float)
+			return FormatBC6HU, &dx10, nil
+		case 96: // BC6H_SF16 (signed float)
+			return FormatBC6HS, &dx10, nil
 		case 98, 99: // BC7_UNORM, BC7_UNORM_SRGB
 			return FormatBC7, &dx10, nil
 		default:

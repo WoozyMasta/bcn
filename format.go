@@ -33,6 +33,12 @@ const (
 	FormatBGRA8
 	// FormatBC7 is BC7/BPTC unorm RGBA (16 bytes per 4x4 block).
 	FormatBC7
+	// FormatBC6HU is BC6H unsigned float RGB HDR (16 bytes per 4x4 block).
+	// Use DecodeBC6H / EncodeBC6H; the NRGBA byte API returns ErrBC6HUsesHDRAPI.
+	FormatBC6HU
+	// FormatBC6HS is BC6H signed float RGB HDR (16 bytes per 4x4 block).
+	// Use DecodeBC6H / EncodeBC6H; the NRGBA byte API returns ErrBC6HUsesHDRAPI.
+	FormatBC6HS
 )
 
 func (f Format) String() string {
@@ -49,6 +55,10 @@ func (f Format) String() string {
 		return "BC5"
 	case FormatBC7:
 		return "BC7"
+	case FormatBC6HU:
+		return "BC6HU"
+	case FormatBC6HS:
+		return "BC6HS"
 	case FormatRGBA8:
 		return "RGBA8"
 	case FormatBGRA8:
@@ -69,7 +79,7 @@ func (f Format) blockSize() int {
 		return 8
 	case FormatBC5:
 		return 16
-	case FormatBC7:
+	case FormatBC7, FormatBC6HU, FormatBC6HS:
 		return 16
 	case FormatRGBA8, FormatBGRA8:
 		return 4
@@ -81,7 +91,7 @@ func (f Format) blockSize() int {
 // isCompressed reports whether the format uses BCn block compression.
 func (f Format) isCompressed() bool {
 	switch f {
-	case FormatDXT1, FormatDXT3, FormatDXT5, FormatBC4, FormatBC5, FormatBC7:
+	case FormatDXT1, FormatDXT3, FormatDXT5, FormatBC4, FormatBC5, FormatBC7, FormatBC6HU, FormatBC6HS:
 		return true
 	default:
 		return false

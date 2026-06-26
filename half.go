@@ -80,7 +80,7 @@ func float32ToFloat16(f float32) uint16 {
 			halfMant++
 		}
 
-		return sign | uint16(halfMant)
+		return sign | uint16(halfMant&0x3FF)
 	}
 
 	// Normal half.
