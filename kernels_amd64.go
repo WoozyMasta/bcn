@@ -77,6 +77,130 @@ func scoreDXT1PaletteASM(block *[16]rgba8, c0, c1 uint16, w rgbWeightsFP) (int64
 	return int64(e), true
 }
 
+// bc7Mode6IndicesASM assigns each texel to the nearest mode 6 palette entry.
+// Returns ok=false when AVX2 is unavailable.
+func bc7Mode6IndicesASM(block *[16]rgba8, pal *[16]rgba8) ([16]uint8, int, bool) {
+	var idx [16]uint8
+	if !simd.HasAVX2 {
+		return idx, 0, false
+	}
+
+	var params [64]int32
+	for k := range 16 {
+		params[k] = int32(pal[k].r)
+		params[16+k] = int32(pal[k].g)
+		params[32+k] = int32(pal[k].b)
+		params[48+k] = int32(pal[k].a)
+	}
+
+	var idx32 [16]int32
+	total := simd.BC7Mode6IndicesAVX2((*[64]byte)(unsafe.Pointer(block)), &params, &idx32)
+	for i := range 16 {
+		idx[i] = uint8(idx32[i]) // #nosec G115 -- kernel writes values in [0,15].
+	}
+
+	return idx, int(total), true
+}
+
+// bc7Color4LSQASM assigns texels to a 4-entry BC7 RGB palette
+// and accumulates least-squares sums with BC7 weight2 beta numerators.
+// Returns ok=false when AVX2 is unavailable.
+func bc7Color4LSQASM(block *[16]rgba8, pal *[4]rgba8) (lsqColorSums, bool) {
+	betaNum := [4]int{0, int(bc7Weight2[1]), int(bc7Weight2[2]), int(bc7Weight2[3])}
+
+	// Equal positive weights preserve the unweighted bc7RGBErr argmin while
+	// reusing the existing weighted BC1 LSQ kernel.
+	return lsqColorAccumulateASM(block, pal, false, 0, rgbWeightsFP{r: 1, g: 1, b: 1}, 64, &betaNum)
+}
+
+// bc7SubsetEvalASM finds, for the texels of one subset,
+// the nearest of up to 8 RGB palette entries and returns
+// least-squares sums together with the total nearest-entry error.
+// Palette is padded to 8 entries with entry 0, which can never win the argmin
+// (it ties entry 0 and strict-less keeps the lower index),
+// so a 4-entry palette behaves exactly like the scalar path.
+// Returns ok=false when AVX2 is unavailable.
+func bc7SubsetEvalASM(block *[16]rgba8, part *[16]uint8, subset uint8, pal []rgba8, weights []int32) (lsqColorSums, int, bool) {
+	if !simd.HasAVX2 {
+		return lsqColorSums{}, 0, false
+	}
+
+	var params [34]int32
+	for k := range 8 {
+		src := k
+		if k >= len(pal) {
+			src = 0 // pad unused slots with entry 0 (never selected)
+		}
+		params[k] = int32(pal[src].r)
+		params[8+k] = int32(pal[src].g)
+		params[16+k] = int32(pal[src].b)
+		if src < len(weights) {
+			params[24+k] = weights[src]
+		}
+	}
+	params[32] = 64 // interpolation denominator d
+	params[33] = int32(subset)
+
+	var outv [10]int32
+	simd.BC7SubsetEvalAVX2(
+		(*[64]byte)(unsafe.Pointer(block)),
+		(*[16]byte)(unsafe.Pointer(part)),
+		&params, &outv,
+	)
+
+	sums := lsqColorSums{
+		saa:  int(outv[0]),
+		sbb:  int(outv[1]),
+		sab:  int(outv[2]),
+		sapR: int(outv[3]),
+		sapG: int(outv[4]),
+		sapB: int(outv[5]),
+		sbpR: int(outv[6]),
+		sbpG: int(outv[7]),
+		sbpB: int(outv[8]),
+	}
+
+	return sums, int(outv[9]), true
+}
+
+// bc7Mode7SubsetEvalASM is the RGBA counterpart of bc7SubsetEvalASM for mode 7:
+// for the texels of one subset it finds the nearest of 4 RGBA palette entries
+// and returns the full RGBA least-squares sums plus the total error.
+// Returns ok=false when AVX2 is unavailable.
+func bc7Mode7SubsetEvalASM(block *[16]rgba8, part *[16]uint8, subset uint8, pal *[4]rgba8) (bc7Mode7Sums, int, bool) {
+	if !simd.HasAVX2 {
+		return bc7Mode7Sums{}, 0, false
+	}
+
+	var params [22]int32
+	for k := range 4 {
+		params[k] = int32(pal[k].r)
+		params[4+k] = int32(pal[k].g)
+		params[8+k] = int32(pal[k].b)
+		params[12+k] = int32(pal[k].a)
+		params[16+k] = bc7Weight2[k]
+	}
+	params[20] = 64 // interpolation denominator d
+	params[21] = int32(subset)
+
+	var outv [12]int32
+	simd.BC7Mode7SubsetEvalAVX2(
+		(*[64]byte)(unsafe.Pointer(block)),
+		(*[16]byte)(unsafe.Pointer(part)),
+		&params, &outv,
+	)
+
+	sums := bc7Mode7Sums{
+		saa: int(outv[0]),
+		sbb: int(outv[1]),
+		sab: int(outv[2]),
+		sap: [4]int{int(outv[3]), int(outv[4]), int(outv[5]), int(outv[6])},
+		sbp: [4]int{int(outv[7]), int(outv[8]), int(outv[9]), int(outv[10])},
+	}
+
+	return sums, int(outv[11]), true
+}
+
 // alphaBlockErrorASM scores 16 alpha samples against
 // palette of endpoints a0, a1 via AVX2 (the kernel builds the palette).
 // Returns ok=false when AVX2 is unavailable.

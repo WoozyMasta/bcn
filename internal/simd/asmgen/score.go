@@ -24,9 +24,9 @@ func genScoreDXT1Palette() {
 	TEXT("ScoreDXT1PaletteAVX2", NOSPLIT, "func(block *[64]byte, cc uint32, weights *[4]int32) uint32")
 	Pragma("noescape")
 	Doc(
-		"ScoreDXT1PaletteAVX2 returns the total weighted block error of one BC1",
-		"endpoint pair (cc = c0 | c1<<16) over 16 pixels, palette built like the",
-		"Go encoder. Used to drive endpoint refinement.",
+		"ScoreDXT1PaletteAVX2 returns the total weighted block error of one BC1 endpoint pair",
+		"(cc = c0 | c1<<16) over 16 pixels, palette built like the Go encoder.",
+		"Used to drive endpoint refinement.",
 	)
 
 	block := Load(Param("block"), GP64())

@@ -26,6 +26,9 @@ func decodeBlockRange(format Format, data, out []byte, width, height, bx, start,
 	case FormatBC5:
 		decodeRangeBC5(data, out, width, height, bx, start, end)
 
+	case FormatBC7:
+		decodeRangeBC7(data, out, width, height, bx, start, end)
+
 	default:
 		return ErrUnsupportedFormat
 	}
@@ -50,6 +53,9 @@ func encodeBlockRange(format Format, rgba, out []byte, width, height, bx, start,
 
 	case FormatBC5:
 		encodeRangeBC5(rgba, out, width, height, bx, start, end, options)
+
+	case FormatBC7:
+		encodeRangeBC7(rgba, out, width, height, bx, start, end, options)
 
 	default:
 		return ErrUnsupportedFormat
@@ -164,6 +170,45 @@ func decodeRangeBC5(data, out []byte, width, height, bx, start, end int) {
 
 	for range end - start {
 		block := decodeBlockBC5(data[pos : pos+16])
+		storeBlock(out, width, height, x, y, &block)
+		pos += 16
+
+		x++
+		if x == bx {
+			x = 0
+			y++
+		}
+	}
+}
+
+// encodeRangeBC7 encodes a BC7 block range (16 bytes per block).
+func encodeRangeBC7(rgba, out []byte, width, height, bx, start, end int, options EncodeOptions) {
+	x := start % bx
+	y := start / bx
+	pos := start * 16
+
+	for range end - start {
+		block := extractBlock(rgba, width, height, x, y)
+		b := encodeBlockBC7(block, options)
+		copy(out[pos:pos+16], b[:])
+		pos += 16
+
+		x++
+		if x == bx {
+			x = 0
+			y++
+		}
+	}
+}
+
+// decodeRangeBC7 decodes a BC7 block range (16 bytes per block).
+func decodeRangeBC7(data, out []byte, width, height, bx, start, end int) {
+	x := start % bx
+	y := start / bx
+	pos := start * 16
+
+	for range end - start {
+		block := decodeBlockBC7(data[pos : pos+16])
 		storeBlock(out, width, height, x, y, &block)
 		pos += 16
 

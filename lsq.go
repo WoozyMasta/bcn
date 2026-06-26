@@ -4,8 +4,6 @@
 
 package bcn
 
-import "math"
-
 // Least-squares endpoint refinement for the BC1-style color palette and the BC3/BC4/BC5 alpha palette.
 // Given a fixed index assignment, the optimal pair of endpoints minimizing
 // the squared reconstruction error has a closed-form solution (normal equations).
@@ -13,7 +11,7 @@ import "math"
 // so the result is never worse than the seed and the encoder output stays monotonic in quality.
 //
 // The idea follows the public-domain solver in
-// ref/BCnEncoder.NET/BCnEnc.Net/Encoder/LeastSquares.cs (from GPURealTimeBC6H),
+// BCnEncoder.NET/BCnEnc.Net/Encoder/LeastSquares.cs (from GPURealTimeBC6H),
 // specialized here to integer LDR channels:
 // accumulation is exact integer math and only the final per-endpoint divide is float64 (FMA-free, like dot3),
 // so the result is bit-identical across architectures and the purego/asm builds.
@@ -137,17 +135,24 @@ func lsqColorAccumulateGeneric(block [16]rgba8, palette *[4]rgba8, hasAlpha bool
 
 // lsqSolvePair solves the 2x2 normal equations for one channel
 // and returns the rounded endpoint values at beta=0 and beta=1.
-// All products are computed in int64 (exact for LDR ranges);
-// the single divide is float64 and FMA-free,
-// so the rounded result is deterministic across builds.
+// All products are computed in int64 (exact for LDR ranges),
+// and the final divide uses integer round-half-away-from-zero to match math.Round semantics.
 func lsqSolvePair(d, saa, sbb, sab, sap, sbp int, denom int64) (int, int) {
 	num0 := int64(d) * (int64(sap)*int64(sbb) - int64(sbp)*int64(sab))
 	num1 := int64(d) * (int64(sbp)*int64(saa) - int64(sap)*int64(sab))
 
-	v0 := float64(num0) / float64(denom)
-	v1 := float64(num1) / float64(denom)
+	return roundRatio(num0, denom), roundRatio(num1, denom)
+}
 
-	return int(math.Round(v0)), int(math.Round(v1))
+// roundRatio rounds num/denom to the nearest integer,
+// with halves rounded away from zero. denom must be positive;
+// LSQ determinants are checked before use.
+func roundRatio(num, denom int64) int {
+	if num < 0 {
+		return -int((-num + denom/2) / denom)
+	}
+
+	return int((num + denom/2) / denom)
 }
 
 // alphaBetaNum maps a BC3/BC4 8-value alpha palette index to its interpolation numerator b (denominator 7):

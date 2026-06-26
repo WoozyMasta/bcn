@@ -40,6 +40,10 @@ const (
 	KTXGLCompressedRedRGTC1 = 0x8DBB
 	// KTXGLCompressedRGRGTC2 is GL_COMPRESSED_RG_RGTC2.
 	KTXGLCompressedRGRGTC2 = 0x8DBD
+	// KTXGLCompressedRGBABPTCUnorm is GL_COMPRESSED_RGBA_BPTC_UNORM (BC7).
+	KTXGLCompressedRGBABPTCUnorm = 0x8E8C
+	// KTXGLCompressedSRGBAlphaBPTCUnorm is GL_COMPRESSED_SRGB_ALPHA_BPTC_UNORM (BC7 sRGB).
+	KTXGLCompressedSRGBAlphaBPTCUnorm = 0x8E8D
 )
 
 // KTXHeader represents a KTX v1 header.

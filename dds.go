@@ -168,6 +168,9 @@ func (d *DDS) Write(w io.Writer) error {
 	}
 
 	hdr.PixelFormat.Size = DDSPixelFormatSize
+	// dx10Format is the DXGI format written via the DX10 extended header
+	// for formats with no legacy FourCC (0 means classic header only).
+	var dx10Format uint32
 	switch d.Format {
 	case FormatDXT1:
 		hdr.Flags |= DDSFlagLinearSize
@@ -189,6 +192,11 @@ func (d *DDS) Write(w io.Writer) error {
 		hdr.Flags |= DDSFlagLinearSize
 		hdr.PixelFormat.Flags = DDSPFFourCC
 		hdr.PixelFormat.FourCC = makeFourCC('A', 'T', 'I', '2')
+	case FormatBC7:
+		hdr.Flags |= DDSFlagLinearSize
+		hdr.PixelFormat.Flags = DDSPFFourCC
+		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', '1', '0')
+		dx10Format = 98 // DXGI_FORMAT_BC7_UNORM
 	case FormatRGBA8:
 		hdr.Flags |= DDSFlagPitch
 		hdr.PixelFormat.Flags = DDSPFRGB | DDSPFAlphaPixels
@@ -216,6 +224,20 @@ func (d *DDS) Write(w io.Writer) error {
 	}
 	if err := binary.Write(w, binary.LittleEndian, &hdr); err != nil {
 		return err
+	}
+
+	if dx10Format != 0 {
+		dx10 := DDSHeaderDX10{
+			DXGIFormat:        dx10Format,
+			ResourceDimension: 3, // D3D10_RESOURCE_DIMENSION_TEXTURE2D
+			ArraySize:         1,
+		}
+		if len(d.Faces) == 6 {
+			dx10.MiscFlag = 0x4 // D3D10_RESOURCE_MISC_TEXTURECUBE
+		}
+		if err := binary.Write(w, binary.LittleEndian, &dx10); err != nil {
+			return err
+		}
 	}
 
 	for _, face := range d.Faces {
@@ -263,6 +285,8 @@ func ddsFormatFromHeader(r io.Reader, header *DDSHeader) (Format, *DDSHeaderDX10
 			return FormatBC4, &dx10, nil
 		case 83:
 			return FormatBC5, &dx10, nil
+		case 98, 99: // BC7_UNORM, BC7_UNORM_SRGB
+			return FormatBC7, &dx10, nil
 		default:
 			return FormatUnknown, &dx10, ErrUnsupportedDX10Format
 		}

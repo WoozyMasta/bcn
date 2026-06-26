@@ -31,6 +31,8 @@ const (
 	FormatRGBA8
 	// FormatBGRA8 is uncompressed BGRA (4 bytes per pixel).
 	FormatBGRA8
+	// FormatBC7 is BC7/BPTC unorm RGBA (16 bytes per 4x4 block).
+	FormatBC7
 )
 
 func (f Format) String() string {
@@ -45,6 +47,8 @@ func (f Format) String() string {
 		return "BC4"
 	case FormatBC5:
 		return "BC5"
+	case FormatBC7:
+		return "BC7"
 	case FormatRGBA8:
 		return "RGBA8"
 	case FormatBGRA8:
@@ -65,6 +69,8 @@ func (f Format) blockSize() int {
 		return 8
 	case FormatBC5:
 		return 16
+	case FormatBC7:
+		return 16
 	case FormatRGBA8, FormatBGRA8:
 		return 4
 	default:
@@ -75,7 +81,7 @@ func (f Format) blockSize() int {
 // isCompressed reports whether the format uses BCn block compression.
 func (f Format) isCompressed() bool {
 	switch f {
-	case FormatDXT1, FormatDXT3, FormatDXT5, FormatBC4, FormatBC5:
+	case FormatDXT1, FormatDXT3, FormatDXT5, FormatBC4, FormatBC5, FormatBC7:
 		return true
 	default:
 		return false

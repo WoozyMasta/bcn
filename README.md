@@ -11,7 +11,7 @@ and read/write DDS/KTX with mipmaps and cubemaps.
 
 ## Implemented
 
-* BC1/DXT1, BC2/DXT3, BC3/DXT5, BC4, BC5 encode/decode
+* BC1/DXT1, BC2/DXT3, BC3/DXT5, BC4, BC5, BC7/BPTC encode/decode
 * DDS read/write (2D + cubemap, mipmaps, uncompressed RGBA/BGRA)
 * KTX v1 read/write (2D + cubemap, mipmaps)
 * Mipmap generation with optional sRGB-aware downscale
@@ -99,7 +99,8 @@ cfg, _, _ := image.DecodeConfig(f) // width, height only
 ## Notes
 
 * Only compressed KTX v1 is supported (no arrays/3D).
-* DDS DX10 header is read for BC1/3/5 and BC4/5; writing uses legacy FourCC.
+* DDS DX10 header is read for BC1/3/5 and BC4/5; writing uses legacy FourCC,
+  except BC7 which is always written with a DX10 header (`BC7_UNORM`).
 * BC4 uses red channel; BC5 uses red/green.
 * DDS BGRA is converted to RGBA on decode;
   RGBA/BGRA are supported for uncompressed DDS.
@@ -144,19 +145,21 @@ throughput over input RGBA (higher is better):
 
 | Format   | fast, MB/s | balanced, MB/s | best, MB/s | decode, MB/s |
 | -------- | ---------: | -------------: | ---------: | -----------: |
-| **DXT1** |       ~830 |            ~38 |        ~12 |         ~815 |
-| **DXT3** |       ~205 |            ~36 |        ~12 |        ~1650 |
-| **DXT5** |       ~375 |            ~35 |        ~11 |        ~1540 |
-| **BC4**  |       ~460 |            ~76 |        ~22 |        ~1420 |
-| **BC5**  |       ~255 |            ~39 |        ~11 |        ~2460 |
+| **DXT1** |       ~830 |            ~35 |        ~12 |         ~920 |
+| **DXT3** |       ~635 |            ~33 |        ~12 |        ~1715 |
+| **DXT5** |       ~370 |            ~31 |        ~11 |        ~1670 |
+| **BC4**  |       ~480 |            ~74 |        ~23 |        ~1530 |
+| **BC5**  |       ~255 |            ~38 |        ~12 |        ~2490 |
+| **BC7**  |        ~55 |           ~0.9 |       ~0.5 |          ~66 |
 
 Multi-thread, `Workers=auto` (`GOMAXPROCS=32`), 512x512,
 encode throughput over input RGBA (higher is better):
 
 | Format   | fast, MB/s | balanced, MB/s | best, MB/s |
 | -------- | ---------: | -------------: | ---------: |
-| **DXT1** |     ~4,770 |           ~370 |       ~150 |
-| **DXT5** |     ~2,510 |           ~390 |       ~135 |
+| **DXT1** |     ~5,000 |           ~380 |       ~144 |
+| **DXT5** |     ~2,620 |           ~370 |       ~130 |
+| **BC7**  |       ~540 |            ~13 |         ~7 |
 
 Fast/Balanced/Best correspond to
 `QualityLevelFast`, `QualityLevelBalanced`, `QualityLevelBest`.  

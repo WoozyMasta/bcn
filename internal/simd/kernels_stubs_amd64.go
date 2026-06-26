@@ -40,23 +40,43 @@ func DecodeBC4RowAVX2(dst *byte, src *byte, n int, stride int)
 //go:noescape
 func DecodeBC5RowAVX2(dst *byte, src *byte, n int, stride int)
 
-// PackDXT1IndicesAVX2 maps 16 NRGBA pixels to weighted-SSE-nearest palette
-// entries and packs the 2-bit indices. Alpha mode is driven by the params
-// block: a sub-threshold pixel is forced to index 3 and the entry-3 penalty
-// keeps that entry from winning the argmin. Ties keep the lowest index.
+// PackDXT1IndicesAVX2 maps 16 NRGBA pixels to weighted-SSE-nearest palette entries
+// and packs the 2-bit indices. Alpha mode is driven by the params block:
+// a sub-threshold pixel is forced to index 3 and the entry-3 penalty keeps that entry from winning the argmin.
+// Ties keep the lowest index.
 //
 //go:noescape
 func PackDXT1IndicesAVX2(block *[64]byte, params *[20]int32) uint32
 
-// ScoreDXT1PaletteAVX2 returns the total weighted block error of one BC1
-// endpoint pair (cc = c0 | c1<<16) over 16 pixels, palette built like the
-// Go encoder. Used to drive endpoint refinement.
+// ScoreDXT1PaletteAVX2 returns the total weighted block error of one BC1 endpoint pair
+// (cc = c0 | c1<<16) over 16 pixels, palette built like the Go encoder.
+// Used to drive endpoint refinement.
 //
 //go:noescape
 func ScoreDXT1PaletteAVX2(block *[64]byte, cc uint32, weights *[4]int32) uint32
 
-// AlphaBlockErrorAVX2 returns the summed minimum squared error of 16 alpha
-// samples against the palette of endpoints aa = a0 | a1<<8 (BC3/BC4 scoring).
+// BC7Mode6IndicesAVX2 assigns 16 RGBA pixels to the nearest mode 6 palette entry.
+// params stores palette channels as 16 R, 16 G, 16 B, 16 A int32 values.
+//
+//go:noescape
+func BC7Mode6IndicesAVX2(block *[64]byte, params *[64]int32, idx *[16]int32) uint32
+
+// BC7SubsetEvalAVX2 assigns nearest RGB palette indices for one subset
+// and accumulates least-squares sums {aa,bb,ab,aR,aG,aB,bR,bG,bB} plus the total error in out[9].
+// Texels outside the subset (part&3 != subset) are ignored.
+//
+//go:noescape
+func BC7SubsetEvalAVX2(block *[64]byte, part *[16]byte, params *[34]int32, out *[10]int32)
+
+// BC7Mode7SubsetEvalAVX2 assigns nearest RGBA palette indices for one subset
+// and accumulates least-squares sums {aa,bb,ab,aR,aG,aB,aA,bR,bG,bB,bA} plus the total error in out[11].
+// Texels outside the subset are ignored.
+//
+//go:noescape
+func BC7Mode7SubsetEvalAVX2(block *[64]byte, part *[16]byte, params *[22]int32, out *[12]int32)
+
+// AlphaBlockErrorAVX2 returns the summed minimum squared error of 16 alpha samples
+// against the palette of endpoints aa = a0 | a1<<8 (BC3/BC4 scoring).
 //
 //go:noescape
 func AlphaBlockErrorAVX2(samples *[16]uint8, aa uint32) uint32

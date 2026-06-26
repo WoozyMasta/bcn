@@ -23,6 +23,7 @@ func main() {
 	alphaConsts := genAlphaConsts()
 	genMiscConsts()
 	mipmapConsts := genMipmapConsts()
+	bc7Consts := genBC7Consts()
 	genDecodeDXT1Row(consts)
 	genDecodeDXT3Row(consts)
 	genDecodeDXT5Row(consts, alphaConsts)
@@ -31,6 +32,9 @@ func main() {
 
 	genPackDXT1Indices(consts)
 	genScoreDXT1Palette()
+	genBC7Mode6Indices(bc7Consts)
+	genBC7SubsetEval()
+	genBC7Mode7SubsetEval()
 
 	alphaShifts := genAlphaIdxShifts()
 	genAlphaBlockError(alphaConsts)

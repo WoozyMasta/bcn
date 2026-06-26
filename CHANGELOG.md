@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
+## Unreleased
+
+### Added
+
+* BC7/BPTC (unorm) encode and decode for all 8 modes,
+  with DDS (DX10) and KTX v1 I/O.
+  Encoder picks the lowest-error mode per block,
+  with `QualityLevel` trading encode time for quality.
+  Hot paths use the existing AVX2 path with a pure-Go fallback.
+
 ## [0.5.0][] - 2026-06-18
 
 ### Added
