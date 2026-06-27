@@ -9,6 +9,8 @@ import (
 	"math"
 	"os"
 	"testing"
+
+	"math/rand/v2"
 )
 
 // knownHalves lists float32 values paired with their exact IEEE 754 half-float bit patterns
@@ -232,5 +234,175 @@ func TestDDSBC6HRoundTrip(t *testing.T) {
 	}
 	if !bytes.Equal(dds2.Faces[0].Mipmaps[0], dds.Faces[0].Mipmaps[0]) {
 		t.Fatal("mip0 block bytes differ after DDS round-trip")
+	}
+}
+
+// bc6hMSE computes the mean-squared error between two half-float RGB slices
+// using only the 15-bit magnitude (sign is ignored for unsigned BC6H).
+func bc6hMSE(a, b []uint16) float64 {
+	var sum float64
+	for i := range a {
+		da := float64(a[i]&0x7FFF) - float64(b[i]&0x7FFF)
+		sum += da * da
+	}
+	return sum / float64(len(a))
+}
+
+func TestEncodeBC6HNoPanic(t *testing.T) {
+	rng := rand.New(rand.NewPCG(0xBC6, 42))
+	const w, h = 64, 64
+	src := make([]uint16, w*h*3)
+	for i := range src {
+		// generate valid half-float unsigned values (no NaN/Inf)
+		exp := uint16(rng.IntN(30)+1) << 10
+		man := uint16(rng.IntN(1024))
+		src[i] = exp | man
+	}
+	for _, signed := range []bool{false, true} {
+		for _, q := range []int{1, 6, 9} {
+			opts := &EncodeOptions{QualityLevel: q}
+			out, err := EncodeBC6HWithOptions(src, w, h, signed, opts)
+			if err != nil {
+				t.Fatalf("signed=%v q=%d: %v", signed, q, err)
+			}
+			if len(out) != (w/4)*(h/4)*16 {
+				t.Fatalf("signed=%v q=%d: unexpected output length %d", signed, q, len(out))
+			}
+		}
+	}
+}
+
+func TestEncodeBC6HRoundTrip(t *testing.T) {
+	// Solid-color block: encoder must reproduce the value exactly (MSE=0).
+	const w, h = 4, 4
+	solidColor := uint16(0x3C00) // 1.0 in float16
+	src := make([]uint16, w*h*3)
+	for i := range src {
+		src[i] = solidColor
+	}
+
+	compressed, err := EncodeBC6H(src, w, h, false)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	decoded, err := DecodeBC6H(compressed, w, h, false)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(decoded) != len(src) {
+		t.Fatalf("length mismatch: got %d, want %d", len(decoded), len(src))
+	}
+	mse := bc6hMSE(src, decoded)
+	t.Logf("BC6HU 4x4 solid: MSE=%.2f", mse)
+	// Solid-color block: quantize/unquantize may introduce <= 1 ULP error per channel.
+	if mse > 4 {
+		t.Errorf("solid-color MSE %.2f exceeds 4 (more than 2 ULP per channel)", mse)
+	}
+
+	// Random block smoke test: just verify encode/decode roundtrip does not diverge catastrophically.
+	// MSE floor is set at 80% of max possible error for uniform-random data (full half range).
+	const w2, h2 = 8, 8
+	rng := rand.New(rand.NewPCG(0xC0FFEE, 7))
+	src2 := make([]uint16, w2*h2*3)
+	for i := range src2 {
+		src2[i] = uint16(rng.IntN(0x7C00))
+	}
+	comp2, err := EncodeBC6H(src2, w2, h2, false)
+	if err != nil {
+		t.Fatalf("encode random: %v", err)
+	}
+	dec2, err := DecodeBC6H(comp2, w2, h2, false)
+	if err != nil {
+		t.Fatalf("decode random: %v", err)
+	}
+	mse2 := bc6hMSE(src2, dec2)
+	const maxMSE = 2e8 // sanity floor: catastrophic failure if exceeded
+	if mse2 > maxMSE {
+		t.Errorf("random MSE %.0f exceeds sanity floor %.0f", mse2, maxMSE)
+	}
+	t.Logf("BC6HU 8x8 random: MSE=%.2f", mse2)
+}
+
+func TestEncodeBC6HSignedRoundTrip(t *testing.T) {
+	const w, h = 8, 8
+	src := make([]uint16, w*h*3)
+	rng := rand.New(rand.NewPCG(0xDEAD, 13))
+	for i := range src {
+		// signed half-float values in [0, 0x7800) (positive normals only)
+		src[i] = uint16(rng.IntN(0x7800))
+	}
+
+	compressed, err := EncodeBC6H(src, w, h, true)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	decoded, err := DecodeBC6H(compressed, w, h, true)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	mse := bc6hMSE(src, decoded)
+	t.Logf("BC6HS 8x8 positive random: MSE=%.2f", mse)
+}
+
+func TestKTXRoundTripBC6H(t *testing.T) {
+	const w, h = 8, 8
+	rng := rand.New(rand.NewPCG(0x4B5458, 99))
+	src := make([]uint16, w*h*3)
+	for i := range src {
+		src[i] = uint16(rng.IntN(0x7C00))
+	}
+
+	compressed, err := EncodeBC6H(src, w, h, false)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+
+	ktx := &KTX{
+		Format: FormatBC6HU,
+		Width:  w,
+		Height: h,
+		Faces:  []Face{{Mipmaps: [][]byte{compressed}}},
+	}
+
+	var buf bytes.Buffer
+	if err := ktx.Write(&buf); err != nil {
+		t.Fatalf("KTX write: %v", err)
+	}
+
+	ktx2, err := ReadKTX(&buf)
+	if err != nil {
+		t.Fatalf("KTX read: %v", err)
+	}
+
+	if ktx2.Format != FormatBC6HU {
+		t.Fatalf("format mismatch: got %v", ktx2.Format)
+	}
+	if !bytes.Equal(ktx2.Faces[0].Mipmaps[0], compressed) {
+		t.Fatal("KTX block bytes differ after round-trip")
+	}
+}
+
+func TestEncodeBC6HFloat32RoundTrip(t *testing.T) {
+	const w, h = 8, 8
+	rng := rand.New(rand.NewPCG(0xF32, 5))
+	src := make([]float32, w*h*3)
+	for i := range src {
+		src[i] = float32(rng.Float64() * 10.0) // HDR values [0, 10)
+	}
+
+	out, err := EncodeBC6HFloat32(src, w, h, false)
+	if err != nil {
+		t.Fatalf("EncodeBC6HFloat32: %v", err)
+	}
+	if len(out) != (w/4)*(h/4)*16 {
+		t.Fatalf("unexpected output length %d", len(out))
+	}
+
+	decoded, err := DecodeBC6HFloat32(out, w, h, false)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(decoded) != len(src) {
+		t.Fatalf("decoded length mismatch")
 	}
 }

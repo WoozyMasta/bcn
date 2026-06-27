@@ -14,9 +14,6 @@ import (
 	"sync"
 )
 
-// rgbHalf holds one RGB texel as three half-precision floats.
-type rgbHalf [3]uint16
-
 // DecodeBC6H decodes BC6H-compressed data into a flat []uint16 of RGB half-float pixels.
 // Layout: width*height*3 uint16 values in row-major order (R, G, B per texel).
 // signed selects BC6H_SF16 (true) or BC6H_UF16 (false).
@@ -107,32 +104,6 @@ func decodeRangeBC6H(data []byte, out []uint16, width, height, bx, start, end in
 			y++
 		}
 	}
-}
-
-// extractBlockHDR copies a 4x4 HDR texel block from a flat RGB uint16 image.
-// src is row-major, width*height*3 uint16 values.
-// Out-of-bounds texels are clamped to the nearest edge.
-func extractBlockHDR(src []uint16, width, height, bx, by int) [16]rgbHalf {
-	var block [16]rgbHalf
-	baseX := bx * 4
-	baseY := by * 4
-	for row := range 4 {
-		py := baseY + row
-		if py >= height {
-			py = height - 1
-		}
-
-		for col := range 4 {
-			px := baseX + col
-			if px >= width {
-				px = width - 1
-			}
-			off := (py*width + px) * 3
-			block[row*4+col] = rgbHalf{src[off], src[off+1], src[off+2]}
-		}
-	}
-
-	return block
 }
 
 // storeBlockHDR writes a decoded 4x4 block (48 uint16, RGB row-major) into dst.
