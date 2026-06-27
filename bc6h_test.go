@@ -406,3 +406,60 @@ func TestEncodeBC6HFloat32RoundTrip(t *testing.T) {
 		t.Fatalf("decoded length mismatch")
 	}
 }
+
+// goldenHDRImage returns a deterministic 64x64 RGB half-float image (width*height*3 uint16).
+// The image covers both SDR (exp<=15) and HDR (exp 16-24) values to exercise all encoder paths.
+func goldenHDRImage() []uint16 {
+	const w, h = 64, 64
+	out := make([]uint16, w*h*3)
+	for y := range h {
+		for x := range w {
+			// R: gradient 0..1 across x, SDR range
+			r := float32(x) / float32(w-1)
+			// G: gradient 0..1 across y, SDR range
+			g := float32(y) / float32(h-1)
+			// B: HDR checkerboard, alternating between 1.0 and 8.0
+			b := float32(1.0)
+			if (x/8+y/8)%2 == 0 {
+				b = 8.0
+			}
+			off := (y*w + x) * 3
+			out[off+0] = float32ToFloat16(r)
+			out[off+1] = float32ToFloat16(g)
+			out[off+2] = float32ToFloat16(b)
+		}
+	}
+	return out
+}
+
+// bc6hPSNR computes PSNR (dB) between two half-float RGB slices using 15-bit magnitude.
+func bc6hPSNR(a, b []uint16) float64 {
+	mse := bc6hMSE(a, b)
+	if mse == 0 {
+		return math.Inf(1)
+	}
+	const peak = float64(0x7FFF)
+	return 10 * math.Log10(peak*peak/mse)
+}
+
+// TestEncodeBC6HDeterminism verifies that encoding the same image twice with the same
+// options produces byte-for-byte identical output (no randomness in the encoder path).
+func TestEncodeBC6HDeterminism(t *testing.T) {
+	src := goldenHDRImage()
+	for _, signed := range []bool{false, true} {
+		for _, q := range []int{1, 4, 9} {
+			opts := &EncodeOptions{QualityLevel: q, Workers: 1}
+			enc1, err := EncodeBC6HWithOptions(src, 64, 64, signed, opts)
+			if err != nil {
+				t.Fatalf("signed=%v q=%d first encode: %v", signed, q, err)
+			}
+			enc2, err := EncodeBC6HWithOptions(src, 64, 64, signed, opts)
+			if err != nil {
+				t.Fatalf("signed=%v q=%d second encode: %v", signed, q, err)
+			}
+			if !bytes.Equal(enc1, enc2) {
+				t.Errorf("signed=%v q=%d: encode is not deterministic", signed, q)
+			}
+		}
+	}
+}

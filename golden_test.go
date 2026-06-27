@@ -103,6 +103,26 @@ var goldenEncodeHashes = map[string]string{
 	"BC7/translucent/q8":   "a092a73d21ea9d17",
 	"BC7/translucent/q9":   "bdd359b7d3e6f0a9",
 	"BC7/translucent/q10":  "2020711052772849",
+	"BC6HU/UF16/q1":        "dd7dc80381029671",
+	"BC6HU/UF16/q2":        "e509f7ee6e05549f",
+	"BC6HU/UF16/q3":        "e509f7ee6e05549f",
+	"BC6HU/UF16/q4":        "d6155550e1dc8a27",
+	"BC6HU/UF16/q5":        "d6155550e1dc8a27",
+	"BC6HU/UF16/q6":        "d6155550e1dc8a27",
+	"BC6HU/UF16/q7":        "d6155550e1dc8a27",
+	"BC6HU/UF16/q8":        "b6b179bbd0a84dfb",
+	"BC6HU/UF16/q9":        "b6b179bbd0a84dfb",
+	"BC6HU/UF16/q10":       "b6b179bbd0a84dfb",
+	"BC6HS/SF16/q1":        "3beb645d3bbbe7c6",
+	"BC6HS/SF16/q2":        "ab112c70855ed726",
+	"BC6HS/SF16/q3":        "ab112c70855ed726",
+	"BC6HS/SF16/q4":        "d4ac8130bda6692a",
+	"BC6HS/SF16/q5":        "d4ac8130bda6692a",
+	"BC6HS/SF16/q6":        "d4ac8130bda6692a",
+	"BC6HS/SF16/q7":        "d4ac8130bda6692a",
+	"BC6HS/SF16/q8":        "a1cc3f7a98445ee8",
+	"BC6HS/SF16/q9":        "a1cc3f7a98445ee8",
+	"BC6HS/SF16/q10":       "a1cc3f7a98445ee8",
 }
 
 // goldenImage returns a deterministic 64x64 test image per scenario.
@@ -159,6 +179,8 @@ func goldenCases() []struct {
 		{FormatBC5, "opaque"},
 		{FormatBC7, "opaque"},
 		{FormatBC7, "translucent"},
+		{FormatBC6HU, "UF16"},
+		{FormatBC6HS, "SF16"},
 	}
 
 	var cases []struct {
@@ -189,8 +211,28 @@ func goldenCases() []struct {
 
 func goldenHash(t *testing.T, format Format, scenario string, quality int) string {
 	t.Helper()
-	rgba := goldenImage(scenario)
 	opts := &EncodeOptions{QualityLevel: quality, AlphaThreshold: 128, Workers: 1}
+
+	if format == FormatBC6HU || format == FormatBC6HS {
+		signed := format == FormatBC6HS
+		src := goldenHDRImage()
+		encoded, err := EncodeBC6HWithOptions(src, 64, 64, signed, opts)
+		if err != nil {
+			t.Fatalf("encode %s/q%d: %v", format, quality, err)
+		}
+		decoded, err := DecodeBC6H(encoded, 64, 64, signed)
+		if err != nil {
+			t.Fatalf("decode %s/q%d: %v", format, quality, err)
+		}
+		h := sha256.New()
+		h.Write(encoded)
+		for _, v := range decoded {
+			h.Write([]byte{byte(v), byte(v >> 8)})
+		}
+		return hex.EncodeToString(h.Sum(nil)[:8])
+	}
+
+	rgba := goldenImage(scenario)
 	encoded, err := encodeBlocksWithOptions(rgba, 64, 64, format, opts)
 	if err != nil {
 		t.Fatalf("encode %s/%s/q%d: %v", format, scenario, quality, err)
