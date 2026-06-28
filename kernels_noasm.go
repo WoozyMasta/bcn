@@ -90,3 +90,13 @@ func lsqAlphaAccumulateASM(_ *[16]uint8, _, _ uint8) (lsqAlphaSums, bool) {
 func downscaleNRGBARow2xASM(_, _, _ []byte, _ int) bool {
 	return false
 }
+
+// bc6hFindIdx1ASM is unavailable without assembly support.
+func bc6hFindIdx1ASM(_ *[48]int32, _, _ [3]int) ([16]byte, bool) {
+	return [16]byte{}, false
+}
+
+// bc6hFindIdx2ASM is unavailable without assembly support.
+func bc6hFindIdx2ASM(_ *[48]int32, _, _ [3]int, _, _ int) ([16]byte, bool) {
+	return [16]byte{}, false
+}

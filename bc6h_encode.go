@@ -5,6 +5,7 @@
 package bcn
 
 import (
+	"math"
 	"runtime"
 	"sync"
 )
@@ -217,7 +218,9 @@ func bc6hSubsetMaxDistPair(pq *[16][3]int, part int, subset int) ([3]int, [3]int
 
 // bc6hRank2SubsetN ranks the 32 BC6H partitions by total within-subset variance
 // in the pre-quantized int domain, returning the top maxN partition indices.
-func bc6hRank2SubsetN(pq *[16][3]int, maxN int) [32]int {
+// blk32 is the SOA-layout block (R[16], G[16], B[16] as int32), already computed by the caller;
+// it avoids the per-channel AOS dereference inside the inner loop.
+func bc6hRank2SubsetN(blk32 *[48]int32, maxN int) [32]int {
 	if maxN > 32 {
 		maxN = 32
 	}
@@ -227,13 +230,18 @@ func bc6hRank2SubsetN(pq *[16][3]int, maxN int) [32]int {
 		var sum [2][3]int
 		var sumSq [2][3]int
 		var cnt [2]int
+		parts := &bc6hPartitionSets[p]
 		for i := range 16 {
-			s := int(bc6hPartitionSets[p][i] & 0x01)
-			for c := range 3 {
-				v := pq[i][c]
-				sum[s][c] += v
-				sumSq[s][c] += v * v
-			}
+			s := int(parts[i] & 0x01)
+			r := int(blk32[i])
+			g := int(blk32[16+i])
+			b := int(blk32[32+i])
+			sum[s][0] += r
+			sum[s][1] += g
+			sum[s][2] += b
+			sumSq[s][0] += r * r
+			sumSq[s][1] += g * g
+			sumSq[s][2] += b * b
 			cnt[s]++
 		}
 
@@ -268,105 +276,134 @@ func bc6hRank2SubsetN(pq *[16][3]int, maxN int) [32]int {
 	return order
 }
 
-// bc6hPaletteInt1Sub builds the 16-entry interpolated palette for 1-subset.
-func bc6hPaletteInt1Sub(ep0, ep1 [3]int) [16][3]int {
-	var pal [16][3]int
-	w := bc6hAWeight4[:]
+// bc6hBlockSOA converts pq from AOS [16][3]int64 to SOA [48]int32 (R[16], G[16], B[16]).
+// Pre-computing this once per block eliminates repeated per-call conversions.
+func bc6hBlockSOA(pq *[16][3]int) [48]int32 {
+	var out [48]int32
 	for i := range 16 {
-		for c := range 3 {
-			pal[i][c] = bc6hInterpolate(ep0[c], ep1[c], w, i)
-		}
+		out[i] = int32(pq[i][0])    // #nosec G115 -- pre-quantized, max ~65534 < 2^31.
+		out[16+i] = int32(pq[i][1]) // #nosec G115
+		out[32+i] = int32(pq[i][2]) // #nosec G115
 	}
 
-	return pal
+	return out
 }
 
-// bc6hPaletteInt2Sub builds the 8-entry interpolated palette for one subset.
-func bc6hPaletteInt2Sub(ep0, ep1 [3]int) [8][3]int {
-	var pal [8][3]int
-	w := bc6hAWeight3[:]
-	for i := range 8 {
-		for c := range 3 {
-			pal[i][c] = bc6hInterpolate(ep0[c], ep1[c], w, i)
-		}
+// bc6hFindIdx1 is the inner-loop variant of bc6hFindIndices1Sub.
+// blk32 is the block pre-converted to SOA int32 (computed once per encode call).
+// Falls back to bc6hFindIndices1SubGo when AVX2 is unavailable.
+func bc6hFindIdx1(blk32 *[48]int32, pq *[16][3]int, ep0, ep1 [3]int) [16]byte {
+	if idx, ok := bc6hFindIdx1ASM(blk32, ep0, ep1); ok {
+		return idx
 	}
 
-	return pal
+	return bc6hFindIndices1SubGo(pq, ep0, ep1)
 }
 
-// bc6hL1 computes the L1 (Manhattan) distance between two pre-quantized texels.
-func bc6hL1(a, b [3]int) int {
-	dr := a[0] - b[0]
-	dg := a[1] - b[1]
-	db := a[2] - b[2]
-	if dr < 0 {
-		dr = -dr
-	}
-	if dg < 0 {
-		dg = -dg
-	}
-	if db < 0 {
-		db = -db
+// bc6hFindIdx2 is the inner-loop variant of bc6hFindIndices2Sub.
+func bc6hFindIdx2(blk32 *[48]int32, pq *[16][3]int, ep0, ep1 [3]int, part, subset int) [16]byte {
+	if idx, ok := bc6hFindIdx2ASM(blk32, ep0, ep1, part, subset); ok {
+		return idx
 	}
 
-	return dr + dg + db
+	return bc6hFindIndices2SubGo(pq, ep0, ep1, part, subset)
 }
 
-// bc6hFindIndices1Sub assigns 4-bit indices for 1-subset using L1 nearest-palette lookup.
-func bc6hFindIndices1Sub(pq *[16][3]int, ep0, ep1 [3]int) [16]byte {
-	pal := bc6hPaletteInt1Sub(ep0, ep1)
+// bc6hFindIndices1SubGo is the pure-Go fallback used by bc6hFindIdx1.
+// Builds the palette in per-channel flat arrays to eliminate struct overhead
+// in the inner loop and removes the -1 sentinel with math.MaxInt.
+func bc6hFindIndices1SubGo(pq *[16][3]int, ep0, ep1 [3]int) [16]byte {
+	var palR, palG, palB [16]int
+	w := bc6hAWeight4
+	for k := range 16 {
+		wk := w[k]
+		palR[k] = (ep0[0]*(64-wk) + ep1[0]*wk + 32) >> 6
+		palG[k] = (ep0[1]*(64-wk) + ep1[1]*wk + 32) >> 6
+		palB[k] = (ep0[2]*(64-wk) + ep1[2]*wk + 32) >> 6
+	}
+
 	var idx [16]byte
 	for i := range 16 {
-		best, bestE := 0, -1
+		pr, pg, pb := pq[i][0], pq[i][1], pq[i][2]
+		bestE, best := math.MaxInt, 0
 		for k := range 16 {
-			if e := bc6hL1(pq[i], pal[k]); bestE < 0 || e < bestE {
-				bestE = e
-				best = k
+			dr := pr - palR[k]
+			if dr < 0 {
+				dr = -dr
+			}
+			dg := pg - palG[k]
+			if dg < 0 {
+				dg = -dg
+			}
+			db := pb - palB[k]
+			if db < 0 {
+				db = -db
+			}
+			if e := dr + dg + db; e < bestE {
+				bestE, best = e, k
 			}
 		}
-		// #nosec G115 -- best is in [0,15].
-		idx[i] = byte(best)
+		idx[i] = byte(best) // #nosec G115 -- best is in [0,15].
 	}
 
 	return idx
 }
 
-// bc6hFindIndices2Sub assigns 3-bit indices for one subset using L1 nearest-palette lookup.
-func bc6hFindIndices2Sub(pq *[16][3]int, ep0, ep1 [3]int, part, subset int) [16]byte {
-	pal := bc6hPaletteInt2Sub(ep0, ep1)
+// bc6hFindIndices2SubGo is the pure-Go fallback used by bc6hFindIdx2.
+func bc6hFindIndices2SubGo(pq *[16][3]int, ep0, ep1 [3]int, part, subset int) [16]byte {
+	var palR, palG, palB [8]int
+	w := bc6hAWeight3
+	for k := range 8 {
+		wk := w[k]
+		palR[k] = (ep0[0]*(64-wk) + ep1[0]*wk + 32) >> 6
+		palG[k] = (ep0[1]*(64-wk) + ep1[1]*wk + 32) >> 6
+		palB[k] = (ep0[2]*(64-wk) + ep1[2]*wk + 32) >> 6
+	}
+
 	var idx [16]byte
 	for i := range 16 {
 		if int(bc6hPartitionSets[part][i]&0x01) != subset {
 			continue
 		}
 
-		best, bestE := 0, -1
+		pr, pg, pb := pq[i][0], pq[i][1], pq[i][2]
+		bestE, best := math.MaxInt, 0
 		for k := range 8 {
-			if e := bc6hL1(pq[i], pal[k]); bestE < 0 || e < bestE {
-				bestE = e
-				best = k
+			dr := pr - palR[k]
+			if dr < 0 {
+				dr = -dr
+			}
+			dg := pg - palG[k]
+			if dg < 0 {
+				dg = -dg
+			}
+			db := pb - palB[k]
+			if db < 0 {
+				db = -db
+			}
+			if e := dr + dg + db; e < bestE {
+				bestE, best = e, k
 			}
 		}
-		// #nosec G115 -- best is in [0,7].
-		idx[i] = byte(best)
+		idx[i] = byte(best) // #nosec G115 -- best is in [0,7].
 	}
 
 	return idx
 }
 
 // bc6hSwap1Sub swaps ep0/ep1 if the anchor index (texel 0) has its MSB set,
-// then re-assigns all indices.
-func bc6hSwap1Sub(pq *[16][3]int, ep0, ep1 *[3]int, idx *[16]byte) {
+// then re-assigns all indices. blk32 is the SOA block pre-converted by the caller.
+func bc6hSwap1Sub(pq *[16][3]int, blk32 *[48]int32, ep0, ep1 *[3]int, idx *[16]byte) {
 	if idx[0]&0x08 == 0 {
 		return
 	}
 
 	*ep0, *ep1 = *ep1, *ep0
-	*idx = bc6hFindIndices1Sub(pq, *ep0, *ep1)
+	*idx = bc6hFindIdx1(blk32, pq, *ep0, *ep1)
 }
 
 // bc6hSwap2Sub swaps endpoints for one subset if its anchor index has its MSB set.
-func bc6hSwap2Sub(pq *[16][3]int, ep0, ep1 *[3]int, idx *[16]byte, part, subset int) {
+func bc6hSwap2Sub(pq *[16][3]int, blk32 *[48]int32, ep0, ep1 *[3]int, idx *[16]byte, part, subset int) {
 	anchor := 0
 	if subset == 1 {
 		anchor = bc6hAnchorIndex2Sub[part]
@@ -376,11 +413,11 @@ func bc6hSwap2Sub(pq *[16][3]int, ep0, ep1 *[3]int, idx *[16]byte, part, subset 
 	}
 
 	*ep0, *ep1 = *ep1, *ep0
-	bc6hReassign2Sub(pq, ep0, ep1, idx, part, subset)
+	bc6hReassign2Sub(pq, blk32, ep0, ep1, idx, part, subset)
 }
 
-func bc6hReassign2Sub(pq *[16][3]int, ep0, ep1 *[3]int, idx *[16]byte, part, subset int) {
-	tmp := bc6hFindIndices2Sub(pq, *ep0, *ep1, part, subset)
+func bc6hReassign2Sub(pq *[16][3]int, blk32 *[48]int32, ep0, ep1 *[3]int, idx *[16]byte, part, subset int) {
+	tmp := bc6hFindIdx2(blk32, pq, *ep0, *ep1, part, subset)
 	for i := range 16 {
 		if int(bc6hPartitionSets[part][i]&0x01) == subset {
 			idx[i] = tmp[i]
@@ -462,6 +499,9 @@ var bc6hModes = [14]bc6hModeDesc{
 func encodeBlockBC6H(block [48]uint16, signed bool, quality int) [16]byte {
 	pq := bc6hBlockPreQ(block, signed)
 
+	// Pre-convert block to SOA int32 once; all bc6hFindIdx* calls reuse this.
+	blk32 := bc6hBlockSOA(&pq)
+
 	// number of 2-subset partitions to try
 	maxParts := 4
 	if quality >= 8 {
@@ -514,8 +554,8 @@ func encodeBlockBC6H(block [48]uint16, signed bool, quality int) [16]byte {
 			bc6hUnquantize(q1[2], md.wBits, signed),
 		}
 
-		idx := bc6hFindIndices1Sub(&pq, uq0, uq1)
-		bc6hSwap1Sub(&pq, &uq0, &uq1, &idx)
+		idx := bc6hFindIdx1(&blk32, &pq, uq0, uq1)
+		bc6hSwap1Sub(&pq, &blk32, &uq0, &uq1, &idx)
 
 		q0 = bc6hQuantizeEP(uq0, md.wBits, signed)
 		q1 = bc6hQuantizeEP(uq1, md.wBits, signed)
@@ -543,8 +583,8 @@ func encodeBlockBC6H(block [48]uint16, signed bool, quality int) [16]byte {
 					bc6hUnquantize(nq1[2], md.wBits, signed),
 				}
 
-				nidx := bc6hFindIndices1Sub(&pq, nuq0, nuq1)
-				bc6hSwap1Sub(&pq, &nuq0, &nuq1, &nidx)
+				nidx := bc6hFindIdx1(&blk32, &pq, nuq0, nuq1)
+				bc6hSwap1Sub(&pq, &blk32, &nuq0, &nuq1, &nidx)
 
 				nq0 = bc6hQuantizeEP(nuq0, md.wBits, signed)
 				nq1 = bc6hQuantizeEP(nuq1, md.wBits, signed)
@@ -583,8 +623,8 @@ func encodeBlockBC6H(block [48]uint16, signed bool, quality int) [16]byte {
 				bc6hUnquantize(q1raw[2], md.wBits, signed),
 			}
 
-			idx := bc6hFindIndices1Sub(&pq, uq0, uq1)
-			bc6hSwap1Sub(&pq, &uq0, &uq1, &idx)
+			idx := bc6hFindIdx1(&blk32, &pq, uq0, uq1)
+			bc6hSwap1Sub(&pq, &blk32, &uq0, &uq1, &idx)
 
 			q0f := bc6hQuantizeEP(uq0, md.wBits, signed)
 			q1f := bc6hQuantizeEP(uq1, md.wBits, signed)
@@ -610,7 +650,7 @@ func encodeBlockBC6H(block [48]uint16, signed bool, quality int) [16]byte {
 
 	// 2-subset modes
 	if quality >= 2 {
-		partOrder := bc6hRank2SubsetN(&pq, maxParts)
+		partOrder := bc6hRank2SubsetN(&blk32, maxParts)
 		packFuncs2Sub := [10]func([3]int, [3]int, [3]int, [3]int, int, [16]byte) [16]byte{
 			packBC6HMode0, packBC6HMode1, packBC6HMode2, packBC6HMode3, packBC6HMode4,
 			packBC6HMode5, packBC6HMode6, packBC6HMode7, packBC6HMode8, packBC6HMode9,
@@ -683,8 +723,8 @@ func encodeBlockBC6H(block [48]uint16, signed bool, quality int) [16]byte {
 				}
 
 				var idx [16]byte
-				s0idx := bc6hFindIndices2Sub(&pq, uq0, uq1, part, 0)
-				s1idx := bc6hFindIndices2Sub(&pq, uq2, uq3, part, 1)
+				s0idx := bc6hFindIdx2(&blk32, &pq, uq0, uq1, part, 0)
+				s1idx := bc6hFindIdx2(&blk32, &pq, uq2, uq3, part, 1)
 				for i := range 16 {
 					if bc6hPartitionSets[part][i]&0x01 == 0 {
 						idx[i] = s0idx[i]
@@ -693,8 +733,8 @@ func encodeBlockBC6H(block [48]uint16, signed bool, quality int) [16]byte {
 					}
 				}
 
-				bc6hSwap2Sub(&pq, &uq0, &uq1, &idx, part, 0)
-				bc6hSwap2Sub(&pq, &uq2, &uq3, &idx, part, 1)
+				bc6hSwap2Sub(&pq, &blk32, &uq0, &uq1, &idx, part, 0)
+				bc6hSwap2Sub(&pq, &blk32, &uq2, &uq3, &idx, part, 1)
 
 				q0f := bc6hQuantizeEP(uq0, md.wBits, signed)
 				q1f := bc6hQuantizeEP(uq1, md.wBits, signed)
