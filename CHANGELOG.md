@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning][].
 
 ### Added
 
+* BC6H/BPTC-HDR encode and decode (unsigned `BC6H_UF16` and signed `BC6H_SF16`),
+  with DDS (DX10) and KTX v1 I/O.
+  Input/output is `[]uint16` or `[]float32` RGB half-float
+  via `EncodeBC6H` / `DecodeBC6H`.
+  AVX2 kernels accelerate the nearest-palette search;
+  pure-Go fallback everywhere else.
 * BC7/BPTC (unorm) encode and decode for all 8 modes,
   with DDS (DX10) and KTX v1 I/O.
   Encoder picks the lowest-error mode per block,
