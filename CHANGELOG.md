@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning][].
   including unsigned and signed BC6H.
 * Canonical BC1, BC2, and BC3 API names;
   existing DXT1, DXT3, and DXT5 names remain compatibility aliases.
+* Runnable API examples for image, DDS, and BC6H encoding.
 
 ### Fixed
 
