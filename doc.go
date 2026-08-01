@@ -19,7 +19,7 @@ and pick an appropriate QualityLevel in EncodeOptions.
 
 DDS BGRA pixels are converted to RGBA on decode.
 Uncompressed DDS and KTX support RGBA, BGRA, alpha-only A8, R8/RG8 (UNORM and SNORM),
-RGB10A2, RGB565, RGBA5551, and RGBA4444;
+RGB10A2, RGB565, RGBA5551, RGBA4444, RGB8, and BGR8;
 DDS additionally supports BGRX8.
 */
 package bcn

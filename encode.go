@@ -126,6 +126,22 @@ func decodeBlocksInto(dst, data []byte, width, height int, format Format, opts *
 			}
 			return nil
 
+		case FormatRGB8:
+			for src, outOffset := 0, 0; src < expected; src, outOffset = src+3, outOffset+4 {
+				copy(dst[outOffset:outOffset+3], data[src:src+3])
+				dst[outOffset+3] = 255
+			}
+			return nil
+
+		case FormatBGR8:
+			for src, outOffset := 0, 0; src < expected; src, outOffset = src+3, outOffset+4 {
+				dst[outOffset] = data[src+2]
+				dst[outOffset+1] = data[src+1]
+				dst[outOffset+2] = data[src]
+				dst[outOffset+3] = 255
+			}
+			return nil
+
 		case FormatRGBA5551:
 			for src, outOffset := 0, 0; src < expected; src, outOffset = src+2, outOffset+4 {
 				pixel := binary.LittleEndian.Uint16(data[src:])
@@ -341,6 +357,20 @@ func encodeBlocksInto(dst, rgba []byte, width, height int, format Format, opts *
 					u8ToUNORM(rgba[src+1], 63)<<5 |
 					u8ToUNORM(rgba[src+2], 31)
 				binary.LittleEndian.PutUint16(out[dst:], pixel)
+			}
+			return nil
+
+		case FormatRGB8:
+			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+3 {
+				copy(out[dst:dst+3], rgba[src:src+3])
+			}
+			return nil
+
+		case FormatBGR8:
+			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+3 {
+				out[dst] = rgba[src+2]
+				out[dst+1] = rgba[src+1]
+				out[dst+2] = rgba[src]
 			}
 			return nil
 

@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning][].
   and KTX v1 I/O support.
 * Packed 16-bit `FormatRGB565`, `FormatRGBA5551`, and `FormatRGBA4444`
   encode/decode with DDS DX10 and KTX v1 I/O support.
+* Uncompressed `FormatRGB8` and `FormatBGR8` encode/decode
+  with legacy 24-bit DDS and KTX v1 I/O support.
 
 ## [0.6.0][] - 2026-08-02
 

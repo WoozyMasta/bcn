@@ -132,7 +132,7 @@ func (d *DDS) Write(w io.Writer) error {
 
 	if !d.Format.isCompressed() {
 		switch d.Format {
-		case FormatRGBA8, FormatBGRA8, FormatBGRX8, FormatR8, FormatRG8, FormatRGB10A2, FormatR8S, FormatRG8S, FormatA8, FormatRGB565, FormatRGBA5551, FormatRGBA4444:
+		case FormatRGBA8, FormatBGRA8, FormatBGRX8, FormatR8, FormatRG8, FormatRGB10A2, FormatR8S, FormatRG8S, FormatA8, FormatRGB565, FormatRGBA5551, FormatRGBA4444, FormatRGB8, FormatBGR8:
 		default:
 			return ErrUnsupportedFormat
 		}
@@ -322,6 +322,24 @@ func (d *DDS) Write(w io.Writer) error {
 		hdr.PitchOrLinearSize = u32(d.Width * 2)
 		dx10Format = 115 // DXGI_FORMAT_B4G4R4A4_UNORM
 
+	case FormatRGB8:
+		hdr.Flags |= DDSFlagPitch
+		hdr.PixelFormat.Flags = DDSPFRGB
+		hdr.PixelFormat.RGBBitCount = 24
+		hdr.PixelFormat.RBitMask = 0x000000ff
+		hdr.PixelFormat.GBitMask = 0x0000ff00
+		hdr.PixelFormat.BBitMask = 0x00ff0000
+		hdr.PitchOrLinearSize = u32(d.Width * 3)
+
+	case FormatBGR8:
+		hdr.Flags |= DDSFlagPitch
+		hdr.PixelFormat.Flags = DDSPFRGB
+		hdr.PixelFormat.RGBBitCount = 24
+		hdr.PixelFormat.RBitMask = 0x00ff0000
+		hdr.PixelFormat.GBitMask = 0x0000ff00
+		hdr.PixelFormat.BBitMask = 0x000000ff
+		hdr.PitchOrLinearSize = u32(d.Width * 3)
+
 	default:
 		return ErrUnsupportedDDSFormat
 	}
@@ -368,6 +386,14 @@ func (d *DDS) Write(w io.Writer) error {
 func ddsFormatFromHeader(r io.Reader, header *DDSHeader) (Format, *DDSHeaderDX10, error) {
 	pf := header.PixelFormat
 	if pf.Flags&DDSPFFourCC == 0 {
+		if pf.Flags&DDSPFRGB != 0 && pf.RGBBitCount == 24 && pf.ABitMask == 0 {
+			if pf.RBitMask == 0x000000ff && pf.GBitMask == 0x0000ff00 && pf.BBitMask == 0x00ff0000 {
+				return FormatRGB8, nil, nil
+			}
+			if pf.RBitMask == 0x00ff0000 && pf.GBitMask == 0x0000ff00 && pf.BBitMask == 0x000000ff {
+				return FormatBGR8, nil, nil
+			}
+		}
 		if pf.Flags&DDSPFRGB != 0 && pf.RGBBitCount == 32 && (pf.Flags&DDSPFAlphaPixels) != 0 {
 			if pf.RBitMask == 0x000000ff && pf.GBitMask == 0x0000ff00 &&
 				pf.BBitMask == 0x00ff0000 && pf.ABitMask == 0xff000000 {

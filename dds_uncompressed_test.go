@@ -248,6 +248,67 @@ func TestPacked16EncodeDecode(t *testing.T) {
 	}
 }
 
+func TestRGB8BGR8DDSAndKTX(t *testing.T) {
+	img := SolidImage(3, 2, color.NRGBA{R: 10, G: 20, B: 30, A: 40})
+	tests := []struct {
+		format Format
+		data   []byte
+	}{
+		{FormatRGB8, []byte{10, 20, 30, 10, 20, 30, 10, 20, 30, 10, 20, 30, 10, 20, 30, 10, 20, 30}},
+		{FormatBGR8, []byte{30, 20, 10, 30, 20, 10, 30, 20, 10, 30, 20, 10, 30, 20, 10, 30, 20, 10}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.format.String(), func(t *testing.T) {
+			decoded, err := DecodeImage(tt.data, 1, 1, tt.format)
+			if err != nil {
+				t.Fatalf("DecodeImage: %v", err)
+			}
+			if got := [4]byte(decoded.Pix[:4]); got != [4]byte{10, 20, 30, 255} {
+				t.Fatalf("pixel = %v, want [10 20 30 255]", got)
+			}
+
+			ds, err := EncodeDDS(img, tt.format)
+			if err != nil {
+				t.Fatalf("EncodeDDS: %v", err)
+			}
+			if got := ds.Faces[0].Mipmaps[0]; !bytes.Equal(got, tt.data) {
+				t.Fatalf("DDS data = %v, want %v", got, tt.data)
+			}
+			var ddsBuf bytes.Buffer
+			if err := ds.Write(&ddsBuf); err != nil {
+				t.Fatalf("DDS Write: %v", err)
+			}
+			readDDS, err := ReadDDS(&ddsBuf)
+			if err != nil {
+				t.Fatalf("ReadDDS: %v", err)
+			}
+			if readDDS.Format != tt.format {
+				t.Fatalf("DDS format = %v, want %v", readDDS.Format, tt.format)
+			}
+
+			ktx, err := EncodeKTX(img, tt.format)
+			if err != nil {
+				t.Fatalf("EncodeKTX: %v", err)
+			}
+			var ktxBuf bytes.Buffer
+			if err := ktx.Write(&ktxBuf); err != nil {
+				t.Fatalf("KTX Write: %v", err)
+			}
+			readKTX, err := ReadKTX(&ktxBuf)
+			if err != nil {
+				t.Fatalf("ReadKTX: %v", err)
+			}
+			if readKTX.Format != tt.format {
+				t.Fatalf("KTX format = %v, want %v", readKTX.Format, tt.format)
+			}
+			if got := readKTX.Faces[0].Mipmaps[0]; !bytes.Equal(got, tt.data) {
+				t.Fatalf("KTX data = %v, want %v", got, tt.data)
+			}
+		})
+	}
+}
+
 func TestRGB10A2EncodeDecode(t *testing.T) {
 	const packed = uint32(0xA02003FF) // R=1023, G=0, B=514, A=2.
 	data := make([]byte, 4)

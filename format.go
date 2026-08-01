@@ -73,6 +73,10 @@ const (
 	// FormatRGBA4444 is packed 4-bit RGBA UNORM (2 bytes per pixel).
 	// The little-endian word layout is A4:R4:G4:B4.
 	FormatRGBA4444
+	// FormatRGB8 is uncompressed RGB UNORM (3 bytes per pixel).
+	FormatRGB8
+	// FormatBGR8 is uncompressed BGR UNORM (3 bytes per pixel).
+	FormatBGR8
 )
 
 const (
@@ -130,6 +134,10 @@ func (f Format) String() string {
 		return "RGBA5551"
 	case FormatRGBA4444:
 		return "RGBA4444"
+	case FormatRGB8:
+		return "RGB8"
+	case FormatBGR8:
+		return "BGR8"
 	default:
 		return "Unknown"
 	}
@@ -156,6 +164,8 @@ func (f Format) blockSize() int {
 		return 2
 	case FormatRGB565, FormatRGBA5551, FormatRGBA4444:
 		return 2
+	case FormatRGB8, FormatBGR8:
+		return 3
 	default:
 		return 0
 	}
