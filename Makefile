@@ -30,7 +30,7 @@ generate:
 generate-check: generate
 	git diff --exit-code -- internal/simd
 
-.PHONY: gen-parity-fixtures gen-parity-fixtures-check
+.PHONY: gen-parity-fixtures gen-parity-fixtures-clean gen-parity-fixtures-check
 
 gen-parity-fixtures:
 	mkdir -p testdata/parity
@@ -38,6 +38,8 @@ gen-parity-fixtures:
 	echo "$(BCDEC_SHA256)  $(BCDEC_HEADER)" | sha256sum --check --status -
 	$(CC) -std=c99 -O2 -Wall -Wextra -Werror -o testdata/gen/gen_parity testdata/gen/gen_parity.c
 	./testdata/gen/gen_parity
+
+gen-parity-fixtures-clean:
 	rm -f $(BCDEC_HEADER) testdata/gen/gen_parity testdata/gen/gen_parity.exe
 
 gen-parity-fixtures-check: gen-parity-fixtures

@@ -124,3 +124,6 @@ $RECYCLE.BIN/
 
 bench_*.txt
 *.pprof
+testdata/gen/bcdec.h
+testdata/gen/gen_parity
+testdata/gen/gen_parity.exe
