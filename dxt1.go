@@ -47,12 +47,35 @@ func decodeBlockDXT1(data []byte) [64]byte {
 // dxt1PaletteLE builds the BC1 palette as packed little-endian NRGBA words.
 func dxt1PaletteLE(c0, c1 uint16) [4]uint32 {
 	p := dxt1Palette(c0, c1)
+	return dxt1PaletteToLE(p)
+}
+
+// dxt1OpaquePaletteLE builds the four-color palette required by BC2 and BC3.
+func dxt1OpaquePaletteLE(c0, c1 uint16) [4]uint32 {
+	p := dxt1OpaquePalette(c0, c1)
+	return dxt1PaletteToLE(p)
+}
+
+func dxt1PaletteToLE(p [4]rgba8) [4]uint32 {
 	var pal [4]uint32
 	for k := range pal {
 		pal[k] = uint32(p[k].r) | uint32(p[k].g)<<8 | uint32(p[k].b)<<16 | uint32(p[k].a)<<24
 	}
 
 	return pal
+}
+
+// dxt1OpaquePalette builds the four-color palette required by BC2 and BC3,
+// even when c0 <= c1. BC1 uses dxt1Palette instead for 1-bit alpha mode.
+func dxt1OpaquePalette(c0, c1 uint16) [4]rgba8 {
+	p0 := rgbaFrom565(c0)
+	p1 := rgbaFrom565(c1)
+	return [4]rgba8{
+		p0,
+		p1,
+		{r: mix3(2, 1, p0.r, p1.r), g: mix3(2, 1, p0.g, p1.g), b: mix3(2, 1, p0.b, p1.b), a: 255},
+		{r: mix3(1, 2, p0.r, p1.r), g: mix3(1, 2, p0.g, p1.g), b: mix3(1, 2, p0.b, p1.b), a: 255},
+	}
 }
 
 // dxt1Palette builds the 4-entry BC1 palette from two RGB565 endpoints.

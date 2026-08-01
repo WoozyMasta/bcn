@@ -31,12 +31,12 @@ func genDecodeConsts() decodeConsts {
 	return decodeConsts{shiftsLo: lo, shiftsHi: hi}
 }
 
-// expand565RGB emits scalar code expanding a packed RGB565 word (zero-extended
-// in c) to separate 8-bit channels using exact multiply-shift identities:
+// expand565RGB emits scalar code expanding a packed RGB565 word
+// (zero-extended in c) to separate 8-bit channels using exact multiply-shift identities:
 // 5-bit: (v*527+23)>>6, 6-bit: (v*259+33)>>6 (byte-identical to (v*255+k)/d).
 func expand565RGB(c GPVirtual) (r8, g8, b8 GPVirtual) {
-	// avo v0.6 lacks imm32 forms of IMUL3L, so multiplies use the Q form on
-	// zero-extended values (identical low 32 bits).
+	// avo v0.6 lacks imm32 forms of IMUL3L,
+	// so multiplies use the Q form on zero-extended values (identical low 32 bits).
 	r8 = GP32()
 	MOVL(c.As32(), r8)
 	SHRL(Imm(11), r8)
@@ -108,12 +108,13 @@ func packRGB(r, g, b GPVirtual, alpha uint32) GPVirtual {
 }
 
 // emitDXT1Palette emits scalar BC1 palette construction for endpoints c0, c1
-// (zero-extended 16-bit) and returns the palette in the low XMM lanes of a
-// YMM register (entries 0..3 as little-endian RGBA dwords, upper lanes zero).
-// Entries are inserted into the vector as soon as they are packed to keep GP
-// register pressure low; channel pairs are interpolated together so their
-// source registers die early.
-func emitDXT1Palette(c0, c1 GPVirtual) VecVirtual {
+// (zero-extended 16-bit) and returns the palette in the low XMM lanes of a YMM register
+// (entries 0..3 as little-endian RGBA dwords, upper lanes zero).
+// Entries are inserted into the vector as soon as they are packed to keep GP register pressure low;
+// channel pairs are interpolated together so their source registers die early.
+// opaque selects BC2/BC3's mandatory four-color mode,
+// including c0 <= c1; BC1 passes false for its 1-bit alpha mode.
+func emitDXT1Palette(c0, c1 GPVirtual, opaque bool) VecVirtual {
 	pal := YMM()
 
 	p0, r0, g0, b0 := expand565(c0)
@@ -123,21 +124,23 @@ func emitDXT1Palette(c0, c1 GPVirtual) VecVirtual {
 	p1, r1, g1, b1 := expand565(c1)
 	VPINSRD(Imm(1), p1, pal.AsX(), pal.AsX())
 
-	CMPL(c0.As32(), c1.As32())
-	JHI(LabelRef("mode4"))
+	if !opaque {
+		CMPL(c0.As32(), c1.As32())
+		JHI(LabelRef("mode4"))
 
-	// 3-color mode: entry 2 = (p0+p1)/2, entry 3 stays transparent black.
-	ar := GP32()
-	LEAQ(Mem{Base: r0.As64(), Index: r1.As64(), Scale: 1}, ar.As64())
-	SHRL(Imm(1), ar)
-	ag := GP32()
-	LEAQ(Mem{Base: g0.As64(), Index: g1.As64(), Scale: 1}, ag.As64())
-	SHRL(Imm(1), ag)
-	ab := GP32()
-	LEAQ(Mem{Base: b0.As64(), Index: b1.As64(), Scale: 1}, ab.As64())
-	SHRL(Imm(1), ab)
-	VPINSRD(Imm(2), packRGB(ar, ag, ab, 255), pal.AsX(), pal.AsX())
-	JMP(LabelRef("merge"))
+		// 3-color mode: entry 2 = (p0+p1)/2, entry 3 stays transparent black.
+		ar := GP32()
+		LEAQ(Mem{Base: r0.As64(), Index: r1.As64(), Scale: 1}, ar.As64())
+		SHRL(Imm(1), ar)
+		ag := GP32()
+		LEAQ(Mem{Base: g0.As64(), Index: g1.As64(), Scale: 1}, ag.As64())
+		SHRL(Imm(1), ag)
+		ab := GP32()
+		LEAQ(Mem{Base: b0.As64(), Index: b1.As64(), Scale: 1}, ab.As64())
+		SHRL(Imm(1), ab)
+		VPINSRD(Imm(2), packRGB(ar, ag, ab, 255), pal.AsX(), pal.AsX())
+		JMP(LabelRef("merge"))
+	}
 
 	Label("mode4")
 	er2 := interp3(r0, r1)
@@ -154,12 +157,11 @@ func emitDXT1Palette(c0, c1 GPVirtual) VecVirtual {
 }
 
 // genAlphaConsts emits weight/bias/multiplier vectors for branch-reduced
-// BC3/BC4 alpha palette construction. Layout: two 64-byte groups
-// (a0>a1 "mode7" at +0, else "mode5" at +64), each wa|wb|bias|mul of 8 words.
-// Palette lane k = (wa[k]*a0 + wb[k]*a1 + bias[k]) * mul[k] >> 16, where the
-// multiply-shift reproduces floor(n/7) (n<=1788) and floor(n/5) (n<=1277)
-// exactly; mode5 lanes 6,7 use zero weights and biases 0 / 1277 to produce
-// the constant 0 and 255 entries.
+// BC3/BC4 alpha palette construction. Layout:
+// two 64-byte groups (a0>a1 "mode7" at +0, else "mode5" at +64), each wa|wb|bias|mul of 8 words.
+// Palette lane k = (wa[k]*a0 + wb[k]*a1 + bias[k]) * mul[k] >> 16,
+// where the multiply-shift reproduces floor(n/7) (n<=1788) and floor(n/5) (n<=1277) exactly;
+// mode5 lanes 6,7 use zero weights and biases 0 / 1277 to produce the constant 0 and 255 entries.
 func genAlphaConsts() Mem {
 	m := GLOBL("decodeAlphaPalConsts", RODATA|NOPTR)
 	vecs := [][8]uint16{
@@ -214,10 +216,10 @@ func emitAlphaPaletteWords(a0, a1 GPVirtual, ac Mem) VecVirtual {
 	return t0
 }
 
-// emitAlphaBytes emits BC3/BC4 alpha block decoding for the 8-byte alpha
-// payload at src+disp and returns 16 alpha samples as XMM bytes.
-// The 48-bit index field is loaded as 4+2 bytes to avoid reading past the
-// block, then PDEP spreads the 3-bit indices into bytes for VPSHUFB.
+// emitAlphaBytes emits BC3/BC4 alpha block decoding for the 8-byte alpha payload
+// at src+disp and returns 16 alpha samples as XMM bytes.
+// The 48-bit index field is loaded as 4+2 bytes to avoid reading past the block,
+// then PDEP spreads the 3-bit indices into bytes for VPSHUFB.
 func emitAlphaBytes(src Register, disp int, ac Mem) VecVirtual {
 	a0 := GP32()
 	MOVBLZX(Mem{Base: src, Disp: disp}, a0)
@@ -296,7 +298,7 @@ func genDecodeDXT5Row(c decodeConsts, ac Mem) {
 	MOVWLZX(Mem{Base: src, Disp: 8}, c0)
 	c1 := GP32()
 	MOVWLZX(Mem{Base: src, Disp: 10}, c1)
-	pal := emitDXT1Palette(c0, c1)
+	pal := emitDXT1Palette(c0, c1, true)
 
 	yIdx := YMM()
 	VPBROADCASTD(Mem{Base: src, Disp: 12}, yIdx)
@@ -406,7 +408,7 @@ func genDecodeDXT3Row(c decodeConsts) {
 	MOVWLZX(Mem{Base: src, Disp: 8}, c0)
 	c1 := GP32()
 	MOVWLZX(Mem{Base: src, Disp: 10}, c1)
-	pal := emitDXT1Palette(c0, c1)
+	pal := emitDXT1Palette(c0, c1, true)
 
 	yIdx := YMM()
 	VPBROADCASTD(Mem{Base: src, Disp: 12}, yIdx)
@@ -573,7 +575,7 @@ func genDecodeDXT1Row(c decodeConsts) {
 	MOVWLZX(Mem{Base: src}, c0)
 	c1 := GP32()
 	MOVWLZX(Mem{Base: src, Disp: 2}, c1)
-	pal := emitDXT1Palette(c0, c1)
+	pal := emitDXT1Palette(c0, c1, false)
 
 	yIdx := YMM()
 	VPBROADCASTD(Mem{Base: src, Disp: 4}, yIdx)

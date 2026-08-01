@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning][].
 * External `bcdec` compatibility fixtures for BC1–BC7 decoding,
   including unsigned and signed BC6H.
 
+### Fixed
+
+* BC2/BC3 decoding now uses the required four-color palette when `c0 <= c1`.
+
 ## [0.5.0][] - 2026-06-18
 
 ### Added

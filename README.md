@@ -115,8 +115,7 @@ cfg, _, _ := image.DecodeConfig(f) // width, height only
 ## Acceleration
 
 On `amd64` the hot encode/decode paths use AVX2/SSE2 assembly kernels
-(in the `internal/simd` package, generated with
-[avo](https://github.com/mmcloughlin/avo))
+(in the `internal/simd` package, generated with [avo][])
 selected at runtime via `golang.org/x/sys/cpu`;
 a portable pure-Go fallback handles every other platform
 and any block the kernels do not cover
@@ -168,3 +167,5 @@ Fast/Balanced/Best correspond to
 For batch/many small files,
 parallelize across images in your own code and keep `Workers=1`;
 see `EncodeOptions.Workers`.
+
+[avo]: https://github.com/mmcloughlin/avo

@@ -72,7 +72,7 @@ func decodeBlockDXT5(data []byte) [64]byte {
 	alphaIdx := uint64(data[2]) | uint64(data[3])<<8 | uint64(data[4])<<16 | uint64(data[5])<<24 | uint64(data[6])<<32 | uint64(data[7])<<40
 	c0 := binary.LittleEndian.Uint16(data[8:10])
 	c1 := binary.LittleEndian.Uint16(data[10:12])
-	pal := dxt1PaletteLE(c0, c1)
+	pal := dxt1OpaquePaletteLE(c0, c1)
 	idx := binary.LittleEndian.Uint32(data[12:16])
 
 	var out [64]byte
