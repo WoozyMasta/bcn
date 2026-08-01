@@ -1,15 +1,16 @@
 # bcn
 
-Minimal, fast BCn/DXT encoder/decoder in pure-Go-compatible
-with AVX2 acceleration and with DDS and KTX v1 I/O.
+`bcn` is a native Go codec for BCn GPU texture compression (S3TC and BPTC).
+It encodes and decodes texture blocks, works directly with Go images,
+and reads and writes DDS and KTX v1 containers.
 
-`bcn` provides block compression (BCn/DXT) encode/decode plus container I/O.
-It targets practical texture workflows:
-encode from images,
-decode to images,
-and read/write DDS/KTX with mipmaps and cubemaps.
+Use it to turn `image.Image` values into GPU-ready textures,
+inspect or decode existing DDS/KTX assets,
+and build 2D or cubemap textures with mipmaps.
+The hot paths use AVX2/SSE2 kernels on amd64 when available;
+`-tags purego` builds the same API without assembly or cgo.
 
-## Implemented
+## Features
 
 * BC1/DXT1, BC2/DXT3, BC3/DXT5, BC4, BC5, BC6H/BPTC-HDR, BC7/BPTC encode/decode
 * DDS read/write (2D + cubemap, mipmaps, uncompressed RGBA/BGRA)
