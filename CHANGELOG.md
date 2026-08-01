@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
+## Unreleased
+
+### Added
+
+* DX10 DDS read support for RGBA8/BGRA8 and sRGB BC1–BC3 formats.
+
 ## [0.6.0][] - 2026-08-02
 
 ### Added

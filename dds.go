@@ -295,21 +295,25 @@ func ddsFormatFromHeader(r io.Reader, header *DDSHeader) (Format, *DDSHeaderDX10
 		}
 
 		switch dx10.DXGIFormat {
-		case 71:
+		case 28, 29: // DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
+			return FormatRGBA8, &dx10, nil
+		case 71, 72: // DXGI_FORMAT_BC1_UNORM, DXGI_FORMAT_BC1_UNORM_SRGB
 			return FormatBC1, &dx10, nil
-		case 74:
+		case 74, 75: // DXGI_FORMAT_BC2_UNORM, DXGI_FORMAT_BC2_UNORM_SRGB
 			return FormatBC2, &dx10, nil
-		case 77:
+		case 77, 78: // DXGI_FORMAT_BC3_UNORM, DXGI_FORMAT_BC3_UNORM_SRGB
 			return FormatBC3, &dx10, nil
-		case 80:
+		case 80: // DXGI_FORMAT_BC4_UNORM
 			return FormatBC4, &dx10, nil
-		case 83:
+		case 83: // DXGI_FORMAT_BC5_UNORM
 			return FormatBC5, &dx10, nil
-		case 95: // BC6H_UF16 (unsigned float)
+		case 87, 91: // DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM_SRGB
+			return FormatBGRA8, &dx10, nil
+		case 95: // DXGI_FORMAT_BC6H_UF16
 			return FormatBC6HU, &dx10, nil
-		case 96: // BC6H_SF16 (signed float)
+		case 96: // DXGI_FORMAT_BC6H_SF16
 			return FormatBC6HS, &dx10, nil
-		case 98, 99: // BC7_UNORM, BC7_UNORM_SRGB
+		case 98, 99: // DXGI_FORMAT_BC7_UNORM, DXGI_FORMAT_BC7_UNORM_SRGB
 			return FormatBC7, &dx10, nil
 		default:
 			return FormatUnknown, &dx10, ErrUnsupportedDX10Format
