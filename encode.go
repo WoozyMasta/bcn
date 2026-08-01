@@ -95,6 +95,27 @@ func decodeBlocksInto(dst, data []byte, width, height int, format Format, opts *
 			}
 			return nil
 
+		case FormatR8S:
+			for i, value := range data[:expected] {
+				out := i * 4
+				value = u8FromSNORM(int(int8(value))) // #nosec G115 -- reinterpret raw SNORM byte.
+				dst[out] = value
+				dst[out+1] = value
+				dst[out+2] = value
+				dst[out+3] = 255
+			}
+			return nil
+
+		case FormatRG8S:
+			for i := 0; i < expected; i += 2 {
+				out := i * 2
+				dst[out] = u8FromSNORM(int(int8(data[i])))     // #nosec G115 -- reinterpret raw SNORM byte.
+				dst[out+1] = u8FromSNORM(int(int8(data[i+1]))) // #nosec G115 -- reinterpret raw SNORM byte.
+				dst[out+2] = 0
+				dst[out+3] = 255
+			}
+			return nil
+
 		case FormatRGB10A2:
 			for src, outOffset := 0, 0; src < expected; src, outOffset = src+4, outOffset+4 {
 				pixel := binary.LittleEndian.Uint32(data[src:])
@@ -259,6 +280,19 @@ func encodeBlocksInto(dst, rgba []byte, width, height int, format Format, opts *
 			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+2 {
 				out[dst] = rgba[src]
 				out[dst+1] = rgba[src+1]
+			}
+			return nil
+
+		case FormatR8S:
+			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+1 {
+				out[dst] = byte(int8(snormFromU8(rgba[src]))) // #nosec G115 -- SNORM value is in [-127,127].
+			}
+			return nil
+
+		case FormatRG8S:
+			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+2 {
+				out[dst] = byte(int8(snormFromU8(rgba[src])))     // #nosec G115 -- SNORM value is in [-127,127].
+				out[dst+1] = byte(int8(snormFromU8(rgba[src+1]))) // #nosec G115 -- SNORM value is in [-127,127].
 			}
 			return nil
 

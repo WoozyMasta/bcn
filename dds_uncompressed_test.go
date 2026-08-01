@@ -139,6 +139,49 @@ func TestDDSUncompressedR8RG8(t *testing.T) {
 	}
 }
 
+func TestDDSUncompressedR8SRG8S(t *testing.T) {
+	img := SolidImage(3, 2, color.NRGBA{R: 0, G: 128, B: 30, A: 40})
+	tests := []struct {
+		format Format
+		data   []byte
+		pixel  [4]byte
+	}{
+		{FormatR8S, []byte{0x81, 0x81, 0x81, 0x81, 0x81, 0x81}, [4]byte{0, 0, 0, 255}},
+		{FormatRG8S, []byte{0x81, 0, 0x81, 0, 0x81, 0, 0x81, 0, 0x81, 0, 0x81, 0}, [4]byte{0, 128, 0, 255}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.format.String(), func(t *testing.T) {
+			ds, err := EncodeDDS(img, tt.format)
+			if err != nil {
+				t.Fatalf("EncodeDDS: %v", err)
+			}
+			if got := ds.Faces[0].Mipmaps[0]; !bytes.Equal(got, tt.data) {
+				t.Fatalf("encoded data = %v, want %v", got, tt.data)
+			}
+
+			var buf bytes.Buffer
+			if err := ds.Write(&buf); err != nil {
+				t.Fatalf("Write: %v", err)
+			}
+			read, err := ReadDDS(&buf)
+			if err != nil {
+				t.Fatalf("ReadDDS: %v", err)
+			}
+			if read.Format != tt.format {
+				t.Fatalf("format = %s, want %s", read.Format, tt.format)
+			}
+			decoded, err := DecodeImage(read.Faces[0].Mipmaps[0], read.Width, read.Height, read.Format)
+			if err != nil {
+				t.Fatalf("DecodeImage: %v", err)
+			}
+			if got := [4]byte(decoded.Pix[:4]); got != tt.pixel {
+				t.Fatalf("pixel = %v, want %v", got, tt.pixel)
+			}
+		})
+	}
+}
+
 func TestRGB10A2EncodeDecode(t *testing.T) {
 	const packed = uint32(0xA02003FF) // R=1023, G=0, B=514, A=2.
 	data := make([]byte, 4)
@@ -176,6 +219,8 @@ func TestDDSDX10UncompressedRead(t *testing.T) {
 		{"BGRX8SRGB", 93, []byte{30, 20, 10, 40}, FormatBGRX8},
 		{"R8", 61, []byte{10}, FormatR8},
 		{"RG8", 49, []byte{10, 20}, FormatRG8},
+		{"R8SNORM", 63, []byte{0x80}, FormatR8S},
+		{"RG8SNORM", 51, []byte{0x80, 0x7f}, FormatRG8S},
 		{"RGB10A2", 24, []byte{0xff, 0x03, 0x20, 0xa0}, FormatRGB10A2},
 	}
 
@@ -230,6 +275,10 @@ func TestDDSDX10UncompressedRead(t *testing.T) {
 				want = [4]byte{10, 20, 0, 255}
 			case FormatRGB10A2:
 				want = [4]byte{255, 0, 128, 170}
+			case FormatR8S:
+				want = [4]byte{0, 0, 0, 255}
+			case FormatRG8S:
+				want = [4]byte{0, 255, 0, 255}
 			}
 			if got := [4]byte(img.Pix[:4]); got != want {
 				t.Fatalf("pixel = %v, want %v", got, want)

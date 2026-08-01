@@ -258,12 +258,12 @@ func alphaBlockErrorScalar(palette *[8]uint8, alpha *[16]uint8, cutoff int) int 
 	return err
 }
 
-// snormFromU8 maps an NRGBA component to the BC4/BC5 signed normalized range.
+// snormFromU8 maps an NRGBA component to the signed normalized range.
 func snormFromU8(v byte) int {
 	return (int(v)*254+127)/255 - 127
 }
 
-// u8FromSNORM maps a BC4/BC5 signed normalized value to an NRGBA component.
+// u8FromSNORM maps a signed normalized value to an NRGBA component.
 func u8FromSNORM(v int) byte {
 	v = clampSNORM(v)
 	v += 127

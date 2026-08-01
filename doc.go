@@ -17,7 +17,8 @@ via EncodeBC6H / DecodeBC6H and their variants.
 For best results, ensure inputs are in the expected color space (typically sRGB)
 and pick an appropriate QualityLevel in EncodeOptions.
 
-DDS BGRA pixels are converted to RGBA on decode. Uncompressed DDS and KTX
-support RGBA, BGRA, R8, RG8, and RGB10A2; DDS additionally supports BGRX8.
+DDS BGRA pixels are converted to RGBA on decode.
+Uncompressed DDS and KTX support RGBA, BGRA, R8/RG8 (UNORM and SNORM), and RGB10A2;
+DDS additionally supports BGRX8.
 */
 package bcn

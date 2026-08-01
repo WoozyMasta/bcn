@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning][].
   `BGRX8` normalizes its unused X channel to `255`.
 * Uncompressed `FormatRGB10A2` encode/decode with DDS DX10
   (`R10G10B10A2_UNORM`) and KTX v1 I/O support.
+* Signed normalized `FormatR8S` and `FormatRG8S` encode/decode
+  with DDS DX10 and KTX v1 I/O support.
 
 ## [0.6.0][] - 2026-08-02
 

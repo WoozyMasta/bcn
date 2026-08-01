@@ -169,6 +169,48 @@ func TestKTXUncompressedR8RG8(t *testing.T) {
 	}
 }
 
+func TestKTXUncompressedR8SRG8S(t *testing.T) {
+	img := SolidImage(3, 2, color.NRGBA{R: 0, G: 128, B: 30, A: 40})
+	tests := []struct {
+		format Format
+		data   []byte
+		pixel  [4]byte
+	}{
+		{FormatR8S, []byte{0x81, 0x81, 0x81, 0x81, 0x81, 0x81}, [4]byte{0, 0, 0, 255}},
+		{FormatRG8S, []byte{0x81, 0, 0x81, 0, 0x81, 0, 0x81, 0, 0x81, 0, 0x81, 0}, [4]byte{0, 128, 0, 255}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.format.String(), func(t *testing.T) {
+			ktx, err := EncodeKTX(img, tt.format)
+			if err != nil {
+				t.Fatalf("EncodeKTX: %v", err)
+			}
+			var buf bytes.Buffer
+			if err := ktx.Write(&buf); err != nil {
+				t.Fatalf("Write: %v", err)
+			}
+			read, err := ReadKTX(&buf)
+			if err != nil {
+				t.Fatalf("ReadKTX: %v", err)
+			}
+			if read.Format != tt.format {
+				t.Fatalf("format = %s, want %s", read.Format, tt.format)
+			}
+			if got := read.Faces[0].Mipmaps[0]; !bytes.Equal(got, tt.data) {
+				t.Fatalf("stored data = %v, want %v", got, tt.data)
+			}
+			decoded, err := DecodeImage(read.Faces[0].Mipmaps[0], read.Width, read.Height, read.Format)
+			if err != nil {
+				t.Fatalf("DecodeImage: %v", err)
+			}
+			if got := [4]byte(decoded.Pix[:4]); got != tt.pixel {
+				t.Fatalf("pixel = %v, want %v", got, tt.pixel)
+			}
+		})
+	}
+}
+
 func TestKTXRejectArrays(t *testing.T) {
 	header := KTXHeader{
 		Identifier:            KTXIdentifier,
