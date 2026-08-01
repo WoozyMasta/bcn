@@ -6,6 +6,8 @@ package bcn
 
 import (
 	"bytes"
+	"encoding/binary"
+	"hash/fnv"
 	"math"
 	"os"
 	"testing"
@@ -112,6 +114,10 @@ func TestHalfRoundTrip(t *testing.T) {
 
 const bc6hTestDDS = "ref/bcdec/test_images/lythwood_room_1k_bc6h_signed.dds"
 
+// bc6hSignedDDSDecodedFNV64a is the FNV-1a hash of all decoded RGB half-float values in bc6hTestDDS.
+// It was generated with bcdec_bc6h_half.
+const bc6hSignedDDSDecodedFNV64a uint64 = 0x10bd339007959253
+
 // TestDecodeBC6HNoPanic ensures decodeBlockBC6H never panics on any 16-byte input,
 // covering all valid and reserved modes for both signed and unsigned.
 func TestDecodeBC6HNoPanic(t *testing.T) {
@@ -197,6 +203,16 @@ func TestDecodeBC6HFromFile(t *testing.T) {
 	if nanCount > 0 {
 		t.Errorf("decoded %d NaN half-float values (unexpected for a valid HDR image)", nanCount)
 	}
+
+	hash := fnv.New64a()
+	var rawHalf [2]byte
+	for _, pixel := range pixels {
+		binary.LittleEndian.PutUint16(rawHalf[:], pixel)
+		_, _ = hash.Write(rawHalf[:])
+	}
+	if got := hash.Sum64(); got != bc6hSignedDDSDecodedFNV64a {
+		t.Errorf("decoded pixel hash: got %016x, want %016x", got, bc6hSignedDDSDecodedFNV64a)
+	}
 }
 
 // TestDDSBC6HRoundTrip reads the signed BC6H DDS, writes it back, re-reads it,
@@ -238,11 +254,11 @@ func TestDDSBC6HRoundTrip(t *testing.T) {
 }
 
 // bc6hMSE computes the mean-squared error between two half-float RGB slices
-// using only the 15-bit magnitude (sign is ignored for unsigned BC6H).
-func bc6hMSE(a, b []uint16) float64 {
+// in the encoder's sign-aware finishUnquantize error domain.
+func bc6hMSE(a, b []uint16, signed bool) float64 {
 	var sum float64
 	for i := range a {
-		da := float64(a[i]&0x7FFF) - float64(b[i]&0x7FFF)
+		da := float64(bc6hHalfErrorValue(a[i], signed) - bc6hHalfErrorValue(b[i], signed))
 		sum += da * da
 	}
 	return sum / float64(len(a))
@@ -292,7 +308,7 @@ func TestEncodeBC6HRoundTrip(t *testing.T) {
 	if len(decoded) != len(src) {
 		t.Fatalf("length mismatch: got %d, want %d", len(decoded), len(src))
 	}
-	mse := bc6hMSE(src, decoded)
+	mse := bc6hMSE(src, decoded, false)
 	t.Logf("BC6HU 4x4 solid: MSE=%.2f", mse)
 	// Solid-color block: quantize/unquantize may introduce <= 1 ULP error per channel.
 	if mse > 4 {
@@ -315,7 +331,7 @@ func TestEncodeBC6HRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode random: %v", err)
 	}
-	mse2 := bc6hMSE(src2, dec2)
+	mse2 := bc6hMSE(src2, dec2, false)
 	const maxMSE = 2e8 // sanity floor: catastrophic failure if exceeded
 	if mse2 > maxMSE {
 		t.Errorf("random MSE %.0f exceeds sanity floor %.0f", mse2, maxMSE)
@@ -328,8 +344,11 @@ func TestEncodeBC6HSignedRoundTrip(t *testing.T) {
 	src := make([]uint16, w*h*3)
 	rng := rand.New(rand.NewPCG(0xDEAD, 13))
 	for i := range src {
-		// signed half-float values in [0, 0x7800) (positive normals only)
-		src[i] = uint16(rng.IntN(0x7800))
+		// Signed half-float values in [-8, 8) with both signs represented.
+		src[i] = uint16(0x3C00 + rng.IntN(0x1C00))
+		if rng.IntN(2) != 0 {
+			src[i] |= 0x8000
+		}
 	}
 
 	compressed, err := EncodeBC6H(src, w, h, true)
@@ -340,8 +359,17 @@ func TestEncodeBC6HSignedRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	mse := bc6hMSE(src, decoded)
-	t.Logf("BC6HS 8x8 positive random: MSE=%.2f", mse)
+	mse := bc6hMSE(src, decoded, true)
+	t.Logf("BC6HS 8x8 signed random: MSE=%.2f", mse)
+}
+
+func TestBC6HSignedBlockErrorIncludesSign(t *testing.T) {
+	original := [48]uint16{0xBC00} // -1.0
+	decoded := [48]uint16{0x3C00}  // +1.0
+
+	if got := bc6hBlockError(original, decoded, true); got == 0 {
+		t.Fatal("opposite signed endpoints must have non-zero error")
+	}
 }
 
 func TestKTXRoundTripBC6H(t *testing.T) {
@@ -432,9 +460,9 @@ func goldenHDRImage() []uint16 {
 	return out
 }
 
-// bc6hPSNR computes PSNR (dB) between two half-float RGB slices using 15-bit magnitude.
-func bc6hPSNR(a, b []uint16) float64 {
-	mse := bc6hMSE(a, b)
+// bc6hPSNR computes PSNR (dB) between two half-float RGB slices.
+func bc6hPSNR(a, b []uint16, signed bool) float64 {
+	mse := bc6hMSE(a, b, signed)
 	if mse == 0 {
 		return math.Inf(1)
 	}

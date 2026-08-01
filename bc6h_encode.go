@@ -425,12 +425,24 @@ func bc6hReassign2Sub(pq *[16][3]int, blk32 *[48]int32, ep0, ep1 *[3]int, idx *[
 	}
 }
 
+// bc6hHalfErrorValue maps a half-float bit pattern to the finishUnquantize error domain.
+// BC6H_SF16 values use sign-magnitude representation,
+// so their sign must participate in candidate selection.
+func bc6hHalfErrorValue(h uint16, signed bool) int64 {
+	v := int64(h & 0x7FFF)
+	if signed && h&0x8000 != 0 {
+		return -v
+	}
+
+	return v
+}
+
 // bc6hBlockError computes total squared error between the original half-float block
 // and the decoded result in the finishUnquantize half-int domain.
-func bc6hBlockError(original, decoded [48]uint16) int64 {
+func bc6hBlockError(original, decoded [48]uint16, signed bool) int64 {
 	var total int64
 	for i := range 48 {
-		d := int64(original[i]&0x7FFF) - int64(decoded[i]&0x7FFF)
+		d := bc6hHalfErrorValue(original[i], signed) - bc6hHalfErrorValue(decoded[i], signed)
 		total += d * d
 	}
 
@@ -515,7 +527,7 @@ func encodeBlockBC6H(block [48]uint16, signed bool, quality int) [16]byte {
 
 	tryCandidate := func(encoded [16]byte) {
 		dec := decodeBlockBC6H(encoded[:], signed)
-		err := bc6hBlockError(block, dec)
+		err := bc6hBlockError(block, dec, signed)
 		if bestErr < 0 || err < bestErr {
 			bestErr = err
 			best = encoded

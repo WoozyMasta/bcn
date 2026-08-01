@@ -121,7 +121,7 @@ func TestEncodePSNR(t *testing.T) {
 			if err != nil {
 				t.Fatalf("decode %s: %v", name, err)
 			}
-			got = bc6hPSNR(src, decoded)
+			got = bc6hPSNR(src, decoded, signed)
 		} else {
 			rgba := goldenImage(c.scenario)
 			encoded, err := encodeBlocksWithOptions(rgba, 64, 64, c.format, opts)
