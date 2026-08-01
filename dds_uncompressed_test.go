@@ -92,6 +92,53 @@ func TestDDSUncompressedBGRX(t *testing.T) {
 	}
 }
 
+func TestDDSUncompressedR8RG8(t *testing.T) {
+	img := SolidImage(3, 2, color.NRGBA{R: 10, G: 20, B: 30, A: 40})
+	tests := []struct {
+		format Format
+		data   []byte
+		pixel  [4]byte
+	}{
+		{FormatR8, []byte{10, 10, 10, 10, 10, 10}, [4]byte{10, 10, 10, 255}},
+		{FormatRG8, []byte{10, 20, 10, 20, 10, 20, 10, 20, 10, 20, 10, 20}, [4]byte{10, 20, 0, 255}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.format.String(), func(t *testing.T) {
+			ds, err := EncodeDDS(img, tt.format)
+			if err != nil {
+				t.Fatalf("EncodeDDS: %v", err)
+			}
+			if got := ds.Faces[0].Mipmaps[0]; !bytes.Equal(got, tt.data) {
+				t.Fatalf("encoded data = %v, want %v", got, tt.data)
+			}
+
+			var buf bytes.Buffer
+			if err := ds.Write(&buf); err != nil {
+				t.Fatalf("Write: %v", err)
+			}
+			read, err := ReadDDS(&buf)
+			if err != nil {
+				t.Fatalf("ReadDDS: %v", err)
+			}
+			if read.Format != tt.format {
+				t.Fatalf("format = %s, want %s", read.Format, tt.format)
+			}
+			if got := read.Faces[0].Mipmaps[0]; !bytes.Equal(got, tt.data) {
+				t.Fatalf("stored data = %v, want %v", got, tt.data)
+			}
+
+			decoded, err := DecodeImage(read.Faces[0].Mipmaps[0], read.Width, read.Height, read.Format)
+			if err != nil {
+				t.Fatalf("DecodeImage: %v", err)
+			}
+			if got := [4]byte(decoded.Pix[:4]); got != tt.pixel {
+				t.Fatalf("pixel = %v, want %v", got, tt.pixel)
+			}
+		})
+	}
+}
+
 func TestDDSDX10UncompressedRead(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -105,6 +152,8 @@ func TestDDSDX10UncompressedRead(t *testing.T) {
 		{"BGRA8SRGB", 91, []byte{30, 20, 10, 40}, FormatBGRA8},
 		{"BGRX8", 88, []byte{30, 20, 10, 40}, FormatBGRX8},
 		{"BGRX8SRGB", 93, []byte{30, 20, 10, 40}, FormatBGRX8},
+		{"R8", 61, []byte{10}, FormatR8},
+		{"RG8", 49, []byte{10, 20}, FormatRG8},
 	}
 
 	for _, tt := range tests {
@@ -146,11 +195,16 @@ func TestDDSDX10UncompressedRead(t *testing.T) {
 				t.Fatalf("DecodeImage: %v", err)
 			}
 			want := [4]byte{10, 20, 30, 40}
-			if tt.format == FormatBGRX8 {
+			switch tt.format {
+			case FormatBGRX8:
 				want[3] = 255
 				if got := d.Faces[0].Mipmaps[0][3]; got != 255 {
 					t.Fatalf("stored X = %d, want 255", got)
 				}
+			case FormatR8:
+				want = [4]byte{10, 10, 10, 255}
+			case FormatRG8:
+				want = [4]byte{10, 20, 0, 255}
 			}
 			if got := [4]byte(img.Pix[:4]); got != want {
 				t.Fatalf("pixel = %v, want %v", got, want)

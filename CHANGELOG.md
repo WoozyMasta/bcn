@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning][].
 * Signed normalized BC4 and BC5 (`BC4_SNORM`/`BC5_SNORM`) encode and decode,
   with DDS DX10 and KTX v1 I/O.
   AVX2/BMI2 decoding on amd64 with a pure-Go fallback.
+* Uncompressed `BGRX8`, `R8`, and `RG8` formats.
+  DDS DX10 supports all three; KTX v1 supports `R8` and `RG8`.
+  `BGRX8` normalizes its unused X channel to `255`.
 
 ## [0.6.0][] - 2026-08-02
 

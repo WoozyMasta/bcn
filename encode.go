@@ -74,6 +74,26 @@ func decodeBlocksInto(dst, data []byte, width, height int, format Format, opts *
 			}
 			return nil
 
+		case FormatR8:
+			for i, value := range data[:expected] {
+				out := i * 4
+				dst[out] = value
+				dst[out+1] = value
+				dst[out+2] = value
+				dst[out+3] = 255
+			}
+			return nil
+
+		case FormatRG8:
+			for i := 0; i < expected; i += 2 {
+				out := i * 2
+				dst[out] = data[i]
+				dst[out+1] = data[i+1]
+				dst[out+2] = 0
+				dst[out+3] = 255
+			}
+			return nil
+
 		default:
 			return ErrUnsupportedUncompressedFormat
 		}
@@ -174,7 +194,7 @@ func encodedBlocksSize(rgba []byte, width, height int, format Format) (int, erro
 	}
 
 	if !format.isCompressed() {
-		return width * height * 4, nil
+		return width * height * blockSize, nil
 	}
 
 	return ((width + 3) / 4) * ((height + 3) / 4) * blockSize, nil
@@ -215,6 +235,19 @@ func encodeBlocksInto(dst, rgba []byte, width, height int, format Format, opts *
 				out[i+1] = rgba[i+1]
 				out[i+2] = rgba[i]
 				out[i+3] = 255
+			}
+			return nil
+
+		case FormatR8:
+			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+1 {
+				out[dst] = rgba[src]
+			}
+			return nil
+
+		case FormatRG8:
+			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+2 {
+				out[dst] = rgba[src]
+				out[dst+1] = rgba[src+1]
 			}
 			return nil
 

@@ -132,7 +132,7 @@ func (d *DDS) Write(w io.Writer) error {
 
 	if !d.Format.isCompressed() {
 		switch d.Format {
-		case FormatRGBA8, FormatBGRA8, FormatBGRX8:
+		case FormatRGBA8, FormatBGRA8, FormatBGRX8, FormatR8, FormatRG8:
 		default:
 			return ErrUnsupportedFormat
 		}
@@ -259,6 +259,20 @@ func (d *DDS) Write(w io.Writer) error {
 		hdr.PitchOrLinearSize = u32(d.Width * 4)
 		dx10Format = 88 // DXGI_FORMAT_B8G8R8X8_UNORM
 
+	case FormatR8:
+		hdr.Flags |= DDSFlagPitch
+		hdr.PixelFormat.Flags = DDSPFFourCC
+		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', '1', '0')
+		hdr.PitchOrLinearSize = u32(d.Width)
+		dx10Format = 61 // DXGI_FORMAT_R8_UNORM
+
+	case FormatRG8:
+		hdr.Flags |= DDSFlagPitch
+		hdr.PixelFormat.Flags = DDSPFFourCC
+		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', '1', '0')
+		hdr.PitchOrLinearSize = u32(d.Width * 2)
+		dx10Format = 49 // DXGI_FORMAT_R8G8_UNORM
+
 	default:
 		return ErrUnsupportedDDSFormat
 	}
@@ -327,6 +341,10 @@ func ddsFormatFromHeader(r io.Reader, header *DDSHeader) (Format, *DDSHeaderDX10
 		switch dx10.DXGIFormat {
 		case 28, 29: // DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
 			return FormatRGBA8, &dx10, nil
+		case 49: // DXGI_FORMAT_R8G8_UNORM
+			return FormatRG8, &dx10, nil
+		case 61: // DXGI_FORMAT_R8_UNORM
+			return FormatR8, &dx10, nil
 		case 71, 72: // DXGI_FORMAT_BC1_UNORM, DXGI_FORMAT_BC1_UNORM_SRGB
 			return FormatBC1, &dx10, nil
 		case 74, 75: // DXGI_FORMAT_BC2_UNORM, DXGI_FORMAT_BC2_UNORM_SRGB

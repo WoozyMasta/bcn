@@ -27,6 +27,10 @@ const (
 	KTXGLRG = 0x8227
 	// KTXGLRGBA8 is GL_RGBA8 (sized internal format).
 	KTXGLRGBA8 = 0x8058
+	// KTXGLR8 is GL_R8 (sized internal format).
+	KTXGLR8 = 0x8229
+	// KTXGLRG8 is GL_RG8 (sized internal format).
+	KTXGLRG8 = 0x822B
 
 	// KTXGLCompressedRGBS3TCBC1 is GL_COMPRESSED_RGB_S3TC_DXT1_EXT.
 	KTXGLCompressedRGBS3TCBC1 = 0x83F0

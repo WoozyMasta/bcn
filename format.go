@@ -48,6 +48,12 @@ const (
 	// FormatBGRX8 is uncompressed BGR with an unused byte (4 bytes per pixel).
 	// Encoding and decoding always set the unused byte/alpha to 255.
 	FormatBGRX8
+	// FormatR8 is uncompressed single-channel UNORM (1 byte per pixel).
+	// Decoding replicates R to RGB and sets A to 255.
+	FormatR8
+	// FormatRG8 is uncompressed two-channel UNORM (2 bytes per pixel).
+	// Decoding writes R and G, with B=0 and A=255.
+	FormatRG8
 )
 
 const (
@@ -87,6 +93,10 @@ func (f Format) String() string {
 		return "BGRA8"
 	case FormatBGRX8:
 		return "BGRX8"
+	case FormatR8:
+		return "R8"
+	case FormatRG8:
+		return "RG8"
 	default:
 		return "Unknown"
 	}
@@ -107,6 +117,10 @@ func (f Format) blockSize() int {
 		return 16
 	case FormatRGBA8, FormatBGRA8, FormatBGRX8:
 		return 4
+	case FormatR8:
+		return 1
+	case FormatRG8:
+		return 2
 	default:
 		return 0
 	}
