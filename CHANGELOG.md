@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
-## Unreleased
+## [0.6.0][] - 2026-08-02
 
 ### Added
 
@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning][].
 ### Fixed
 
 * BC2/BC3 decoding now uses the required four-color palette when `c0 <= c1`.
+
+[0.6.0]: https://github.com/WoozyMasta/bcn/compare/v0.5.0...v0.6.0
 
 ## [0.5.0][] - 2026-06-18
 
