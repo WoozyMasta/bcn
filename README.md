@@ -11,7 +11,7 @@ and read/write DDS/KTX with mipmaps and cubemaps.
 
 ## Implemented
 
-* BC1/DXT1, BC2/DXT3, BC3/DXT5, BC4, BC5, BC7/BPTC encode/decode
+* BC1/DXT1, BC2/DXT3, BC3/DXT5, BC4, BC5, BC6H/BPTC-HDR, BC7/BPTC encode/decode
 * DDS read/write (2D + cubemap, mipmaps, uncompressed RGBA/BGRA)
 * KTX v1 read/write (2D + cubemap, mipmaps)
 * Mipmap generation with optional sRGB-aware downscale
@@ -140,26 +140,28 @@ validated by exhaustive, randomized and fuzz equivalence tests.
 
 ## Performance
 
-Single-thread, Ryzen 9 5950X, Go 1.26, 512x512,
-throughput over input RGBA (higher is better):
+Single-thread, Ryzen 9 5950X, Go 1.26, 512x512, throughput over input bytes
+(RGBA for LDR formats, RGB float16 for BC6H; higher is better):
 
-| Format   | fast, MB/s | balanced, MB/s | best, MB/s | decode, MB/s |
-| -------- | ---------: | -------------: | ---------: | -----------: |
-| **DXT1** |       ~830 |            ~35 |        ~12 |         ~920 |
-| **DXT3** |       ~635 |            ~33 |        ~12 |        ~1715 |
-| **DXT5** |       ~370 |            ~31 |        ~11 |        ~1670 |
-| **BC4**  |       ~480 |            ~74 |        ~23 |        ~1530 |
-| **BC5**  |       ~255 |            ~38 |        ~12 |        ~2490 |
-| **BC7**  |        ~55 |           ~0.9 |       ~0.5 |          ~66 |
+| Format    | fast, MB/s | balanced, MB/s | best, MB/s | decode, MB/s |
+| --------- | ---------: | -------------: | ---------: | -----------: |
+| **DXT1**  |       ~830 |            ~35 |        ~12 |         ~920 |
+| **DXT3**  |       ~635 |            ~33 |        ~12 |        ~1715 |
+| **DXT5**  |       ~370 |            ~31 |        ~11 |        ~1670 |
+| **BC4**   |       ~480 |            ~74 |        ~23 |        ~1530 |
+| **BC5**   |       ~255 |            ~38 |        ~12 |        ~2490 |
+| **BC6H**  |       ~150 |             ~8 |         ~2 |         ~150 |
+| **BC7**   |        ~55 |           ~0.9 |       ~0.5 |          ~66 |
 
 Multi-thread, `Workers=auto` (`GOMAXPROCS=32`), 512x512,
-encode throughput over input RGBA (higher is better):
+encode throughput over input bytes (higher is better):
 
-| Format   | fast, MB/s | balanced, MB/s | best, MB/s |
-| -------- | ---------: | -------------: | ---------: |
-| **DXT1** |     ~5,000 |           ~380 |       ~144 |
-| **DXT5** |     ~2,620 |           ~370 |       ~130 |
-| **BC7**  |       ~540 |            ~13 |         ~7 |
+| Format    | fast, MB/s | balanced, MB/s | best, MB/s |
+| --------- | ---------: | -------------: | ---------: |
+| **DXT1**  |     ~5,000 |           ~380 |       ~144 |
+| **DXT5**  |     ~2,620 |           ~370 |       ~130 |
+| **BC6H**  |     ~1,350 |            ~90 |        ~30 |
+| **BC7**   |       ~540 |            ~13 |         ~7 |
 
 Fast/Balanced/Best correspond to
 `QualityLevelFast`, `QualityLevelBalanced`, `QualityLevelBest`.  

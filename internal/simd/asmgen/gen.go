@@ -35,6 +35,8 @@ func main() {
 	genBC7Mode6Indices(bc7Consts)
 	genBC7SubsetEval()
 	genBC7Mode7SubsetEval()
+	genBC6HFindIndices1Sub(bc7Consts)
+	genBC6HFindIndices2Sub(bc7Consts)
 
 	alphaShifts := genAlphaIdxShifts()
 	genAlphaBlockError(alphaConsts)

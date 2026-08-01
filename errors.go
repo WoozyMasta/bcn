@@ -20,6 +20,11 @@ var (
 	ErrUnsupportedFormat = errors.New("unsupported format")
 	// ErrUnsupportedUncompressedFormat indicates an unsupported uncompressed format.
 	ErrUnsupportedUncompressedFormat = errors.New("unsupported uncompressed format")
+	// ErrBC6HUsesHDRAPI is returned when a BC6H format is passed to the NRGBA byte API.
+	// Use DecodeBC6H / EncodeBC6H instead.
+	ErrBC6HUsesHDRAPI = errors.New("BC6H requires the HDR API (DecodeBC6H / EncodeBC6H)")
+	// ErrInvalidHDRSliceLength indicates the HDR pixel slice length does not match width*height*3.
+	ErrInvalidHDRSliceLength = errors.New("invalid HDR slice length: must be width*height*3")
 
 	// ErrNilDDS indicates a nil DDS container.
 	ErrNilDDS = errors.New("nil DDS")

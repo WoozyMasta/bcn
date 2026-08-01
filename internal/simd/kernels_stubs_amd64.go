@@ -75,6 +75,23 @@ func BC7SubsetEvalAVX2(block *[64]byte, part *[16]byte, params *[34]int32, out *
 //go:noescape
 func BC7Mode7SubsetEvalAVX2(block *[64]byte, part *[16]byte, params *[22]int32, out *[12]int32)
 
+// BC6HFindIndices1SubAVX2 assigns 16 BC6H texels to the nearest of 16 palette entries.
+// block and pal use SOA layout: R[16], G[16], B[16] as int32 (192 bytes each).
+// idx receives the winning palette index per texel as int32; caller narrows to byte.
+// Distance metric is L1 (Manhattan): |dr|+|dg|+|db|, matching bc6hFindIndices1SubGo.
+//
+//go:noescape
+func BC6HFindIndices1SubAVX2(block *[48]int32, pal *[48]int32, idx *[16]int32)
+
+// BC6HFindIndices2SubAVX2 assigns BC6H texels of one subset to the nearest of 8 palette entries.
+// block uses SOA layout: R[16], G[16], B[16] as int32 (192 bytes).
+// pal uses SOA layout: R[8], G[8], B[8] as int32 (96 bytes).
+// part[i]&1 must equal subset for texel i to be assigned; non-subset texels get idx[i]=0.
+// Distance metric is L1 (Manhattan): |dr|+|dg|+|db|, matching bc6hFindIndices2SubGo.
+//
+//go:noescape
+func BC6HFindIndices2SubAVX2(block *[48]int32, pal *[24]int32, part *[16]byte, subset int32, idx *[16]int32)
+
 // AlphaBlockErrorAVX2 returns the summed minimum squared error of 16 alpha samples
 // against the palette of endpoints aa = a0 | a1<<8 (BC3/BC4 scoring).
 //

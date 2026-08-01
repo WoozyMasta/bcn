@@ -7,9 +7,10 @@ import (
 	"testing"
 )
 
-// psnrFloorsDB freezes RGB PSNR (dB) of encode->decode round trips measured on
-// the float64 metric baseline (master). The fixed-point metric and any later
-// optimization must not drop quality below these floors minus psnrToleranceDB.
+// psnrFloorsDB freezes RGB PSNR (dB) of encode->decode round trips
+// measured on the float64 metric baseline (master).
+// The fixed-point metric and any later optimization must not drop quality
+// below these floors minus psnrToleranceDB.
 // Regenerate with BCN_PSNR_PRINT=1 when the metric changes deliberately.
 var psnrFloorsDB = map[string]float64{
 	"DXT1/opaque/q1":      17.8834,
@@ -33,6 +34,12 @@ var psnrFloorsDB = map[string]float64{
 	"BC7/translucent/q1":  22.6344,
 	"BC7/translucent/q6":  30.5639,
 	"BC7/translucent/q8":  30.4949,
+	"BC6HU/UF16/q1":       43.0175,
+	"BC6HU/UF16/q6":       55.6059,
+	"BC6HU/UF16/q8":       55.9995,
+	"BC6HS/SF16/q1":       42.9792,
+	"BC6HS/SF16/q6":       56.3256,
+	"BC6HS/SF16/q8":       56.7639,
 }
 
 const psnrToleranceDB = 0.05
@@ -65,6 +72,8 @@ func psnrCases() []struct {
 	add(FormatDXT5, "nohq")
 	add(FormatBC7, "opaque")
 	add(FormatBC7, "translucent")
+	add(FormatBC6HU, "UF16")
+	add(FormatBC6HS, "SF16")
 
 	return cases
 }
@@ -98,19 +107,33 @@ func TestEncodePSNR(t *testing.T) {
 
 	for _, c := range psnrCases() {
 		name := fmt.Sprintf("%s/%s/q%d", c.format, c.scenario, c.quality)
-		rgba := goldenImage(c.scenario)
 		opts := &EncodeOptions{QualityLevel: c.quality, AlphaThreshold: 128, Workers: 1}
 
-		encoded, err := encodeBlocksWithOptions(rgba, 64, 64, c.format, opts)
-		if err != nil {
-			t.Fatalf("encode %s: %v", name, err)
+		var got float64
+		if c.format == FormatBC6HU || c.format == FormatBC6HS {
+			signed := c.format == FormatBC6HS
+			src := goldenHDRImage()
+			encoded, err := EncodeBC6HWithOptions(src, 64, 64, signed, opts)
+			if err != nil {
+				t.Fatalf("encode %s: %v", name, err)
+			}
+			decoded, err := DecodeBC6H(encoded, 64, 64, signed)
+			if err != nil {
+				t.Fatalf("decode %s: %v", name, err)
+			}
+			got = bc6hPSNR(src, decoded, signed)
+		} else {
+			rgba := goldenImage(c.scenario)
+			encoded, err := encodeBlocksWithOptions(rgba, 64, 64, c.format, opts)
+			if err != nil {
+				t.Fatalf("encode %s: %v", name, err)
+			}
+			decoded, err := decodeBlocksWithOptions(encoded, 64, 64, c.format, &DecodeOptions{Workers: 1})
+			if err != nil {
+				t.Fatalf("decode %s: %v", name, err)
+			}
+			got = rgbPSNR(rgba, decoded)
 		}
-		decoded, err := decodeBlocksWithOptions(encoded, 64, 64, c.format, &DecodeOptions{Workers: 1})
-		if err != nil {
-			t.Fatalf("decode %s: %v", name, err)
-		}
-
-		got := rgbPSNR(rgba, decoded)
 		if printMode {
 			fmt.Printf("\t%q: %.4f,\n", name, got)
 			continue

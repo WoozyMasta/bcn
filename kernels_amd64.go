@@ -364,6 +364,64 @@ func decodeRangeBC5ASM(data, out []byte, width, height, bx, start, end int) bool
 	return true
 }
 
+// bc6hFindIdx1ASM is the SOA-block variant of bc6hFindIndices1SubASM.
+// The caller pre-converts the block once; only the palette is built here.
+func bc6hFindIdx1ASM(blk *[48]int32, ep0, ep1 [3]int) ([16]byte, bool) {
+	if !simd.HasAVX2 {
+		return [16]byte{}, false
+	}
+
+	var pal [48]int32
+	w := bc6hAWeight4
+	for k := range 16 {
+		wk := w[k]
+		pal[k] = int32((ep0[0]*(64-wk) + ep1[0]*wk + 32) >> 6)    // #nosec G115 -- interpolated endpoint, max ~65534 < 2^31.
+		pal[16+k] = int32((ep0[1]*(64-wk) + ep1[1]*wk + 32) >> 6) // #nosec G115
+		pal[32+k] = int32((ep0[2]*(64-wk) + ep1[2]*wk + 32) >> 6) // #nosec G115
+	}
+
+	var idx32 [16]int32
+	simd.BC6HFindIndices1SubAVX2(blk, &pal, &idx32)
+
+	var idx [16]byte
+	for i := range 16 {
+		idx[i] = byte(idx32[i]) // #nosec G115 -- kernel writes values in [0,15].
+	}
+
+	return idx, true
+}
+
+// bc6hFindIdx2ASM is the SOA-block variant of bc6hFindIndices2SubASM.
+func bc6hFindIdx2ASM(blk *[48]int32, ep0, ep1 [3]int, part, subset int) ([16]byte, bool) {
+	if !simd.HasAVX2 {
+		return [16]byte{}, false
+	}
+
+	var pal [24]int32
+	w := bc6hAWeight3
+	for k := range 8 {
+		wk := w[k]
+		pal[k] = int32((ep0[0]*(64-wk) + ep1[0]*wk + 32) >> 6)    // #nosec G115 -- interpolated endpoint, max ~65534 < 2^31.
+		pal[8+k] = int32((ep0[1]*(64-wk) + ep1[1]*wk + 32) >> 6)  // #nosec G115
+		pal[16+k] = int32((ep0[2]*(64-wk) + ep1[2]*wk + 32) >> 6) // #nosec G115
+	}
+
+	var idx32 [16]int32
+	simd.BC6HFindIndices2SubAVX2(
+		blk, &pal,
+		&bc6hPartitionSets[part],
+		int32(subset), // #nosec G115 -- subset is 0 or 1.
+		&idx32,
+	)
+
+	var idx [16]byte
+	for i := range 16 {
+		idx[i] = byte(idx32[i]) // #nosec G115 -- kernel writes values in [0,7].
+	}
+
+	return idx, true
+}
+
 // downscaleNRGBARow2xASM downsamples one row using the AVX2 mipmap kernel.
 // n must be even; odd tails and clamp edges are handled by the Go caller.
 func downscaleNRGBARow2xASM(dst, row0, row1 []byte, n int) bool {

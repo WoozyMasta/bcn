@@ -39,7 +39,7 @@ test-race-pure:
 	$(GO) test -tags purego -race ./...
 
 fuzz:
-	@for t in FuzzScoreDXT1Palette FuzzPackDXT1Indices FuzzAlphaKernels FuzzDecodeNoPanic; do \
+	@for t in FuzzScoreDXT1Palette FuzzPackDXT1Indices FuzzAlphaKernels FuzzDecodeNoPanic FuzzDecodeBC6HNoPanic; do \
 		echo "> $$t"; \
 		$(GO) test -run '^$$' -fuzz "^$$t$$" -fuzztime $(FUZZTIME) . || exit 1; \
 	done
