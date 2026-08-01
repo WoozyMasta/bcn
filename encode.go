@@ -106,6 +106,16 @@ func decodeBlocksInto(dst, data []byte, width, height int, format Format, opts *
 			}
 			return nil
 
+		case FormatA8:
+			for i, value := range data[:expected] {
+				out := i * 4
+				dst[out] = 0
+				dst[out+1] = 0
+				dst[out+2] = 0
+				dst[out+3] = value
+			}
+			return nil
+
 		case FormatRG8S:
 			for i := 0; i < expected; i += 2 {
 				out := i * 2
@@ -286,6 +296,12 @@ func encodeBlocksInto(dst, rgba []byte, width, height int, format Format, opts *
 		case FormatR8S:
 			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+1 {
 				out[dst] = byte(int8(snormFromU8(rgba[src]))) // #nosec G115 -- SNORM value is in [-127,127].
+			}
+			return nil
+
+		case FormatA8:
+			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+1 {
+				out[dst] = rgba[src+3]
 			}
 			return nil
 

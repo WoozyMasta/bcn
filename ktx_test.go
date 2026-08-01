@@ -211,6 +211,35 @@ func TestKTXUncompressedR8SRG8S(t *testing.T) {
 	}
 }
 
+func TestKTXUncompressedA8(t *testing.T) {
+	img := SolidImage(3, 2, color.NRGBA{R: 10, G: 20, B: 30, A: 40})
+	ktx, err := EncodeKTX(img, FormatA8)
+	if err != nil {
+		t.Fatalf("EncodeKTX: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := ktx.Write(&buf); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	read, err := ReadKTX(&buf)
+	if err != nil {
+		t.Fatalf("ReadKTX: %v", err)
+	}
+	if read.Format != FormatA8 {
+		t.Fatalf("format = %s, want A8", read.Format)
+	}
+	if got := read.Faces[0].Mipmaps[0]; !bytes.Equal(got, []byte{40, 40, 40, 40, 40, 40}) {
+		t.Fatalf("stored data = %v, want [40 40 40 40 40 40]", got)
+	}
+	decoded, err := DecodeImage(read.Faces[0].Mipmaps[0], read.Width, read.Height, read.Format)
+	if err != nil {
+		t.Fatalf("DecodeImage: %v", err)
+	}
+	if got := [4]byte(decoded.Pix[:4]); got != [4]byte{0, 0, 0, 40} {
+		t.Fatalf("pixel = %v, want [0 0 0 40]", got)
+	}
+}
+
 func TestKTXRejectArrays(t *testing.T) {
 	header := KTXHeader{
 		Identifier:            KTXIdentifier,

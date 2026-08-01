@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning][].
   (`R10G10B10A2_UNORM`) and KTX v1 I/O support.
 * Signed normalized `FormatR8S` and `FormatRG8S` encode/decode
   with DDS DX10 and KTX v1 I/O support.
+* Alpha-only `FormatA8` encode/decode with DDS DX10 (`A8_UNORM`)
+  and KTX v1 I/O support.
 
 ## [0.6.0][] - 2026-08-02
 

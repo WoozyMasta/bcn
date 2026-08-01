@@ -23,6 +23,8 @@ const (
 	KTXGLRGB = 0x1907
 	// KTXGLRGBA is GL_RGBA.
 	KTXGLRGBA = 0x1908
+	// KTXGLAlpha is GL_ALPHA.
+	KTXGLAlpha = 0x1906
 	// KTXGLBGRA is GL_BGRA (extension).
 	KTXGLBGRA = 0x80E1
 	// KTXGLRed is GL_RED.
@@ -31,6 +33,8 @@ const (
 	KTXGLRG = 0x8227
 	// KTXGLRGBA8 is GL_RGBA8 (sized internal format).
 	KTXGLRGBA8 = 0x8058
+	// KTXGLAlpha8 is GL_ALPHA8 (sized internal format).
+	KTXGLAlpha8 = 0x803C
 	// KTXGLRGB10A2 is GL_RGB10_A2 (sized internal format).
 	KTXGLRGB10A2 = 0x8059
 	// KTXGLR8 is GL_R8 (sized internal format).

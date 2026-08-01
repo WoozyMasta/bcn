@@ -182,6 +182,37 @@ func TestDDSUncompressedR8SRG8S(t *testing.T) {
 	}
 }
 
+func TestDDSUncompressedA8(t *testing.T) {
+	img := SolidImage(3, 2, color.NRGBA{R: 10, G: 20, B: 30, A: 40})
+	ds, err := EncodeDDS(img, FormatA8)
+	if err != nil {
+		t.Fatalf("EncodeDDS: %v", err)
+	}
+	wantData := []byte{40, 40, 40, 40, 40, 40}
+	if got := ds.Faces[0].Mipmaps[0]; !bytes.Equal(got, wantData) {
+		t.Fatalf("encoded data = %v, want %v", got, wantData)
+	}
+
+	var buf bytes.Buffer
+	if err := ds.Write(&buf); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	read, err := ReadDDS(&buf)
+	if err != nil {
+		t.Fatalf("ReadDDS: %v", err)
+	}
+	if read.Format != FormatA8 {
+		t.Fatalf("format = %s, want A8", read.Format)
+	}
+	decoded, err := DecodeImage(read.Faces[0].Mipmaps[0], read.Width, read.Height, read.Format)
+	if err != nil {
+		t.Fatalf("DecodeImage: %v", err)
+	}
+	if got := [4]byte(decoded.Pix[:4]); got != [4]byte{0, 0, 0, 40} {
+		t.Fatalf("pixel = %v, want [0 0 0 40]", got)
+	}
+}
+
 func TestRGB10A2EncodeDecode(t *testing.T) {
 	const packed = uint32(0xA02003FF) // R=1023, G=0, B=514, A=2.
 	data := make([]byte, 4)
@@ -221,6 +252,7 @@ func TestDDSDX10UncompressedRead(t *testing.T) {
 		{"RG8", 49, []byte{10, 20}, FormatRG8},
 		{"R8SNORM", 63, []byte{0x80}, FormatR8S},
 		{"RG8SNORM", 51, []byte{0x80, 0x7f}, FormatRG8S},
+		{"A8", 65, []byte{40}, FormatA8},
 		{"RGB10A2", 24, []byte{0xff, 0x03, 0x20, 0xa0}, FormatRGB10A2},
 	}
 
@@ -279,6 +311,8 @@ func TestDDSDX10UncompressedRead(t *testing.T) {
 				want = [4]byte{0, 0, 0, 255}
 			case FormatRG8S:
 				want = [4]byte{0, 255, 0, 255}
+			case FormatA8:
+				want = [4]byte{0, 0, 0, 40}
 			}
 			if got := [4]byte(img.Pix[:4]); got != want {
 				t.Fatalf("pixel = %v, want %v", got, want)
