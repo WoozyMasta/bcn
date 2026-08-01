@@ -2,9 +2,15 @@ GO          ?= go
 LINTER      ?= golangci-lint
 ALIGNER     ?= betteralign
 BENCHSTAT   ?= benchstat
+CC          ?= cc
 BENCH_COUNT ?= 6
 FUZZTIME    ?= 20s
 ASMGEN_REF  ?= ./internal/simd/asmgen
+
+BCDEC_REV    := 93628fe5627102fe5187b7eeb99122dec6612c36
+BCDEC_URL    := https://raw.githubusercontent.com/iOrange/bcdec/$(BCDEC_REV)/bcdec.h
+BCDEC_SHA256 := f54dcae4a2f5dc3008f66814fb57653134a568cdce461c1b4bb3dfc7d6061204
+BCDEC_HEADER := testdata/gen/bcdec.h
 
 BENCH_REF_MULTI  ?= bench_baseline_multi.txt
 BENCH_REF_SINGLE ?= bench_baseline_single.txt
@@ -23,6 +29,19 @@ generate:
 
 generate-check: generate
 	git diff --exit-code -- internal/simd
+
+.PHONY: gen-parity-fixtures gen-parity-fixtures-check
+
+gen-parity-fixtures:
+	mkdir -p testdata/parity
+	curl -sSfLo $(BCDEC_HEADER) $(BCDEC_URL)
+	echo "$(BCDEC_SHA256)  $(BCDEC_HEADER)" | sha256sum --check --status -
+	$(CC) -std=c99 -O2 -Wall -Wextra -Werror -o testdata/gen/gen_parity testdata/gen/gen_parity.c
+	./testdata/gen/gen_parity
+	rm -f $(BCDEC_HEADER) testdata/gen/gen_parity testdata/gen/gen_parity.exe
+
+gen-parity-fixtures-check: gen-parity-fixtures
+	git diff --exit-code -- testdata/parity
 
 .PHONY: test test-race test-pure test-race-pure fuzz
 

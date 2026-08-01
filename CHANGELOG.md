@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning][].
   Encoder picks the lowest-error mode per block,
   with `QualityLevel` trading encode time for quality.
   Hot paths use the existing AVX2 path with a pure-Go fallback.
+* External `bcdec` compatibility fixtures for BC1–BC7 decoding,
+  including unsigned and signed BC6H.
 
 ## [0.5.0][] - 2026-06-18
 
