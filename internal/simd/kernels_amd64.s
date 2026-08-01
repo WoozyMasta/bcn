@@ -118,6 +118,64 @@ DATA decodeAlphaPalConsts<>+124(SB)/2, $0x3334
 DATA decodeAlphaPalConsts<>+126(SB)/2, $0x3334
 GLOBL decodeAlphaPalConsts<>(SB), RODATA|NOPTR, $128
 
+DATA decodeSignedAlphaPalConsts<>+0(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+4(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+8(SB)/4, $0x0000db6d
+DATA decodeSignedAlphaPalConsts<>+12(SB)/4, $0x0000b6dc
+DATA decodeSignedAlphaPalConsts<>+16(SB)/4, $0x0000924a
+DATA decodeSignedAlphaPalConsts<>+20(SB)/4, $0x00006db6
+DATA decodeSignedAlphaPalConsts<>+24(SB)/4, $0x00004924
+DATA decodeSignedAlphaPalConsts<>+28(SB)/4, $0x00002493
+DATA decodeSignedAlphaPalConsts<>+32(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+36(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+40(SB)/4, $0x00002493
+DATA decodeSignedAlphaPalConsts<>+44(SB)/4, $0x00004924
+DATA decodeSignedAlphaPalConsts<>+48(SB)/4, $0x00006db6
+DATA decodeSignedAlphaPalConsts<>+52(SB)/4, $0x0000924a
+DATA decodeSignedAlphaPalConsts<>+56(SB)/4, $0x0000b6dc
+DATA decodeSignedAlphaPalConsts<>+60(SB)/4, $0x0000db6d
+DATA decodeSignedAlphaPalConsts<>+64(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+68(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+72(SB)/4, $0x00008000
+DATA decodeSignedAlphaPalConsts<>+76(SB)/4, $0x00008000
+DATA decodeSignedAlphaPalConsts<>+80(SB)/4, $0x00008000
+DATA decodeSignedAlphaPalConsts<>+84(SB)/4, $0x00008000
+DATA decodeSignedAlphaPalConsts<>+88(SB)/4, $0x00008000
+DATA decodeSignedAlphaPalConsts<>+92(SB)/4, $0x00008000
+DATA decodeSignedAlphaPalConsts<>+96(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+100(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+104(SB)/4, $0x0000cccd
+DATA decodeSignedAlphaPalConsts<>+108(SB)/4, $0x00009999
+DATA decodeSignedAlphaPalConsts<>+112(SB)/4, $0x00006667
+DATA decodeSignedAlphaPalConsts<>+116(SB)/4, $0x00003333
+DATA decodeSignedAlphaPalConsts<>+120(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+124(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+128(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+132(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+136(SB)/4, $0x00003333
+DATA decodeSignedAlphaPalConsts<>+140(SB)/4, $0x00006667
+DATA decodeSignedAlphaPalConsts<>+144(SB)/4, $0x00009999
+DATA decodeSignedAlphaPalConsts<>+148(SB)/4, $0x0000cccd
+DATA decodeSignedAlphaPalConsts<>+152(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+156(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+160(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+164(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+168(SB)/4, $0x00008000
+DATA decodeSignedAlphaPalConsts<>+172(SB)/4, $0x00008000
+DATA decodeSignedAlphaPalConsts<>+176(SB)/4, $0x00008000
+DATA decodeSignedAlphaPalConsts<>+180(SB)/4, $0x00008000
+DATA decodeSignedAlphaPalConsts<>+184(SB)/4, $0x00000000
+DATA decodeSignedAlphaPalConsts<>+188(SB)/4, $0x00fe0000
+DATA decodeSignedAlphaPalConsts<>+192(SB)/4, $0x00000081
+DATA decodeSignedAlphaPalConsts<>+196(SB)/4, $0x00000081
+DATA decodeSignedAlphaPalConsts<>+200(SB)/4, $0x00000081
+DATA decodeSignedAlphaPalConsts<>+204(SB)/4, $0x00000081
+DATA decodeSignedAlphaPalConsts<>+208(SB)/4, $0x00000081
+DATA decodeSignedAlphaPalConsts<>+212(SB)/4, $0x00000081
+DATA decodeSignedAlphaPalConsts<>+216(SB)/4, $0x00000081
+DATA decodeSignedAlphaPalConsts<>+220(SB)/4, $0x00000081
+GLOBL decodeSignedAlphaPalConsts<>(SB), RODATA|NOPTR, $224
+
 DATA decodeGrayMul<>+0(SB)/4, $0x00010101
 GLOBL decodeGrayMul<>(SB), RODATA|NOPTR, $4
 
@@ -683,6 +741,210 @@ loop:
 	VPADDW       X3, X2, X2
 	VPADDW       32(R8), X2, X2
 	VPMULHUW     48(R8), X2, X2
+	VPACKUSWB    X2, X2, X2
+	MOVL         10(CX), SI
+	MOVWLZX      14(CX), DI
+	SHLQ         $0x20, DI
+	ORQ          DI, SI
+	MOVQ         $0x0707070707070707, DI
+	PDEPQ        DI, SI, R8
+	SHRQ         $0x18, SI
+	PDEPQ        DI, SI, SI
+	VMOVQ        R8, X3
+	VPINSRQ      $0x01, SI, X3, X3
+	VPSHUFB      X3, X2, X2
+	VPUNPCKLBW   X2, X1, X3
+	VPMOVZXWD    X3, Y3
+	VPOR         Y0, Y3, Y3
+	VPUNPCKHBW   X2, X1, X1
+	VPMOVZXWD    X1, Y1
+	VPOR         Y0, Y1, Y1
+	VMOVDQU      X3, (AX)
+	VEXTRACTI128 $0x01, Y3, (AX)(BX*1)
+	LEAQ         (AX)(BX*2), SI
+	VMOVDQU      X1, (SI)
+	VEXTRACTI128 $0x01, Y1, (SI)(BX*1)
+	ADDQ         $0x10, CX
+	ADDQ         $0x10, AX
+	DECQ         DX
+	JNZ          loop
+	VZEROUPPER
+	RET
+
+// func DecodeBC4SRowAVX2(dst *byte, src *byte, n int, stride int)
+// Requires: AVX, AVX2, BMI2, CMOV
+TEXT ·DecodeBC4SRowAVX2(SB), NOSPLIT, $0-32
+	MOVQ         dst+0(FP), AX
+	MOVQ         src+8(FP), CX
+	MOVQ         n+16(FP), DX
+	MOVQ         stride+24(FP), BX
+	VPBROADCASTD decodeGrayMul<>+0(SB), Y0
+	VPCMPEQD     Y1, Y1, Y1
+	VPSLLD       $0x18, Y1, Y1
+
+loop:
+	MOVBLZX      (CX), SI
+	XORL         $0x80, SI
+	SUBL         $0x80, SI
+	ADDL         $0x7f, SI
+	MOVL         SI, DI
+	SARL         $0x1f, DI
+	NOTL         DI
+	ANDL         DI, SI
+	MOVBLZX      1(CX), DI
+	XORL         $0x80, DI
+	SUBL         $0x80, DI
+	ADDL         $0x7f, DI
+	MOVL         DI, R8
+	SARL         $0x1f, R8
+	NOTL         R8
+	ANDL         R8, DI
+	LEAQ         decodeSignedAlphaPalConsts<>+96(SB), R8
+	LEAQ         decodeSignedAlphaPalConsts<>+0(SB), R9
+	CMPL         SI, DI
+	CMOVQHI      R9, R8
+	VMOVD        SI, X2
+	VPBROADCASTD X2, Y2
+	VMOVD        DI, X3
+	VPBROADCASTD X3, Y3
+	VPMULLD      (R8), Y2, Y4
+	VPMULLD      32(R8), Y3, Y5
+	VPADDD       Y5, Y4, Y4
+	VPADDD       64(R8), Y4, Y4
+	VPSRLD       $0x10, Y4, Y4
+	VPBLENDD     $0x01, Y2, Y4, Y4
+	VPBLENDD     $0x02, Y3, Y4, Y4
+	VPADDD       decodeSignedAlphaPalConsts<>+192(SB), Y4, Y5
+	VPSRLD       $0x08, Y5, Y5
+	VPADDD       Y5, Y4, Y4
+	VEXTRACTI128 $0x01, Y4, X2
+	VPACKUSDW    X2, X4, X2
+	VPACKUSWB    X2, X2, X2
+	MOVL         2(CX), SI
+	MOVWLZX      6(CX), DI
+	SHLQ         $0x20, DI
+	ORQ          DI, SI
+	MOVQ         $0x0707070707070707, DI
+	PDEPQ        DI, SI, R8
+	SHRQ         $0x18, SI
+	PDEPQ        DI, SI, SI
+	VMOVQ        R8, X3
+	VPINSRQ      $0x01, SI, X3, X3
+	VPSHUFB      X3, X2, X2
+	VPMOVZXBD    X2, Y3
+	VPMULLD      Y0, Y3, Y3
+	VPOR         Y1, Y3, Y3
+	VPSRLDQ      $0x08, X2, X2
+	VPMOVZXBD    X2, Y2
+	VPMULLD      Y0, Y2, Y2
+	VPOR         Y1, Y2, Y2
+	VMOVDQU      X3, (AX)
+	VEXTRACTI128 $0x01, Y3, (AX)(BX*1)
+	LEAQ         (AX)(BX*2), SI
+	VMOVDQU      X2, (SI)
+	VEXTRACTI128 $0x01, Y2, (SI)(BX*1)
+	ADDQ         $0x08, CX
+	ADDQ         $0x10, AX
+	DECQ         DX
+	JNZ          loop
+	VZEROUPPER
+	RET
+
+// func DecodeBC5SRowAVX2(dst *byte, src *byte, n int, stride int)
+// Requires: AVX, AVX2, BMI2, CMOV
+TEXT ·DecodeBC5SRowAVX2(SB), NOSPLIT, $0-32
+	MOVQ     dst+0(FP), AX
+	MOVQ     src+8(FP), CX
+	MOVQ     n+16(FP), DX
+	MOVQ     stride+24(FP), BX
+	VPCMPEQD Y0, Y0, Y0
+	VPSLLD   $0x18, Y0, Y0
+
+loop:
+	MOVBLZX      (CX), SI
+	XORL         $0x80, SI
+	SUBL         $0x80, SI
+	ADDL         $0x7f, SI
+	MOVL         SI, DI
+	SARL         $0x1f, DI
+	NOTL         DI
+	ANDL         DI, SI
+	MOVBLZX      1(CX), DI
+	XORL         $0x80, DI
+	SUBL         $0x80, DI
+	ADDL         $0x7f, DI
+	MOVL         DI, R8
+	SARL         $0x1f, R8
+	NOTL         R8
+	ANDL         R8, DI
+	LEAQ         decodeSignedAlphaPalConsts<>+96(SB), R8
+	LEAQ         decodeSignedAlphaPalConsts<>+0(SB), R9
+	CMPL         SI, DI
+	CMOVQHI      R9, R8
+	VMOVD        SI, X1
+	VPBROADCASTD X1, Y1
+	VMOVD        DI, X2
+	VPBROADCASTD X2, Y2
+	VPMULLD      (R8), Y1, Y3
+	VPMULLD      32(R8), Y2, Y4
+	VPADDD       Y4, Y3, Y3
+	VPADDD       64(R8), Y3, Y3
+	VPSRLD       $0x10, Y3, Y3
+	VPBLENDD     $0x01, Y1, Y3, Y3
+	VPBLENDD     $0x02, Y2, Y3, Y3
+	VPADDD       decodeSignedAlphaPalConsts<>+192(SB), Y3, Y4
+	VPSRLD       $0x08, Y4, Y4
+	VPADDD       Y4, Y3, Y3
+	VEXTRACTI128 $0x01, Y3, X1
+	VPACKUSDW    X1, X3, X1
+	VPACKUSWB    X1, X1, X1
+	MOVL         2(CX), SI
+	MOVWLZX      6(CX), DI
+	SHLQ         $0x20, DI
+	ORQ          DI, SI
+	MOVQ         $0x0707070707070707, DI
+	PDEPQ        DI, SI, R8
+	SHRQ         $0x18, SI
+	PDEPQ        DI, SI, SI
+	VMOVQ        R8, X2
+	VPINSRQ      $0x01, SI, X2, X2
+	VPSHUFB      X2, X1, X1
+	MOVBLZX      8(CX), SI
+	XORL         $0x80, SI
+	SUBL         $0x80, SI
+	ADDL         $0x7f, SI
+	MOVL         SI, DI
+	SARL         $0x1f, DI
+	NOTL         DI
+	ANDL         DI, SI
+	MOVBLZX      9(CX), DI
+	XORL         $0x80, DI
+	SUBL         $0x80, DI
+	ADDL         $0x7f, DI
+	MOVL         DI, R8
+	SARL         $0x1f, R8
+	NOTL         R8
+	ANDL         R8, DI
+	LEAQ         decodeSignedAlphaPalConsts<>+96(SB), R8
+	LEAQ         decodeSignedAlphaPalConsts<>+0(SB), R9
+	CMPL         SI, DI
+	CMOVQHI      R9, R8
+	VMOVD        SI, X2
+	VPBROADCASTD X2, Y2
+	VMOVD        DI, X3
+	VPBROADCASTD X3, Y3
+	VPMULLD      (R8), Y2, Y4
+	VPMULLD      32(R8), Y3, Y5
+	VPADDD       Y5, Y4, Y4
+	VPADDD       64(R8), Y4, Y4
+	VPSRLD       $0x10, Y4, Y4
+	VPBLENDD     $0x01, Y2, Y4, Y4
+	VPBLENDD     $0x02, Y3, Y4, Y4
+	VPADDD       decodeSignedAlphaPalConsts<>+192(SB), Y4, Y5
+	VPSRLD       $0x08, Y5, Y5
+	VPADDD       Y5, Y4, Y4
+	VEXTRACTI128 $0x01, Y4, X2
+	VPACKUSDW    X2, X4, X2
 	VPACKUSWB    X2, X2, X2
 	MOVL         10(CX), SI
 	MOVWLZX      14(CX), DI

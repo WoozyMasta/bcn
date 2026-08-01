@@ -22,6 +22,23 @@ func DecodeBC4WithOptions(data []byte, width, height int, opts *DecodeOptions) (
 	return decodeBlocksWithOptions(data, width, height, FormatBC4, opts)
 }
 
+// EncodeBC4S encodes normalized RGBA into signed BC4 blocks using the red channel.
+// Input values map from 0..255 to the signed normalized range -1..1.
+func EncodeBC4S(rgba []byte, width, height int) ([]byte, error) {
+	return encodeBlocksWithOptions(rgba, width, height, FormatBC4S, nil)
+}
+
+// DecodeBC4S decodes signed BC4 blocks into normalized RGBA (R replicated, A=255).
+// Output values map the signed normalized range -1..1 to 0..255.
+func DecodeBC4S(data []byte, width, height int) ([]byte, error) {
+	return decodeBlocks(data, width, height, FormatBC4S)
+}
+
+// DecodeBC4SWithOptions decodes signed BC4 blocks with explicit options.
+func DecodeBC4SWithOptions(data []byte, width, height int, opts *DecodeOptions) ([]byte, error) {
+	return decodeBlocksWithOptions(data, width, height, FormatBC4S, opts)
+}
+
 // EncodeBC5 encodes an RGBA image into BC5 blocks using red/green channels.
 // Blue/alpha are ignored.
 func EncodeBC5(rgba []byte, width, height int) ([]byte, error) {
@@ -36,6 +53,23 @@ func DecodeBC5(data []byte, width, height int) ([]byte, error) {
 // DecodeBC5WithOptions decodes BC5 blocks with explicit options.
 func DecodeBC5WithOptions(data []byte, width, height int, opts *DecodeOptions) ([]byte, error) {
 	return decodeBlocksWithOptions(data, width, height, FormatBC5, opts)
+}
+
+// EncodeBC5S encodes normalized RGBA into signed BC5 blocks using red/green channels.
+// Input values map from 0..255 to the signed normalized range -1..1.
+func EncodeBC5S(rgba []byte, width, height int) ([]byte, error) {
+	return encodeBlocksWithOptions(rgba, width, height, FormatBC5S, nil)
+}
+
+// DecodeBC5S decodes signed BC5 blocks into normalized RGBA.
+// Output R/G map the signed normalized range -1..1 to 0..255; B=0 and A=255.
+func DecodeBC5S(data []byte, width, height int) ([]byte, error) {
+	return decodeBlocks(data, width, height, FormatBC5S)
+}
+
+// DecodeBC5SWithOptions decodes signed BC5 blocks with explicit options.
+func DecodeBC5SWithOptions(data []byte, width, height int, opts *DecodeOptions) ([]byte, error) {
+	return decodeBlocksWithOptions(data, width, height, FormatBC5S, opts)
 }
 
 // bc4Channel selects which pixel channel feeds a BC4 alpha block.
@@ -222,4 +256,201 @@ func alphaBlockErrorScalar(palette *[8]uint8, alpha *[16]uint8, cutoff int) int 
 	}
 
 	return err
+}
+
+// snormFromU8 maps an NRGBA component to the BC4/BC5 signed normalized range.
+func snormFromU8(v byte) int {
+	return (int(v)*254+127)/255 - 127
+}
+
+// u8FromSNORM maps a BC4/BC5 signed normalized value to an NRGBA component.
+func u8FromSNORM(v int) byte {
+	v = clampSNORM(v)
+	v += 127
+	return byte(v + (v+129)>>8) // #nosec G115 -- clamped result maps exactly to [0, 255].
+}
+
+// clampSNORM clamps an integer to the representable BC4/BC5 SNORM range.
+func clampSNORM(v int) int {
+	return min(max(v, -127), 127)
+}
+
+// signedAlphaPalette builds the eight-entry BC4/BC5 SNORM interpolation palette.
+func signedAlphaPalette(a0, a1 int) [8]int {
+	p := [8]int{a0, a1}
+	if a0 > a1 {
+		p[2] = (56173*a0 + 9363*a1 + 32768) >> 16
+		p[3] = (46812*a0 + 18724*a1 + 32768) >> 16
+		p[4] = (37450*a0 + 28086*a1 + 32768) >> 16
+		p[5] = (28086*a0 + 37450*a1 + 32768) >> 16
+		p[6] = (18724*a0 + 46812*a1 + 32768) >> 16
+		p[7] = (9363*a0 + 56173*a1 + 32768) >> 16
+	} else {
+		p[2] = (52429*a0 + 13107*a1 + 32768) >> 16
+		p[3] = (39321*a0 + 26215*a1 + 32768) >> 16
+		p[4] = (26215*a0 + 39321*a1 + 32768) >> 16
+		p[5] = (13107*a0 + 52429*a1 + 32768) >> 16
+		p[6] = -127
+		p[7] = 127
+	}
+
+	return p
+}
+
+// signedAlphaIndex returns the nearest signed alpha palette index and its squared error.
+func signedAlphaIndex(palette *[8]int, value int) (int, int) {
+	best, bestErr := 0, int(^uint(0)>>1)
+	for i := range 8 {
+		delta := value - palette[i]
+		err := delta * delta
+		if err < bestErr {
+			best, bestErr = i, err
+		}
+	}
+
+	return best, bestErr
+}
+
+// signedAlphaBlockError returns total squared error for a signed alpha endpoint pair.
+// It stops once the accumulated error reaches cutoff.
+func signedAlphaBlockError(samples *[16]int, a0, a1, cutoff int) int {
+	palette := signedAlphaPalette(a0, a1)
+	err := 0
+
+	for _, sample := range samples {
+		_, bestErr := signedAlphaIndex(&palette, sample)
+		err += bestErr
+		if err >= cutoff {
+			return err
+		}
+	}
+
+	return err
+}
+
+// encodeSignedAlphaBlock encodes sixteen SNORM samples into one BC4 alpha block.
+func encodeSignedAlphaBlock(samples [16]int, alphaTries int) [8]byte {
+	minV, maxV := samples[0], samples[0]
+	for i := 1; i < len(samples); i++ {
+		minV = min(minV, samples[i])
+		maxV = max(maxV, samples[i])
+	}
+
+	a0, a1 := maxV, minV
+	if a0 == a1 {
+		if a0 > -127 {
+			a1 = a0 - 1
+		} else {
+			a0 = a1 + 1
+		}
+	}
+
+	bestA0, bestA1 := a0, a1
+	bestErr := signedAlphaBlockError(&samples, a0, a1, 1<<62)
+
+	for i := range alphaTries {
+		cand0 := clampSNORM(a0 + (i%3 - 1))
+		cand1 := clampSNORM(a1 + ((i/3)%3 - 1))
+		if cand0 <= cand1 {
+			continue
+		}
+
+		if err := signedAlphaBlockError(&samples, cand0, cand1, bestErr); err < bestErr {
+			bestErr, bestA0, bestA1 = err, cand0, cand1
+		}
+	}
+
+	palette := signedAlphaPalette(bestA0, bestA1)
+	var idx uint64
+	for i := len(samples) - 1; i >= 0; i-- {
+		nearest, _ := signedAlphaIndex(&palette, samples[i])
+		idx = (idx << 3) | uint64(nearest) // #nosec G115 -- nearest is an index in [0, 7].
+	}
+
+	var out [8]byte
+	out[0] = byte(int8(bestA0)) // #nosec G115 -- endpoint is clamped to int8 SNORM range.
+	out[1] = byte(int8(bestA1)) // #nosec G115 -- endpoint is clamped to int8 SNORM range.
+	putAlphaIndices(out[2:], idx)
+	return out
+}
+
+// decodeSignedAlphaBlock decodes one BC4 SNORM alpha block into signed samples.
+func decodeSignedAlphaBlock(data []byte) [16]int {
+	a0 := int(int8(data[0])) // #nosec G115 -- reinterpret raw SNORM endpoint as int8.
+	a1 := int(int8(data[1])) // #nosec G115 -- reinterpret raw SNORM endpoint as int8.
+
+	a0 = max(a0, -127)
+	a1 = max(a1, -127)
+
+	palette := signedAlphaPalette(a0, a1)
+	idx := uint64(data[2]) |
+		uint64(data[3])<<8 |
+		uint64(data[4])<<16 |
+		uint64(data[5])<<24 |
+		uint64(data[6])<<32 |
+		uint64(data[7])<<40
+
+	var out [16]int
+	for i := range out {
+		out[i] = palette[idx&0x7]
+		idx >>= 3
+	}
+
+	return out
+}
+
+// encodeBlockBC4S encodes one normalized NRGBA channel as a signed BC4 block.
+func encodeBlockBC4S(block [16]rgba8, opts EncodeOptions, channel bc4Channel) [8]byte {
+	var samples [16]int
+	for i := range block {
+		if channel == bc4ChannelG {
+			samples[i] = snormFromU8(block[i].g)
+		} else {
+			samples[i] = snormFromU8(block[i].r)
+		}
+	}
+
+	return encodeSignedAlphaBlock(samples, qualitySettingsForOpts(opts).alphaTries)
+}
+
+// decodeBlockBC4S decodes one signed BC4 block into normalized NRGBA pixels.
+func decodeBlockBC4S(data []byte) [64]byte {
+	samples := decodeSignedAlphaBlock(data)
+	var out [64]byte
+	for i := range samples {
+		value := u8FromSNORM(samples[i])
+		out[i*4+0] = value
+		out[i*4+1] = value
+		out[i*4+2] = value
+		out[i*4+3] = 255
+	}
+
+	return out
+}
+
+// encodeBlockBC5S encodes red and green normalized NRGBA channels as signed BC5.
+func encodeBlockBC5S(block [16]rgba8, opts EncodeOptions) [16]byte {
+	var out [16]byte
+
+	red := encodeBlockBC4S(block, opts, bc4ChannelR)
+	green := encodeBlockBC4S(block, opts, bc4ChannelG)
+	copy(out[0:8], red[:])
+	copy(out[8:16], green[:])
+
+	return out
+}
+
+// decodeBlockBC5S decodes one signed BC5 block into normalized NRGBA pixels.
+func decodeBlockBC5S(data []byte) [64]byte {
+	red := decodeSignedAlphaBlock(data[0:8])
+	green := decodeSignedAlphaBlock(data[8:16])
+	var out [64]byte
+	for i := range red {
+		out[i*4+0] = u8FromSNORM(red[i])
+		out[i*4+1] = u8FromSNORM(green[i])
+		out[i*4+2] = 0
+		out[i*4+3] = 255
+	}
+
+	return out
 }

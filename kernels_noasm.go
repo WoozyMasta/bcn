@@ -36,6 +36,16 @@ func decodeRangeBC5ASM(_, _ []byte, _, _, _, _, _ int) bool {
 	return false
 }
 
+// decodeRangeBC4SASM is unavailable without assembly support.
+func decodeRangeBC4SASM(_, _ []byte, _, _, _, _, _ int) bool {
+	return false
+}
+
+// decodeRangeBC5SASM is unavailable without assembly support.
+func decodeRangeBC5SASM(_, _ []byte, _, _, _, _, _ int) bool {
+	return false
+}
+
 // packBC1IndicesASM is unavailable without assembly support.
 func packBC1IndicesASM(_ *[16]rgba8, _ *[4]rgba8, _ bool, _ uint8, _ rgbWeightsFP) (uint32, bool) {
 	return 0, false

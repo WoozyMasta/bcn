@@ -12,7 +12,8 @@ The hot paths use AVX2/SSE2 kernels on amd64 when available;
 
 ## Features
 
-* BC1/DXT1, BC2/DXT3, BC3/DXT5, BC4, BC5, BC6H/BPTC-HDR, BC7/BPTC encode/decode
+* BC1/DXT1, BC2/DXT3, BC3/DXT5, BC4/BC5 (UNORM and SNORM),
+  BC6H/BPTC-HDR, BC7/BPTC encode/decode
 * DDS read/write (2D + cubemap, mipmaps, uncompressed RGBA/BGRA)
 * KTX v1 read/write (2D + cubemap, mipmaps)
 * Mipmap generation with optional sRGB-aware downscale
@@ -20,6 +21,9 @@ The hot paths use AVX2/SSE2 kernels on amd64 when available;
   and refinement overrides (`Refinement`)
 * Parallel encoding control via `EncodeOptions.Workers` (0=auto, 1=off)
 * Parallel decoding control via `DecodeOptions.Workers` (0=auto, 1=off)
+
+BC4/BC5 signed normalized variants use `FormatBC4S` / `FormatBC5S`.
+Their NRGBA input and output map `0..255` to `-1..1`.
 
 > [!NOTE]  
 > For large images or one‑by‑one encoding, use internal parallelism (default).  

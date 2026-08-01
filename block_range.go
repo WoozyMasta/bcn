@@ -26,6 +26,12 @@ func decodeBlockRange(format Format, data, out []byte, width, height, bx, start,
 	case FormatBC5:
 		decodeRangeBC5(data, out, width, height, bx, start, end)
 
+	case FormatBC4S:
+		decodeRangeBC4S(data, out, width, height, bx, start, end)
+
+	case FormatBC5S:
+		decodeRangeBC5S(data, out, width, height, bx, start, end)
+
 	case FormatBC7:
 		decodeRangeBC7(data, out, width, height, bx, start, end)
 
@@ -56,6 +62,12 @@ func encodeBlockRange(format Format, rgba, out []byte, width, height, bx, start,
 
 	case FormatBC5:
 		encodeRangeBC5(rgba, out, width, height, bx, start, end, options)
+
+	case FormatBC4S:
+		encodeRangeBC4S(rgba, out, width, height, bx, start, end, options)
+
+	case FormatBC5S:
+		encodeRangeBC5S(rgba, out, width, height, bx, start, end, options)
 
 	case FormatBC7:
 		encodeRangeBC7(rgba, out, width, height, bx, start, end, options)
@@ -176,6 +188,51 @@ func decodeRangeBC5(data, out []byte, width, height, bx, start, end int) {
 
 	for range end - start {
 		block := decodeBlockBC5(data[pos : pos+16])
+		storeBlock(out, width, height, x, y, &block)
+		pos += 16
+
+		x++
+		if x == bx {
+			x = 0
+			y++
+		}
+	}
+}
+
+// decodeRangeBC4S decodes signed BC4 blocks.
+func decodeRangeBC4S(data, out []byte, width, height, bx, start, end int) {
+	if decodeRangeBC4SASM(data, out, width, height, bx, start, end) {
+		return
+	}
+
+	x := start % bx
+	y := start / bx
+	pos := start * 8
+
+	for range end - start {
+		block := decodeBlockBC4S(data[pos : pos+8])
+		storeBlock(out, width, height, x, y, &block)
+		pos += 8
+
+		x++
+		if x == bx {
+			x = 0
+			y++
+		}
+	}
+}
+
+// decodeRangeBC5S decodes signed BC5 blocks.
+func decodeRangeBC5S(data, out []byte, width, height, bx, start, end int) {
+	if decodeRangeBC5SASM(data, out, width, height, bx, start, end) {
+		return
+	}
+	x := start % bx
+	y := start / bx
+	pos := start * 16
+
+	for range end - start {
+		block := decodeBlockBC5S(data[pos : pos+16])
 		storeBlock(out, width, height, x, y, &block)
 		pos += 16
 
@@ -315,6 +372,46 @@ func encodeRangeBC5(rgba, out []byte, width, height, bx, start, end int, options
 	for range end - start {
 		block := extractBlock(rgba, width, height, x, y)
 		b := encodeBlockBC5(block, options)
+		copy(out[pos:pos+16], b[:])
+		pos += 16
+
+		x++
+		if x == bx {
+			x = 0
+			y++
+		}
+	}
+}
+
+// encodeRangeBC4S encodes signed BC4 blocks.
+func encodeRangeBC4S(rgba, out []byte, width, height, bx, start, end int, options EncodeOptions) {
+	x := start % bx
+	y := start / bx
+	pos := start * 8
+
+	for range end - start {
+		block := extractBlock(rgba, width, height, x, y)
+		b := encodeBlockBC4S(block, options, bc4ChannelR)
+		copy(out[pos:pos+8], b[:])
+		pos += 8
+
+		x++
+		if x == bx {
+			x = 0
+			y++
+		}
+	}
+}
+
+// encodeRangeBC5S encodes signed BC5 blocks.
+func encodeRangeBC5S(rgba, out []byte, width, height, bx, start, end int, options EncodeOptions) {
+	x := start % bx
+	y := start / bx
+	pos := start * 16
+
+	for range end - start {
+		block := extractBlock(rgba, width, height, x, y)
+		b := encodeBlockBC5S(block, options)
 		copy(out[pos:pos+16], b[:])
 		pos += 16
 

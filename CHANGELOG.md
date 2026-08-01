@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning][].
 ### Added
 
 * DX10 DDS read support for RGBA8/BGRA8 and sRGB BC1–BC3 formats.
+* Signed normalized BC4 and BC5 (`BC4_SNORM`/`BC5_SNORM`) encode and decode,
+  with DDS DX10 and KTX v1 I/O.
+  AVX2/BMI2 decoding on amd64 with a pure-Go fallback.
 
 ## [0.6.0][] - 2026-08-02
 

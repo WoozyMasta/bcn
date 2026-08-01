@@ -197,6 +197,18 @@ func (d *DDS) Write(w io.Writer) error {
 		hdr.PixelFormat.Flags = DDSPFFourCC
 		hdr.PixelFormat.FourCC = makeFourCC('A', 'T', 'I', '2')
 
+	case FormatBC4S:
+		hdr.Flags |= DDSFlagLinearSize
+		hdr.PixelFormat.Flags = DDSPFFourCC
+		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', '1', '0')
+		dx10Format = 81 // DXGI_FORMAT_BC4_SNORM
+
+	case FormatBC5S:
+		hdr.Flags |= DDSFlagLinearSize
+		hdr.PixelFormat.Flags = DDSPFFourCC
+		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', '1', '0')
+		dx10Format = 84 // DXGI_FORMAT_BC5_SNORM
+
 	case FormatBC6HU:
 		hdr.Flags |= DDSFlagLinearSize
 		hdr.PixelFormat.Flags = DDSPFFourCC
@@ -305,8 +317,12 @@ func ddsFormatFromHeader(r io.Reader, header *DDSHeader) (Format, *DDSHeaderDX10
 			return FormatBC3, &dx10, nil
 		case 80: // DXGI_FORMAT_BC4_UNORM
 			return FormatBC4, &dx10, nil
+		case 81: // DXGI_FORMAT_BC4_SNORM
+			return FormatBC4S, &dx10, nil
 		case 83: // DXGI_FORMAT_BC5_UNORM
 			return FormatBC5, &dx10, nil
+		case 84: // DXGI_FORMAT_BC5_SNORM
+			return FormatBC5S, &dx10, nil
 		case 87, 91: // DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM_SRGB
 			return FormatBGRA8, &dx10, nil
 		case 95: // DXGI_FORMAT_BC6H_UF16
@@ -333,8 +349,12 @@ func ddsFormatFromHeader(r io.Reader, header *DDSHeader) (Format, *DDSHeaderDX10
 		return FormatBC5, nil, nil
 	case makeFourCC('B', 'C', '4', 'U'):
 		return FormatBC4, nil, nil
+	case makeFourCC('B', 'C', '4', 'S'):
+		return FormatBC4S, nil, nil
 	case makeFourCC('B', 'C', '5', 'U'):
 		return FormatBC5, nil, nil
+	case makeFourCC('B', 'C', '5', 'S'):
+		return FormatBC5S, nil, nil
 	default:
 		return FormatUnknown, nil, ErrUnsupportedDDSFourCC
 	}

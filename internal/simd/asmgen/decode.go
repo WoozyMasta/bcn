@@ -185,6 +185,33 @@ func genAlphaConsts() Mem {
 	return m
 }
 
+// genSignedAlphaConsts emits the dword coefficient vectors
+// used to build the BC4S/BC5S palette in the normalized [0,254] domain.
+// Each group is wa|wb|bias for a0>a1 and a0<=a1 respectively;
+// lane 0/1 are overwritten with the endpoints after interpolation.
+// The final vector adds 129 before shifting by eight, exactly matching u8FromSNORM.
+func genSignedAlphaConsts() Mem {
+	m := GLOBL("decodeSignedAlphaPalConsts", RODATA|NOPTR)
+	vecs := [][8]uint32{
+		{0, 0, 56173, 46812, 37450, 28086, 18724, 9363},
+		{0, 0, 9363, 18724, 28086, 37450, 46812, 56173},
+		{0, 0, 32768, 32768, 32768, 32768, 32768, 32768},
+		{0, 0, 52429, 39321, 26215, 13107, 0, 0},
+		{0, 0, 13107, 26215, 39321, 52429, 0, 0},
+		{0, 0, 32768, 32768, 32768, 32768, 0, 16646144},
+		{129, 129, 129, 129, 129, 129, 129, 129},
+	}
+	off := 0
+	for _, v := range vecs {
+		for _, w := range v {
+			DATA(off, U32(w))
+			off += 4
+		}
+	}
+
+	return m
+}
+
 // emitAlphaPaletteWords builds the 8-entry BC3/BC4 alpha palette from a0, a1
 // (zero-extended bytes) and returns the values as 8 words in an XMM.
 // The mode (a0>a1 vs a0<=a1) is selected branchlessly
@@ -250,6 +277,95 @@ func emitAlphaBytes(src Register, disp int, ac Mem) VecVirtual {
 	VPINSRQ(Imm(1), hiIdx, idx, idx)
 	out := XMM()
 	VPSHUFB(idx, apal, out)
+
+	return out
+}
+
+// emitSignedEndpointNorm maps a BC4S/BC5S endpoint byte to [0,254],
+// where zero represents -127 and 254 represents 127.
+// The raw -128 representation clamps to -127,
+// matching the scalar decoder and the BC SNORM definition.
+func emitSignedEndpointNorm(src Register, disp int) GPVirtual {
+	v := GP32()
+	MOVBLZX(Mem{Base: src, Disp: disp}, v)
+	XORL(Imm(0x80), v)
+	SUBL(Imm(0x80), v)
+	ADDL(Imm(127), v)
+
+	mask := GP32()
+	MOVL(v, mask)
+	SARL(Imm(31), mask)
+	NOTL(mask)
+	ANDL(mask, v)
+	return v
+}
+
+// emitSignedAlphaBytes emits BC4S/BC5S alpha decoding at src+disp.
+// Palette interpolation runs in AVX2 dwords
+// so its fixed-point rounding is byte-exact with signedAlphaPalette;
+// BMI2 expands packed 3-bit indices for VPSHUFB.
+func emitSignedAlphaBytes(src Register, disp int, sac Mem) VecVirtual {
+	a0 := emitSignedEndpointNorm(src, disp)
+	a1 := emitSignedEndpointNorm(src, disp+1)
+
+	base := GP64()
+	LEAQ(sac.Offset(96), base)
+	b7 := GP64()
+	LEAQ(sac, b7)
+	CMPL(a0, a1)
+	CMOVQHI(b7, base)
+
+	x0 := XMM()
+	VMOVD(a0, x0)
+	v0 := YMM()
+	VPBROADCASTD(x0, v0)
+	x1 := XMM()
+	VMOVD(a1, x1)
+	v1 := YMM()
+	VPBROADCASTD(x1, v1)
+
+	pal := YMM()
+	VPMULLD(Mem{Base: base}, v0, pal)
+	t := YMM()
+	VPMULLD(Mem{Base: base, Disp: 32}, v1, t)
+	VPADDD(t, pal, pal)
+	VPADDD(Mem{Base: base, Disp: 64}, pal, pal)
+	VPSRLD(Imm(16), pal, pal)
+	VPBLENDD(Imm(0x01), v0, pal, pal)
+	VPBLENDD(Imm(0x02), v1, pal, pal)
+
+	// u8FromSNORM(n-127) = n + (n+129)>>8 for n in [0,254].
+	VPADDD(sac.Offset(192), pal, t)
+	VPSRLD(Imm(8), t, t)
+	VPADDD(t, pal, pal)
+
+	hi := XMM()
+	VEXTRACTI128(Imm(1), pal, hi)
+	words := XMM()
+	VPACKUSDW(hi, pal.AsX(), words)
+	alpha := XMM()
+	VPACKUSWB(words, words, alpha)
+
+	vlo := GP64()
+	MOVL(Mem{Base: src, Disp: disp + 2}, vlo.As32())
+	vhi := GP64()
+	MOVWLZX(Mem{Base: src, Disp: disp + 6}, vhi.As32())
+	SHLQ(Imm(32), vhi)
+	ORQ(vhi, vlo)
+
+	pdepMask := GP64()
+	MOVQ(Imm(0x0707070707070707), pdepMask)
+	loIdx := GP64()
+	PDEPQ(pdepMask, vlo, loIdx)
+	SHRQ(Imm(24), vlo)
+	hiIdx := GP64()
+	PDEPQ(pdepMask, vlo, hiIdx)
+
+	idx := XMM()
+	VMOVQ(loIdx, idx)
+	VPINSRQ(Imm(1), hiIdx, idx, idx)
+	out := XMM()
+	VPSHUFB(idx, alpha, out)
 
 	return out
 }
@@ -528,6 +644,93 @@ func genDecodeBC5Row(ac Mem) {
 
 	emitStore4Rows(px0, px1, dst, stride)
 
+	ADDQ(Imm(16), src)
+	ADDQ(Imm(16), dst)
+	DECQ(n)
+	JNZ(LabelRef("loop"))
+
+	VZEROUPPER()
+	RET()
+}
+
+// genDecodeBC4SRow emits the AVX2+BMI2 kernel decoding signed BC4 blocks.
+func genDecodeBC4SRow(sac Mem) {
+	TEXT("DecodeBC4SRowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
+	Pragma("noescape")
+	Doc(
+		"DecodeBC4SRowAVX2 decodes n consecutive interior signed BC4 blocks (8 bytes each)",
+		"into dst as 4 gray NRGBA rows spaced stride bytes apart. Requires BMI2.",
+	)
+
+	dst := Load(Param("dst"), GP64())
+	src := Load(Param("src"), GP64())
+	n := Load(Param("n"), GP64())
+	stride := Load(Param("stride"), GP64())
+
+	gray := YMM()
+	VPBROADCASTD(grayMulConst, gray)
+	alphaFF := YMM()
+	VPCMPEQD(alphaFF, alphaFF, alphaFF)
+	VPSLLD(Imm(24), alphaFF, alphaFF)
+
+	Label("loop")
+
+	alpha16 := emitSignedAlphaBytes(src, 0, sac)
+	px0 := YMM()
+	VPMOVZXBD(alpha16, px0)
+	VPMULLD(gray, px0, px0)
+	VPOR(alphaFF, px0, px0)
+	ahi := XMM()
+	VPSRLDQ(Imm(8), alpha16, ahi)
+	px1 := YMM()
+	VPMOVZXBD(ahi, px1)
+	VPMULLD(gray, px1, px1)
+	VPOR(alphaFF, px1, px1)
+
+	emitStore4Rows(px0, px1, dst, stride)
+	ADDQ(Imm(8), src)
+	ADDQ(Imm(16), dst)
+	DECQ(n)
+	JNZ(LabelRef("loop"))
+
+	VZEROUPPER()
+	RET()
+}
+
+// genDecodeBC5SRow emits the AVX2+BMI2 kernel decoding signed BC5 blocks.
+func genDecodeBC5SRow(sac Mem) {
+	TEXT("DecodeBC5SRowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
+	Pragma("noescape")
+	Doc(
+		"DecodeBC5SRowAVX2 decodes n consecutive interior signed BC5 blocks (16 bytes each)",
+		"into dst as 4 NRGBA rows (R, G, 0, 255) spaced stride bytes apart. Requires BMI2.",
+	)
+
+	dst := Load(Param("dst"), GP64())
+	src := Load(Param("src"), GP64())
+	n := Load(Param("n"), GP64())
+	stride := Load(Param("stride"), GP64())
+
+	alphaFF := YMM()
+	VPCMPEQD(alphaFF, alphaFF, alphaFF)
+	VPSLLD(Imm(24), alphaFF, alphaFF)
+
+	Label("loop")
+
+	r16 := emitSignedAlphaBytes(src, 0, sac)
+	g16 := emitSignedAlphaBytes(src, 8, sac)
+	w0 := XMM()
+	VPUNPCKLBW(g16, r16, w0)
+	px0 := YMM()
+	VPMOVZXWD(w0, px0)
+	VPOR(alphaFF, px0, px0)
+	w1 := XMM()
+	VPUNPCKHBW(g16, r16, w1)
+	px1 := YMM()
+	VPMOVZXWD(w1, px1)
+	VPOR(alphaFF, px1, px1)
+
+	emitStore4Rows(px0, px1, dst, stride)
 	ADDQ(Imm(16), src)
 	ADDQ(Imm(16), dst)
 	DECQ(n)

@@ -40,6 +40,18 @@ func DecodeBC4RowAVX2(dst *byte, src *byte, n int, stride int)
 //go:noescape
 func DecodeBC5RowAVX2(dst *byte, src *byte, n int, stride int)
 
+// DecodeBC4SRowAVX2 decodes n consecutive interior signed BC4 blocks (8 bytes each)
+// into dst as 4 gray NRGBA rows spaced stride bytes apart. Requires BMI2.
+//
+//go:noescape
+func DecodeBC4SRowAVX2(dst *byte, src *byte, n int, stride int)
+
+// DecodeBC5SRowAVX2 decodes n consecutive interior signed BC5 blocks (16 bytes each)
+// into dst as 4 NRGBA rows (R, G, 0, 255) spaced stride bytes apart. Requires BMI2.
+//
+//go:noescape
+func DecodeBC5SRowAVX2(dst *byte, src *byte, n int, stride int)
+
 // PackBC1IndicesAVX2 maps 16 NRGBA pixels to weighted-SSE-nearest palette entries
 // and packs the 2-bit indices. Alpha mode is driven by the params block:
 // a sub-threshold pixel is forced to index 3 and the entry-3 penalty keeps that entry from winning the argmin.

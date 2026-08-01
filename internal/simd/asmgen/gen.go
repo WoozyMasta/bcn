@@ -21,6 +21,7 @@ func main() {
 
 	consts := genDecodeConsts()
 	alphaConsts := genAlphaConsts()
+	signedAlphaConsts := genSignedAlphaConsts()
 	genMiscConsts()
 	mipmapConsts := genMipmapConsts()
 	bc7Consts := genBC7Consts()
@@ -29,6 +30,8 @@ func main() {
 	genDecodeBC3Row(consts, alphaConsts)
 	genDecodeBC4Row(alphaConsts)
 	genDecodeBC5Row(alphaConsts)
+	genDecodeBC4SRow(signedAlphaConsts)
+	genDecodeBC5SRow(signedAlphaConsts)
 
 	genPackBC1Indices(consts)
 	genScoreBC1Palette()

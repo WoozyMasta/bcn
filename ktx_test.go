@@ -78,6 +78,27 @@ func TestKTXBC5RoundTrip(t *testing.T) {
 	}
 }
 
+func TestKTXBC4SBC5SRoundTrip(t *testing.T) {
+	img := SolidImage(4, 4, color.NRGBA{R: 128, G: 128, A: 255})
+	for _, format := range []Format{FormatBC4S, FormatBC5S} {
+		ktx, err := EncodeKTX(img, format)
+		if err != nil {
+			t.Fatalf("encode %s: %v", format, err)
+		}
+		var buf bytes.Buffer
+		if err := ktx.Write(&buf); err != nil {
+			t.Fatalf("write %s: %v", format, err)
+		}
+		read, err := ReadKTX(&buf)
+		if err != nil {
+			t.Fatalf("read %s: %v", format, err)
+		}
+		if read.Format != format {
+			t.Fatalf("format = %s, want %s", read.Format, format)
+		}
+	}
+}
+
 func TestKTXUncompressedRoundTrip(t *testing.T) {
 	img := SolidImage(4, 4, color.NRGBA{R: 255, G: 128, B: 64, A: 255})
 	for _, format := range []Format{FormatRGBA8, FormatBGRA8} {

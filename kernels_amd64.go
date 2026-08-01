@@ -364,6 +364,26 @@ func decodeRangeBC5ASM(data, out []byte, width, height, bx, start, end int) bool
 	return true
 }
 
+// decodeRangeBC4SASM decodes signed blocks [start, end) with the AVX2+BMI2 row kernel.
+func decodeRangeBC4SASM(data, out []byte, width, height, bx, start, end int) bool {
+	if !decodeRangeASMAvailable(simd.HasAVX2BMI2, width, height, start, end) {
+		return false
+	}
+
+	decodeRangeRows(simd.DecodeBC4SRowAVX2, data, out, width, bx, start, end, 8)
+	return true
+}
+
+// decodeRangeBC5SASM decodes signed blocks [start, end) with the AVX2+BMI2 row kernel.
+func decodeRangeBC5SASM(data, out []byte, width, height, bx, start, end int) bool {
+	if !decodeRangeASMAvailable(simd.HasAVX2BMI2, width, height, start, end) {
+		return false
+	}
+
+	decodeRangeRows(simd.DecodeBC5SRowAVX2, data, out, width, bx, start, end, 16)
+	return true
+}
+
 // bc6hFindIdx1ASM is the SOA-block variant of bc6hFindIndices1SubASM.
 // The caller pre-converts the block once; only the palette is built here.
 func bc6hFindIdx1ASM(blk *[48]int32, ep0, ep1 [3]int) ([16]byte, bool) {

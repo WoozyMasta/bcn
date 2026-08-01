@@ -245,6 +245,30 @@ func TestDecodeRangeBC5Equivalence(t *testing.T) {
 	}
 }
 
+// TestDecodeRangeBC4SEquivalence sweeps all signed alpha endpoint pairs through BC4S.
+func TestDecodeRangeBC4SEquivalence(t *testing.T) {
+	const blocks = 256
+	for round := range 256 {
+		payload := alphaPayload(blocks, round)
+		checkDecodeRangeASM(t, "BC4S", payload, 8, decodeRangeBC4SASM, decodeBlockBC4S)
+	}
+}
+
+// TestDecodeRangeBC5SEquivalence covers signed endpoint sweeps in both channels.
+func TestDecodeRangeBC5SEquivalence(t *testing.T) {
+	const blocks = 256
+	for round := range 128 {
+		r := alphaPayload(blocks, round)
+		g := alphaPayload(blocks, 255-round)
+		payload := make([]byte, blocks*16)
+		for b := range blocks {
+			copy(payload[b*16:b*16+8], r[b*8:(b+1)*8])
+			copy(payload[b*16+8:b*16+16], g[b*8:(b+1)*8])
+		}
+		checkDecodeRangeASM(t, "BC5S", payload, 16, decodeRangeBC5SASM, decodeBlockBC5S)
+	}
+}
+
 // TestPackBC1IndicesEquivalence verifies the AVX2 index-assignment kernel
 // against the scalar reference across opaque and alpha modes, random palettes,
 // weights and blocks (including sub-threshold alpha pixels and ties).
