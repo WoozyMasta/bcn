@@ -48,7 +48,7 @@ func encodeBlockBC2WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	return out
 }
 
-// decodeBlockBC2 decodes one BC2/BC2 block into 16 NRGBA pixels
+// decodeBlockBC2 decodes one BC2 block into 16 NRGBA pixels
 // laid out as 4 rows of 16 bytes.
 func decodeBlockBC2(data []byte) [64]byte {
 	alphaBits := binary.LittleEndian.Uint64(data[0:8])

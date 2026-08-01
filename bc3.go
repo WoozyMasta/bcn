@@ -63,7 +63,7 @@ func encodeBlockBC3WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	return out
 }
 
-// decodeBlockBC3 decodes one BC3/BC3 block into 16 NRGBA pixels
+// decodeBlockBC3 decodes one BC3 block into 16 NRGBA pixels
 // laid out as 4 rows of 16 bytes.
 func decodeBlockBC3(data []byte) [64]byte {
 	a0 := data[0]
