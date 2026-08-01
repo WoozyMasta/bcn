@@ -213,6 +213,41 @@ func TestDDSUncompressedA8(t *testing.T) {
 	}
 }
 
+func TestPacked16EncodeDecode(t *testing.T) {
+	tests := []struct {
+		format Format
+		data   []byte
+		pixel  color.NRGBA
+	}{
+		{FormatRGB565, []byte{0x00, 0xf8}, color.NRGBA{R: 255, A: 255}},
+		{FormatRGBA5551, []byte{0x00, 0xfc}, color.NRGBA{R: 255, A: 255}},
+		{FormatRGBA5551, []byte{0x00, 0x7c}, color.NRGBA{R: 255}},
+		{FormatRGBA4444, []byte{0x00, 0xff}, color.NRGBA{R: 255, A: 255}},
+		{FormatRGBA4444, []byte{0x00, 0x8f}, color.NRGBA{R: 255, A: 136}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.format.String(), func(t *testing.T) {
+			decoded, err := DecodeImage(tt.data, 1, 1, tt.format)
+			if err != nil {
+				t.Fatalf("DecodeImage: %v", err)
+			}
+			want := [4]byte{tt.pixel.R, tt.pixel.G, tt.pixel.B, tt.pixel.A}
+			if got := [4]byte(decoded.Pix[:4]); got != want {
+				t.Fatalf("pixel = %v, want %v", got, want)
+			}
+
+			encoded, _, _, err := EncodeImage(SolidImage(1, 1, tt.pixel), tt.format)
+			if err != nil {
+				t.Fatalf("EncodeImage: %v", err)
+			}
+			if !bytes.Equal(encoded, tt.data) {
+				t.Fatalf("encoded data = %v, want %v", encoded, tt.data)
+			}
+		})
+	}
+}
+
 func TestRGB10A2EncodeDecode(t *testing.T) {
 	const packed = uint32(0xA02003FF) // R=1023, G=0, B=514, A=2.
 	data := make([]byte, 4)
@@ -253,6 +288,9 @@ func TestDDSDX10UncompressedRead(t *testing.T) {
 		{"R8SNORM", 63, []byte{0x80}, FormatR8S},
 		{"RG8SNORM", 51, []byte{0x80, 0x7f}, FormatRG8S},
 		{"A8", 65, []byte{40}, FormatA8},
+		{"RGB565", 85, []byte{0x00, 0xf8}, FormatRGB565},
+		{"RGBA5551", 86, []byte{0x00, 0xfc}, FormatRGBA5551},
+		{"RGBA4444", 115, []byte{0x00, 0xff}, FormatRGBA4444},
 		{"RGB10A2", 24, []byte{0xff, 0x03, 0x20, 0xa0}, FormatRGB10A2},
 	}
 
@@ -313,6 +351,8 @@ func TestDDSDX10UncompressedRead(t *testing.T) {
 				want = [4]byte{0, 255, 0, 255}
 			case FormatA8:
 				want = [4]byte{0, 0, 0, 40}
+			case FormatRGB565, FormatRGBA5551, FormatRGBA4444:
+				want = [4]byte{255, 0, 0, 255}
 			}
 			if got := [4]byte(img.Pix[:4]); got != want {
 				t.Fatalf("pixel = %v, want %v", got, want)

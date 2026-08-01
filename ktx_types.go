@@ -19,6 +19,12 @@ const (
 	KTXGLByte = 0x1400
 	// KTXGLUnsignedInt2101010Rev is GL_UNSIGNED_INT_2_10_10_10_REV.
 	KTXGLUnsignedInt2101010Rev = 0x8368
+	// KTXGLUnsignedShort565 is GL_UNSIGNED_SHORT_5_6_5.
+	KTXGLUnsignedShort565 = 0x8363
+	// KTXGLUnsignedShort1555Rev is GL_UNSIGNED_SHORT_1_5_5_5_REV.
+	KTXGLUnsignedShort1555Rev = 0x8366
+	// KTXGLUnsignedShort4444Rev is GL_UNSIGNED_SHORT_4_4_4_4_REV.
+	KTXGLUnsignedShort4444Rev = 0x8365
 	// KTXGLRGB is GL_RGB.
 	KTXGLRGB = 0x1907
 	// KTXGLRGBA is GL_RGBA.
@@ -35,6 +41,12 @@ const (
 	KTXGLRGBA8 = 0x8058
 	// KTXGLAlpha8 is GL_ALPHA8 (sized internal format).
 	KTXGLAlpha8 = 0x803C
+	// KTXGLRGB565 is GL_RGB565 (sized internal format).
+	KTXGLRGB565 = 0x8D62
+	// KTXGLRGB5A1 is GL_RGB5_A1 (sized internal format).
+	KTXGLRGB5A1 = 0x8057
+	// KTXGLRGBA4 is GL_RGBA4 (sized internal format).
+	KTXGLRGBA4 = 0x8056
 	// KTXGLRGB10A2 is GL_RGB10_A2 (sized internal format).
 	KTXGLRGB10A2 = 0x8059
 	// KTXGLR8 is GL_R8 (sized internal format).

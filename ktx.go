@@ -167,7 +167,7 @@ func (k *KTX) Write(w io.Writer) error {
 
 	if !k.Format.isCompressed() {
 		switch k.Format {
-		case FormatRGBA8, FormatBGRA8, FormatR8, FormatRG8, FormatRGB10A2, FormatR8S, FormatRG8S, FormatA8:
+		case FormatRGBA8, FormatBGRA8, FormatR8, FormatRG8, FormatRGB10A2, FormatR8S, FormatRG8S, FormatA8, FormatRGB565, FormatRGBA5551, FormatRGBA4444:
 		default:
 			return ErrUnsupportedFormat
 		}
@@ -338,6 +338,12 @@ func ktxHeaderFormats(format Format) (glType, glTypeSize, glFormat, glInternalFo
 		return KTXGLByte, 1, KTXGLRG, KTXGLRG8SNORM, KTXGLRG, nil
 	case FormatA8:
 		return KTXGLUnsignedByte, 1, KTXGLAlpha, KTXGLAlpha8, KTXGLAlpha, nil
+	case FormatRGB565:
+		return KTXGLUnsignedShort565, 2, KTXGLRGB, KTXGLRGB565, KTXGLRGB, nil
+	case FormatRGBA5551:
+		return KTXGLUnsignedShort1555Rev, 2, KTXGLRGBA, KTXGLRGB5A1, KTXGLRGBA, nil
+	case FormatRGBA4444:
+		return KTXGLUnsignedShort4444Rev, 2, KTXGLRGBA, KTXGLRGBA4, KTXGLRGBA, nil
 	default:
 		return 0, 0, 0, 0, 0, ErrUnsupportedKTXFormat
 	}
@@ -348,6 +354,16 @@ func ktxFormatFromHeader(header *KTXHeader) (Format, error) {
 	if header.GlType == KTXGLUnsignedInt2101010Rev && header.GlTypeSize == 4 &&
 		header.GlFormat == KTXGLRGBA && header.GlInternalFormat == KTXGLRGB10A2 {
 		return FormatRGB10A2, nil
+	}
+	if header.GlTypeSize == 2 {
+		switch {
+		case header.GlType == KTXGLUnsignedShort565 && header.GlFormat == KTXGLRGB && header.GlInternalFormat == KTXGLRGB565:
+			return FormatRGB565, nil
+		case header.GlType == KTXGLUnsignedShort1555Rev && header.GlFormat == KTXGLRGBA && header.GlInternalFormat == KTXGLRGB5A1:
+			return FormatRGBA5551, nil
+		case header.GlType == KTXGLUnsignedShort4444Rev && header.GlFormat == KTXGLRGBA && header.GlInternalFormat == KTXGLRGBA4:
+			return FormatRGBA4444, nil
+		}
 	}
 
 	if header.GlType == KTXGLByte && header.GlTypeSize == 1 {

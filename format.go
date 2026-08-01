@@ -65,6 +65,14 @@ const (
 	// FormatA8 is uncompressed alpha-only UNORM (1 byte per pixel).
 	// Decoding writes RGB=0 and preserves alpha.
 	FormatA8
+	// FormatRGB565 is packed 5-bit R, 6-bit G, 5-bit B UNORM (2 bytes per pixel).
+	FormatRGB565
+	// FormatRGBA5551 is packed 5-bit RGB plus 1-bit alpha UNORM (2 bytes per pixel).
+	// The little-endian word layout is A1:R5:G5:B5.
+	FormatRGBA5551
+	// FormatRGBA4444 is packed 4-bit RGBA UNORM (2 bytes per pixel).
+	// The little-endian word layout is A4:R4:G4:B4.
+	FormatRGBA4444
 )
 
 const (
@@ -116,6 +124,12 @@ func (f Format) String() string {
 		return "RG8S"
 	case FormatA8:
 		return "A8"
+	case FormatRGB565:
+		return "RGB565"
+	case FormatRGBA5551:
+		return "RGBA5551"
+	case FormatRGBA4444:
+		return "RGBA4444"
 	default:
 		return "Unknown"
 	}
@@ -139,6 +153,8 @@ func (f Format) blockSize() int {
 	case FormatR8, FormatR8S, FormatA8:
 		return 1
 	case FormatRG8, FormatRG8S:
+		return 2
+	case FormatRGB565, FormatRGBA5551, FormatRGBA4444:
 		return 2
 	default:
 		return 0

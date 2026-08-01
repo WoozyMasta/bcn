@@ -116,6 +116,36 @@ func decodeBlocksInto(dst, data []byte, width, height int, format Format, opts *
 			}
 			return nil
 
+		case FormatRGB565:
+			for src, outOffset := 0, 0; src < expected; src, outOffset = src+2, outOffset+4 {
+				pixel := binary.LittleEndian.Uint16(data[src:])
+				dst[outOffset] = unormToU8((pixel>>11)&0x1f, 31)
+				dst[outOffset+1] = unormToU8((pixel>>5)&0x3f, 63)
+				dst[outOffset+2] = unormToU8(pixel&0x1f, 31)
+				dst[outOffset+3] = 255
+			}
+			return nil
+
+		case FormatRGBA5551:
+			for src, outOffset := 0, 0; src < expected; src, outOffset = src+2, outOffset+4 {
+				pixel := binary.LittleEndian.Uint16(data[src:])
+				dst[outOffset] = unormToU8((pixel>>10)&0x1f, 31)
+				dst[outOffset+1] = unormToU8((pixel>>5)&0x1f, 31)
+				dst[outOffset+2] = unormToU8(pixel&0x1f, 31)
+				dst[outOffset+3] = unormToU8(pixel>>15, 1)
+			}
+			return nil
+
+		case FormatRGBA4444:
+			for src, outOffset := 0, 0; src < expected; src, outOffset = src+2, outOffset+4 {
+				pixel := binary.LittleEndian.Uint16(data[src:])
+				dst[outOffset] = unormToU8((pixel>>8)&0xf, 15)
+				dst[outOffset+1] = unormToU8((pixel>>4)&0xf, 15)
+				dst[outOffset+2] = unormToU8(pixel&0xf, 15)
+				dst[outOffset+3] = unormToU8(pixel>>12, 15)
+			}
+			return nil
+
 		case FormatRG8S:
 			for i := 0; i < expected; i += 2 {
 				out := i * 2
@@ -305,6 +335,35 @@ func encodeBlocksInto(dst, rgba []byte, width, height int, format Format, opts *
 			}
 			return nil
 
+		case FormatRGB565:
+			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+2 {
+				pixel := u8ToUNORM(rgba[src], 31)<<11 |
+					u8ToUNORM(rgba[src+1], 63)<<5 |
+					u8ToUNORM(rgba[src+2], 31)
+				binary.LittleEndian.PutUint16(out[dst:], pixel)
+			}
+			return nil
+
+		case FormatRGBA5551:
+			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+2 {
+				pixel := u8ToUNORM(rgba[src+3], 1)<<15 |
+					u8ToUNORM(rgba[src], 31)<<10 |
+					u8ToUNORM(rgba[src+1], 31)<<5 |
+					u8ToUNORM(rgba[src+2], 31)
+				binary.LittleEndian.PutUint16(out[dst:], pixel)
+			}
+			return nil
+
+		case FormatRGBA4444:
+			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+2 {
+				pixel := u8ToUNORM(rgba[src+3], 15)<<12 |
+					u8ToUNORM(rgba[src], 15)<<8 |
+					u8ToUNORM(rgba[src+1], 15)<<4 |
+					u8ToUNORM(rgba[src+2], 15)
+				binary.LittleEndian.PutUint16(out[dst:], pixel)
+			}
+			return nil
+
 		case FormatRG8S:
 			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+2 {
 				out[dst] = byte(int8(snormFromU8(rgba[src])))     // #nosec G115 -- SNORM value is in [-127,127].
@@ -389,4 +448,14 @@ func u8ToUNORM2(v byte) uint8 {
 // unorm2ToU8 maps a 2-bit normalized value to 8 bits with nearest rounding.
 func unorm2ToU8(v uint8) byte {
 	return byte((uint16(v&3)*255 + 1) / 3) // #nosec G115 -- result is in [0,255].
+}
+
+// u8ToUNORM maps an 8-bit normalized value to limit with nearest rounding.
+func u8ToUNORM(v byte, limit uint16) uint16 {
+	return uint16((uint32(v)*uint32(limit) + 127) / 255) // #nosec G115 -- result is in [0,limit].
+}
+
+// unormToU8 maps a normalized value in [0,limit] to 8 bits with nearest rounding.
+func unormToU8(v, limit uint16) byte {
+	return byte((uint32(v)*255 + uint32(limit)/2) / uint32(limit)) // #nosec G115 -- result is in [0,255].
 }

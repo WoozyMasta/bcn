@@ -101,7 +101,7 @@ func TestKTXBC4SBC5SRoundTrip(t *testing.T) {
 
 func TestKTXUncompressedRoundTrip(t *testing.T) {
 	img := SolidImage(4, 4, color.NRGBA{R: 255, G: 128, B: 64, A: 255})
-	for _, format := range []Format{FormatRGBA8, FormatBGRA8, FormatRGB10A2} {
+	for _, format := range []Format{FormatRGBA8, FormatBGRA8, FormatRGB10A2, FormatRGB565, FormatRGBA5551, FormatRGBA4444} {
 		ktx, err := EncodeKTXWithOptions([]image.Image{img}, format, nil)
 		if err != nil {
 			t.Fatalf("encode ktx %s: %v", format, err)
