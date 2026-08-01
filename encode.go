@@ -65,6 +65,15 @@ func decodeBlocksInto(dst, data []byte, width, height int, format Format, opts *
 			}
 			return nil
 
+		case FormatBGRX8:
+			for i := 0; i < expected; i += 4 {
+				dst[i] = data[i+2]
+				dst[i+1] = data[i+1]
+				dst[i+2] = data[i]
+				dst[i+3] = 255
+			}
+			return nil
+
 		default:
 			return ErrUnsupportedUncompressedFormat
 		}
@@ -190,6 +199,7 @@ func encodeBlocksInto(dst, rgba []byte, width, height int, format Format, opts *
 		case FormatRGBA8:
 			copy(out, rgba)
 			return nil
+
 		case FormatBGRA8:
 			for i := 0; i < len(rgba); i += 4 {
 				out[i] = rgba[i+2]
@@ -198,6 +208,16 @@ func encodeBlocksInto(dst, rgba []byte, width, height int, format Format, opts *
 				out[i+3] = rgba[i+3]
 			}
 			return nil
+
+		case FormatBGRX8:
+			for i := 0; i < len(rgba); i += 4 {
+				out[i] = rgba[i+2]
+				out[i+1] = rgba[i+1]
+				out[i+2] = rgba[i]
+				out[i+3] = 255
+			}
+			return nil
+
 		default:
 			return ErrUnsupportedUncompressedFormat
 		}

@@ -99,6 +99,11 @@ func ReadDDS(r io.Reader) (*DDS, error) {
 			if _, err := io.ReadFull(r, buf); err != nil {
 				return nil, err
 			}
+			if format == FormatBGRX8 {
+				for p := 3; p < len(buf); p += 4 {
+					buf[p] = 255
+				}
+			}
 
 			mips[i] = buf
 			if w > 1 {
@@ -127,7 +132,7 @@ func (d *DDS) Write(w io.Writer) error {
 
 	if !d.Format.isCompressed() {
 		switch d.Format {
-		case FormatRGBA8, FormatBGRA8:
+		case FormatRGBA8, FormatBGRA8, FormatBGRX8:
 		default:
 			return ErrUnsupportedFormat
 		}
@@ -247,6 +252,13 @@ func (d *DDS) Write(w io.Writer) error {
 		hdr.PixelFormat.ABitMask = 0xff000000
 		hdr.PitchOrLinearSize = u32(d.Width * 4)
 
+	case FormatBGRX8:
+		hdr.Flags |= DDSFlagPitch
+		hdr.PixelFormat.Flags = DDSPFFourCC
+		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', '1', '0')
+		hdr.PitchOrLinearSize = u32(d.Width * 4)
+		dx10Format = 88 // DXGI_FORMAT_B8G8R8X8_UNORM
+
 	default:
 		return ErrUnsupportedDDSFormat
 	}
@@ -274,6 +286,12 @@ func (d *DDS) Write(w io.Writer) error {
 
 	for _, face := range d.Faces {
 		for _, mip := range face.Mipmaps {
+			if d.Format == FormatBGRX8 {
+				mip = append([]byte(nil), mip...)
+				for p := 3; p < len(mip); p += 4 {
+					mip[p] = 255
+				}
+			}
 			if _, err := w.Write(mip); err != nil {
 				return err
 			}
@@ -325,6 +343,8 @@ func ddsFormatFromHeader(r io.Reader, header *DDSHeader) (Format, *DDSHeaderDX10
 			return FormatBC5S, &dx10, nil
 		case 87, 91: // DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_B8G8R8A8_UNORM_SRGB
 			return FormatBGRA8, &dx10, nil
+		case 88, 93: // DXGI_FORMAT_B8G8R8X8_UNORM, DXGI_FORMAT_B8G8R8X8_UNORM_SRGB
+			return FormatBGRX8, &dx10, nil
 		case 95: // DXGI_FORMAT_BC6H_UF16
 			return FormatBC6HU, &dx10, nil
 		case 96: // DXGI_FORMAT_BC6H_SF16

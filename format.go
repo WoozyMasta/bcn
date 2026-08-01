@@ -45,6 +45,9 @@ const (
 	// FormatBC5S is BC5 signed normalized (16 bytes per 4x4 block, two channels).
 	// NRGBA input/output maps R/G from 0..255 to -1..1; decoded B=0 and A=255.
 	FormatBC5S
+	// FormatBGRX8 is uncompressed BGR with an unused byte (4 bytes per pixel).
+	// Encoding and decoding always set the unused byte/alpha to 255.
+	FormatBGRX8
 )
 
 const (
@@ -82,6 +85,8 @@ func (f Format) String() string {
 		return "RGBA8"
 	case FormatBGRA8:
 		return "BGRA8"
+	case FormatBGRX8:
+		return "BGRX8"
 	default:
 		return "Unknown"
 	}
@@ -100,7 +105,7 @@ func (f Format) blockSize() int {
 		return 16
 	case FormatBC7, FormatBC6HU, FormatBC6HS:
 		return 16
-	case FormatRGBA8, FormatBGRA8:
+	case FormatRGBA8, FormatBGRA8, FormatBGRX8:
 		return 4
 	default:
 		return 0

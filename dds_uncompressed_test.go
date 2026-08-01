@@ -63,6 +63,35 @@ func TestDDSUncompressedBGRA(t *testing.T) {
 	}
 }
 
+func TestDDSUncompressedBGRX(t *testing.T) {
+	img := SolidImage(1, 1, color.NRGBA{R: 5, G: 15, B: 25, A: 40})
+	ds, err := EncodeDDS(img, FormatBGRX8)
+	if err != nil {
+		t.Fatalf("encode dds: %v", err)
+	}
+	if got := ds.Faces[0].Mipmaps[0]; !bytes.Equal(got, []byte{25, 15, 5, 255}) {
+		t.Fatalf("encoded pixel = %v, want [25 15 5 255]", got)
+	}
+
+	// Write must also normalize caller-provided BGRX payloads.
+	ds.Faces[0].Mipmaps[0][3] = 1
+	var buf bytes.Buffer
+	if err := ds.Write(&buf); err != nil {
+		t.Fatalf("write dds: %v", err)
+	}
+
+	read, err := ReadDDS(&buf)
+	if err != nil {
+		t.Fatalf("read dds: %v", err)
+	}
+	if read.Format != FormatBGRX8 {
+		t.Fatalf("format = %s, want BGRX8", read.Format)
+	}
+	if got := read.Faces[0].Mipmaps[0]; !bytes.Equal(got, []byte{25, 15, 5, 255}) {
+		t.Fatalf("stored pixel = %v, want [25 15 5 255]", got)
+	}
+}
+
 func TestDDSDX10UncompressedRead(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -74,6 +103,8 @@ func TestDDSDX10UncompressedRead(t *testing.T) {
 		{"RGBA8SRGB", 29, []byte{10, 20, 30, 40}, FormatRGBA8},
 		{"BGRA8", 87, []byte{30, 20, 10, 40}, FormatBGRA8},
 		{"BGRA8SRGB", 91, []byte{30, 20, 10, 40}, FormatBGRA8},
+		{"BGRX8", 88, []byte{30, 20, 10, 40}, FormatBGRX8},
+		{"BGRX8SRGB", 93, []byte{30, 20, 10, 40}, FormatBGRX8},
 	}
 
 	for _, tt := range tests {
@@ -114,8 +145,15 @@ func TestDDSDX10UncompressedRead(t *testing.T) {
 			if err != nil {
 				t.Fatalf("DecodeImage: %v", err)
 			}
-			if got := [4]byte(img.Pix[:4]); got != [4]byte{10, 20, 30, 40} {
-				t.Fatalf("pixel = %v, want {10 20 30 40}", got)
+			want := [4]byte{10, 20, 30, 40}
+			if tt.format == FormatBGRX8 {
+				want[3] = 255
+				if got := d.Faces[0].Mipmaps[0][3]; got != 255 {
+					t.Fatalf("stored X = %d, want 255", got)
+				}
+			}
+			if got := [4]byte(img.Pix[:4]); got != want {
+				t.Fatalf("pixel = %v, want %v", got, want)
 			}
 		})
 	}
