@@ -54,6 +54,8 @@ const (
 	// FormatRG8 is uncompressed two-channel UNORM (2 bytes per pixel).
 	// Decoding writes R and G, with B=0 and A=255.
 	FormatRG8
+	// FormatRGB10A2 is packed 10-bit RGB plus 2-bit alpha UNORM (4 bytes per pixel).
+	FormatRGB10A2
 )
 
 const (
@@ -97,6 +99,8 @@ func (f Format) String() string {
 		return "R8"
 	case FormatRG8:
 		return "RG8"
+	case FormatRGB10A2:
+		return "RGB10A2"
 	default:
 		return "Unknown"
 	}
@@ -115,7 +119,7 @@ func (f Format) blockSize() int {
 		return 16
 	case FormatBC7, FormatBC6HU, FormatBC6HS:
 		return 16
-	case FormatRGBA8, FormatBGRA8, FormatBGRX8:
+	case FormatRGBA8, FormatBGRA8, FormatBGRX8, FormatRGB10A2:
 		return 4
 	case FormatR8:
 		return 1

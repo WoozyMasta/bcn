@@ -139,6 +139,28 @@ func TestDDSUncompressedR8RG8(t *testing.T) {
 	}
 }
 
+func TestRGB10A2EncodeDecode(t *testing.T) {
+	const packed = uint32(0xA02003FF) // R=1023, G=0, B=514, A=2.
+	data := make([]byte, 4)
+	binary.LittleEndian.PutUint32(data, packed)
+
+	decoded, err := DecodeImage(data, 1, 1, FormatRGB10A2)
+	if err != nil {
+		t.Fatalf("DecodeImage: %v", err)
+	}
+	if got := [4]byte(decoded.Pix[:4]); got != [4]byte{255, 0, 128, 170} {
+		t.Fatalf("decoded pixel = %v, want [255 0 128 170]", got)
+	}
+
+	encoded, _, _, err := EncodeImage(SolidImage(1, 1, color.NRGBA{R: 255, G: 0, B: 128, A: 170}), FormatRGB10A2)
+	if err != nil {
+		t.Fatalf("EncodeImage: %v", err)
+	}
+	if got := binary.LittleEndian.Uint32(encoded); got != packed {
+		t.Fatalf("encoded pixel = %#08x, want %#08x", got, packed)
+	}
+}
+
 func TestDDSDX10UncompressedRead(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -154,6 +176,7 @@ func TestDDSDX10UncompressedRead(t *testing.T) {
 		{"BGRX8SRGB", 93, []byte{30, 20, 10, 40}, FormatBGRX8},
 		{"R8", 61, []byte{10}, FormatR8},
 		{"RG8", 49, []byte{10, 20}, FormatRG8},
+		{"RGB10A2", 24, []byte{0xff, 0x03, 0x20, 0xa0}, FormatRGB10A2},
 	}
 
 	for _, tt := range tests {
@@ -205,6 +228,8 @@ func TestDDSDX10UncompressedRead(t *testing.T) {
 				want = [4]byte{10, 10, 10, 255}
 			case FormatRG8:
 				want = [4]byte{10, 20, 0, 255}
+			case FormatRGB10A2:
+				want = [4]byte{255, 0, 128, 170}
 			}
 			if got := [4]byte(img.Pix[:4]); got != want {
 				t.Fatalf("pixel = %v, want %v", got, want)

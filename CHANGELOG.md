@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning][].
 * Uncompressed `BGRX8`, `R8`, and `RG8` formats.
   DDS DX10 supports all three; KTX v1 supports `R8` and `RG8`.
   `BGRX8` normalizes its unused X channel to `255`.
+* Uncompressed `FormatRGB10A2` encode/decode with DDS DX10
+  (`R10G10B10A2_UNORM`) and KTX v1 I/O support.
 
 ## [0.6.0][] - 2026-08-02
 

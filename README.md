@@ -14,8 +14,10 @@ The hot paths use AVX2/SSE2 kernels on amd64 when available;
 
 * BC1/DXT1, BC2/DXT3, BC3/DXT5, BC4/BC5 (UNORM and SNORM),
   BC6H/BPTC-HDR, BC7/BPTC encode/decode
-* DDS read/write (2D + cubemap, mipmaps, uncompressed RGBA8/BGRA8/BGRX8/R8/RG8)
-* KTX v1 read/write (2D + cubemap, mipmaps, uncompressed RGBA8/BGRA8/R8/RG8)
+* DDS read/write
+  (2D + cubemap, mipmaps, uncompressed RGBA8/BGRA8/BGRX8/R8/RG8/RGB10A2)
+* KTX v1 read/write
+  (2D + cubemap, mipmaps, uncompressed RGBA8/BGRA8/R8/RG8/RGB10A2)
 * Mipmap generation with optional sRGB-aware downscale
 * Quality levels (1..10) with least-squares endpoint refit
   and refinement overrides (`Refinement`)
@@ -104,11 +106,13 @@ cfg, _, _ := image.DecodeConfig(f) // width, height only
 ## Notes
 
 * KTX v1 arrays and 3D textures are not supported.
-* DDS DX10 supports BC1–BC7, RGBA/BGRA/BGRX, R8, and RG8;
+* DDS DX10 supports BC1–BC7, RGBA/BGRA/BGRX, R8, RG8, and RGB10A2;
   writing uses legacy FourCC where available.
 * BC4 uses red channel; BC5 uses red/green.
 * DDS BGRA is converted to RGBA on decode; BGRX always decodes with alpha `255`.
   R8 decodes as `R,R,R,255`; RG8 as `R,G,0,255`.
+* RGB10A2 is packed `R:10,G:10,B:10,A:2` UNORM;
+  conversion to/from NRGBA uses nearest rounding.
 * `Refinement` overrides `QualityLevel` when set.
 * Quality levels above 1 polish endpoints
   with an iterated least-squares refit on top of the grid search

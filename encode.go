@@ -5,6 +5,7 @@
 package bcn
 
 import (
+	"encoding/binary"
 	"runtime"
 	"sync"
 )
@@ -91,6 +92,16 @@ func decodeBlocksInto(dst, data []byte, width, height int, format Format, opts *
 				dst[out+1] = data[i+1]
 				dst[out+2] = 0
 				dst[out+3] = 255
+			}
+			return nil
+
+		case FormatRGB10A2:
+			for src, outOffset := 0, 0; src < expected; src, outOffset = src+4, outOffset+4 {
+				pixel := binary.LittleEndian.Uint32(data[src:])
+				dst[outOffset] = unorm10ToU8(uint16(pixel & 0x3ff))
+				dst[outOffset+1] = unorm10ToU8(uint16((pixel >> 10) & 0x3ff))
+				dst[outOffset+2] = unorm10ToU8(uint16((pixel >> 20) & 0x3ff))
+				dst[outOffset+3] = unorm2ToU8(uint8(pixel >> 30))
 			}
 			return nil
 
@@ -251,6 +262,16 @@ func encodeBlocksInto(dst, rgba []byte, width, height int, format Format, opts *
 			}
 			return nil
 
+		case FormatRGB10A2:
+			for src, dst := 0, 0; src < len(rgba); src, dst = src+4, dst+4 {
+				pixel := uint32(u8ToUNORM10(rgba[src])) |
+					uint32(u8ToUNORM10(rgba[src+1]))<<10 |
+					uint32(u8ToUNORM10(rgba[src+2]))<<20 |
+					uint32(u8ToUNORM2(rgba[src+3]))<<30
+				binary.LittleEndian.PutUint32(out[dst:], pixel)
+			}
+			return nil
+
 		default:
 			return ErrUnsupportedUncompressedFormat
 		}
@@ -298,4 +319,24 @@ func encodeBlocksInto(dst, rgba []byte, width, height int, format Format, opts *
 	}
 
 	return encodeBlockRange(format, rgba, out, width, height, bx, 0, totalBlocks, options)
+}
+
+// u8ToUNORM10 maps an 8-bit normalized value to 10 bits with nearest rounding.
+func u8ToUNORM10(v byte) uint16 {
+	return uint16((uint32(v)*1023 + 127) / 255) // #nosec G115 -- result is in [0,1023].
+}
+
+// unorm10ToU8 maps a 10-bit normalized value to 8 bits with nearest rounding.
+func unorm10ToU8(v uint16) byte {
+	return byte((uint32(v&0x3ff)*255 + 511) / 1023) // #nosec G115 -- result is in [0,255].
+}
+
+// u8ToUNORM2 maps an 8-bit normalized value to 2 bits with nearest rounding.
+func u8ToUNORM2(v byte) uint8 {
+	return uint8((uint16(v)*3 + 127) / 255) // #nosec G115 -- result is in [0,3].
+}
+
+// unorm2ToU8 maps a 2-bit normalized value to 8 bits with nearest rounding.
+func unorm2ToU8(v uint8) byte {
+	return byte((uint16(v&3)*255 + 1) / 3) // #nosec G115 -- result is in [0,255].
 }
