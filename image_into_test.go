@@ -32,7 +32,7 @@ func TestEncodeImageIntoMatches(t *testing.T) {
 	img := intoGradient(18, 14)
 	opts := &EncodeOptions{QualityLevel: QualityLevelFast}
 
-	for _, format := range []Format{FormatDXT1, FormatDXT5} {
+	for _, format := range []Format{FormatBC1, FormatBC3} {
 		want, w, h, err := EncodeImageWithOptions(img, format, opts)
 		if err != nil {
 			t.Fatalf("EncodeImageWithOptions(%v): %v", format, err)
@@ -55,13 +55,13 @@ func TestEncodeImageIntoReusesBuffer(t *testing.T) {
 	big := intoGradient(64, 64)
 	small := intoGradient(16, 16)
 
-	buf, _, _, err := EncodeImageInto(nil, big, FormatDXT5, nil)
+	buf, _, _, err := EncodeImageInto(nil, big, FormatBC3, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	wantCap := cap(buf)
 
-	got, _, _, err := EncodeImageInto(buf, small, FormatDXT5, nil)
+	got, _, _, err := EncodeImageInto(buf, small, FormatBC3, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestEncodeImageIntoReusesBuffer(t *testing.T) {
 		t.Fatalf("expected buffer reuse, cap %d != %d", cap(got), wantCap)
 	}
 
-	want, _, _, err := EncodeImageWithOptions(small, FormatDXT5, nil)
+	want, _, _, err := EncodeImageWithOptions(small, FormatBC3, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,16 +80,16 @@ func TestEncodeImageIntoReusesBuffer(t *testing.T) {
 
 func TestDecodeImageIntoMatchesAndReuses(t *testing.T) {
 	img := intoGradient(32, 24)
-	data, w, h, err := EncodeImageWithOptions(img, FormatDXT5, nil)
+	data, w, h, err := EncodeImageWithOptions(img, FormatBC3, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	want, err := DecodeImageWithOptions(data, w, h, FormatDXT5, nil)
+	want, err := DecodeImageWithOptions(data, w, h, FormatBC3, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := DecodeImageInto(nil, data, w, h, FormatDXT5, nil)
+	got, err := DecodeImageInto(nil, data, w, h, FormatBC3, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,13 +99,13 @@ func TestDecodeImageIntoMatchesAndReuses(t *testing.T) {
 
 	// Reuse the larger image's Pix for a smaller decode: no reallocation expected.
 	small := intoGradient(8, 8)
-	sdata, sw, sh, err := EncodeImageWithOptions(small, FormatDXT5, nil)
+	sdata, sw, sh, err := EncodeImageWithOptions(small, FormatBC3, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	wantCap := cap(got.Pix)
 
-	got2, err := DecodeImageInto(got, sdata, sw, sh, FormatDXT5, nil)
+	got2, err := DecodeImageInto(got, sdata, sw, sh, FormatBC3, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestDecodeImageIntoMatchesAndReuses(t *testing.T) {
 		t.Fatalf("expected Pix reuse, cap %d != %d", cap(got2.Pix), wantCap)
 	}
 
-	swant, err := DecodeImageWithOptions(sdata, sw, sh, FormatDXT5, nil)
+	swant, err := DecodeImageWithOptions(sdata, sw, sh, FormatBC3, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

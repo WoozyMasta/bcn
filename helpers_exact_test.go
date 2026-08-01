@@ -18,7 +18,7 @@ func refRGBAFrom565(v uint16) rgba8 {
 	}
 }
 
-func refDXT1Palette(c0, c1 uint16) [4]rgba8 {
+func refBC1Palette(c0, c1 uint16) [4]rgba8 {
 	p0 := refRGBAFrom565(c0)
 	p1 := refRGBAFrom565(c1)
 	var palette [4]rgba8
@@ -50,7 +50,7 @@ func refDXT1Palette(c0, c1 uint16) [4]rgba8 {
 	return palette
 }
 
-func refDXT5AlphaPalette(a0, a1 uint8) [8]uint8 {
+func refBC3AlphaPalette(a0, a1 uint8) [8]uint8 {
 	var p [8]uint8
 	p[0] = a0
 	p[1] = a1
@@ -84,16 +84,16 @@ func TestRGBAFrom565Exhaustive(t *testing.T) {
 	}
 }
 
-// TestDXT1PaletteExhaustivePerChannel sweeps every endpoint pair per channel.
+// TestBC1PaletteExhaustivePerChannel sweeps every endpoint pair per channel.
 // Per-channel interpolation is independent, so full 5-bit (R/B) and 6-bit (G)
 // pair sweeps cover the whole arithmetic domain in both BC1 modes.
-func TestDXT1PaletteExhaustivePerChannel(t *testing.T) {
+func TestBC1PaletteExhaustivePerChannel(t *testing.T) {
 	check := func(c0, c1 uint16) {
 		t.Helper()
-		got := dxt1Palette(c0, c1)
-		want := refDXT1Palette(c0, c1)
+		got := bc1Palette(c0, c1)
+		want := refBC1Palette(c0, c1)
 		if got != want {
-			t.Fatalf("dxt1Palette(%#04x, %#04x) = %v, want %v", c0, c1, got, want)
+			t.Fatalf("bc1Palette(%#04x, %#04x) = %v, want %v", c0, c1, got, want)
 		}
 	}
 
@@ -117,8 +117,8 @@ func TestDXT1PaletteExhaustivePerChannel(t *testing.T) {
 	}
 }
 
-// TestDXT1PaletteRandomPairs adds joint-channel coverage over random pairs.
-func TestDXT1PaletteRandomPairs(t *testing.T) {
+// TestBC1PaletteRandomPairs adds joint-channel coverage over random pairs.
+func TestBC1PaletteRandomPairs(t *testing.T) {
 	// Deterministic LCG; full uint16 pair space is 2^32, sampled instead.
 	state := uint32(0x12345678)
 	next := func() uint16 {
@@ -127,22 +127,22 @@ func TestDXT1PaletteRandomPairs(t *testing.T) {
 	}
 	for i := 0; i < 1_000_000; i++ {
 		c0, c1 := next(), next()
-		got := dxt1Palette(c0, c1)
-		want := refDXT1Palette(c0, c1)
+		got := bc1Palette(c0, c1)
+		want := refBC1Palette(c0, c1)
 		if got != want {
-			t.Fatalf("dxt1Palette(%#04x, %#04x) = %v, want %v", c0, c1, got, want)
+			t.Fatalf("bc1Palette(%#04x, %#04x) = %v, want %v", c0, c1, got, want)
 		}
 	}
 }
 
-// TestDXT5AlphaPaletteExhaustive checks all 65536 (a0, a1) pairs.
-func TestDXT5AlphaPaletteExhaustive(t *testing.T) {
+// TestBC3AlphaPaletteExhaustive checks all 65536 (a0, a1) pairs.
+func TestBC3AlphaPaletteExhaustive(t *testing.T) {
 	for a0 := 0; a0 <= 255; a0++ {
 		for a1 := 0; a1 <= 255; a1++ {
-			got := dxt5AlphaPalette(uint8(a0), uint8(a1))
-			want := refDXT5AlphaPalette(uint8(a0), uint8(a1))
+			got := bc3AlphaPalette(uint8(a0), uint8(a1))
+			want := refBC3AlphaPalette(uint8(a0), uint8(a1))
 			if got != want {
-				t.Fatalf("dxt5AlphaPalette(%d, %d) = %v, want %v", a0, a1, got, want)
+				t.Fatalf("bc3AlphaPalette(%d, %d) = %v, want %v", a0, a1, got, want)
 			}
 		}
 	}

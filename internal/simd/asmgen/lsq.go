@@ -15,7 +15,7 @@ const (
 	lsqParamBeta = 72
 )
 
-// LSQ color params extend the PackDXT1Indices param block:
+// LSQ color params extend the PackBC1Indices param block:
 //
 //	17     interpolation denominator d
 //	18..21 beta numerator table for palette indices 0..3

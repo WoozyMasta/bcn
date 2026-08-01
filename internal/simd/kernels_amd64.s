@@ -151,9 +151,9 @@ DATA bc7IndexConsts<>+56(SB)/4, $0x0000000e
 DATA bc7IndexConsts<>+60(SB)/4, $0x0000000f
 GLOBL bc7IndexConsts<>(SB), RODATA|NOPTR, $64
 
-// func DecodeDXT1RowAVX2(dst *byte, src *byte, n int, stride int)
+// func DecodeBC1RowAVX2(dst *byte, src *byte, n int, stride int)
 // Requires: AVX, AVX2
-TEXT ·DecodeDXT1RowAVX2(SB), NOSPLIT, $0-32
+TEXT ·DecodeBC1RowAVX2(SB), NOSPLIT, $0-32
 	MOVQ     dst+0(FP), AX
 	MOVQ     src+8(FP), CX
 	MOVQ     n+16(FP), DX
@@ -286,9 +286,9 @@ merge:
 	VZEROUPPER
 	RET
 
-// func DecodeDXT3RowAVX2(dst *byte, src *byte, n int, stride int)
+// func DecodeBC2RowAVX2(dst *byte, src *byte, n int, stride int)
 // Requires: AVX, AVX2, BMI2
-TEXT ·DecodeDXT3RowAVX2(SB), NOSPLIT, $0-32
+TEXT ·DecodeBC2RowAVX2(SB), NOSPLIT, $0-32
 	MOVQ     dst+0(FP), AX
 	MOVQ     src+8(FP), CX
 	MOVQ     n+16(FP), DX
@@ -421,9 +421,9 @@ loop:
 	VZEROUPPER
 	RET
 
-// func DecodeDXT5RowAVX2(dst *byte, src *byte, n int, stride int)
+// func DecodeBC3RowAVX2(dst *byte, src *byte, n int, stride int)
 // Requires: AVX, AVX2, BMI2, CMOV
-TEXT ·DecodeDXT5RowAVX2(SB), NOSPLIT, $0-32
+TEXT ·DecodeBC3RowAVX2(SB), NOSPLIT, $0-32
 	MOVQ     dst+0(FP), AX
 	MOVQ     src+8(FP), CX
 	MOVQ     n+16(FP), DX
@@ -713,9 +713,9 @@ loop:
 	VZEROUPPER
 	RET
 
-// func PackDXT1IndicesAVX2(block *[64]byte, params *[20]int32) uint32
+// func PackBC1IndicesAVX2(block *[64]byte, params *[20]int32) uint32
 // Requires: AVX, AVX2
-TEXT ·PackDXT1IndicesAVX2(SB), NOSPLIT, $0-20
+TEXT ·PackBC1IndicesAVX2(SB), NOSPLIT, $0-20
 	MOVQ         block+0(FP), AX
 	MOVQ         params+8(FP), CX
 	VPCMPEQD     Y0, Y0, Y0
@@ -897,9 +897,9 @@ TEXT ·PackDXT1IndicesAVX2(SB), NOSPLIT, $0-20
 	MOVL         AX, ret+16(FP)
 	RET
 
-// func ScoreDXT1PaletteAVX2(block *[64]byte, cc uint32, weights *[4]int32) uint32
+// func ScoreBC1PaletteAVX2(block *[64]byte, cc uint32, weights *[4]int32) uint32
 // Requires: AVX, AVX2
-TEXT ·ScoreDXT1PaletteAVX2(SB), NOSPLIT, $0-28
+TEXT ·ScoreBC1PaletteAVX2(SB), NOSPLIT, $0-28
 	MOVQ         block+0(FP), AX
 	MOVL         cc+8(FP), CX
 	MOVQ         weights+16(FP), DX

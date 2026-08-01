@@ -10,7 +10,7 @@ import (
 
 func TestKTXRoundTrip(t *testing.T) {
 	img := SolidImage(8, 8, color.NRGBA{R: 120, G: 80, B: 200, A: 255})
-	ktx, err := EncodeKTXWithOptions([]image.Image{img}, FormatDXT1, &EncodeOptions{QualityLevel: QualityLevelFast})
+	ktx, err := EncodeKTXWithOptions([]image.Image{img}, FormatBC1, &EncodeOptions{QualityLevel: QualityLevelFast})
 	if err != nil {
 		t.Fatalf("encode ktx: %v", err)
 	}
@@ -22,7 +22,7 @@ func TestKTXRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read ktx: %v", err)
 	}
-	if read.Width != 8 || read.Height != 8 || read.Format != FormatDXT1 {
+	if read.Width != 8 || read.Height != 8 || read.Format != FormatBC1 {
 		t.Fatalf("ktx header mismatch")
 	}
 	if len(read.Faces) != 1 || len(read.Faces[0].Mipmaps) != 1 {
@@ -39,7 +39,7 @@ func TestKTXCubemapMipmaps(t *testing.T) {
 		SolidImage(8, 8, color.NRGBA{R: 255, G: 0, B: 255, A: 255}),
 		SolidImage(8, 8, color.NRGBA{R: 0, G: 255, B: 255, A: 255}),
 	}
-	ktx, err := EncodeKTXWithOptions(images, FormatDXT1, &EncodeOptions{GenerateMipmaps: true, QualityLevel: QualityLevelFast})
+	ktx, err := EncodeKTXWithOptions(images, FormatBC1, &EncodeOptions{GenerateMipmaps: true, QualityLevel: QualityLevelFast})
 	if err != nil {
 		t.Fatalf("encode cubemap: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestKTXRejectArrays(t *testing.T) {
 		GlType:                0,
 		GlTypeSize:            1,
 		GlFormat:              0,
-		GlInternalFormat:      KTXGLCompressedRGBAS3TCDXT1,
+		GlInternalFormat:      KTXGLCompressedRGBAS3TCBC1,
 		GlBaseInternalFormat:  KTXGLRGBA,
 		PixelWidth:            4,
 		PixelHeight:           4,

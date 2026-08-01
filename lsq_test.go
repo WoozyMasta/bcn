@@ -39,7 +39,7 @@ func TestRefinementLSQItersOverride(t *testing.T) {
 	encode := func(ref *RefinementOptions) []byte {
 		t.Helper()
 		opts := &EncodeOptions{QualityLevel: QualityLevelBalanced, AlphaThreshold: 128, Workers: 1, Refinement: ref}
-		out, err := encodeBlocksWithOptions(rgba, w, h, FormatDXT1, opts)
+		out, err := encodeBlocksWithOptions(rgba, w, h, FormatBC1, opts)
 		if err != nil {
 			t.Fatalf("encode: %v", err)
 		}
@@ -48,7 +48,7 @@ func TestRefinementLSQItersOverride(t *testing.T) {
 
 	psnrOf := func(encoded []byte) float64 {
 		t.Helper()
-		decoded, err := decodeBlocksWithOptions(encoded, w, h, FormatDXT1, &DecodeOptions{Workers: 1})
+		decoded, err := decodeBlocksWithOptions(encoded, w, h, FormatBC1, &DecodeOptions{Workers: 1})
 		if err != nil {
 			t.Fatalf("decode: %v", err)
 		}
@@ -71,7 +71,7 @@ func TestRefinementLSQItersOverride(t *testing.T) {
 	// Decoupled polish-only mode: no grid search, LSQ still refines past q1.
 	gridOnly := 0
 	lsqOnlyIters := 4
-	q1Out, err := encodeBlocksWithOptions(rgba, w, h, FormatDXT1, &EncodeOptions{QualityLevel: QualityLevelFast, AlphaThreshold: 128, Workers: 1})
+	q1Out, err := encodeBlocksWithOptions(rgba, w, h, FormatBC1, &EncodeOptions{QualityLevel: QualityLevelFast, AlphaThreshold: 128, Workers: 1})
 	if err != nil {
 		t.Fatalf("encode q1: %v", err)
 	}

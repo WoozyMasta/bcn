@@ -10,23 +10,23 @@ package simd
 //go:noescape
 func FindMinMaxSSE2(block *[64]byte) uint64
 
-// DecodeDXT1RowAVX2 decodes n consecutive interior DXT1 blocks (8 bytes each)
+// DecodeBC1RowAVX2 decodes n consecutive interior BC1 blocks (8 bytes each)
 // into dst as 4 NRGBA rows of 16 bytes spaced stride bytes apart.
 //
 //go:noescape
-func DecodeDXT1RowAVX2(dst *byte, src *byte, n int, stride int)
+func DecodeBC1RowAVX2(dst *byte, src *byte, n int, stride int)
 
-// DecodeDXT3RowAVX2 decodes n consecutive interior DXT3 blocks (16 bytes each)
+// DecodeBC2RowAVX2 decodes n consecutive interior BC2 blocks (16 bytes each)
 // into dst as 4 NRGBA rows of 16 bytes spaced stride bytes apart. Requires BMI2.
 //
 //go:noescape
-func DecodeDXT3RowAVX2(dst *byte, src *byte, n int, stride int)
+func DecodeBC2RowAVX2(dst *byte, src *byte, n int, stride int)
 
-// DecodeDXT5RowAVX2 decodes n consecutive interior DXT5 blocks (16 bytes each)
+// DecodeBC3RowAVX2 decodes n consecutive interior BC3 blocks (16 bytes each)
 // into dst as 4 NRGBA rows of 16 bytes spaced stride bytes apart. Requires BMI2.
 //
 //go:noescape
-func DecodeDXT5RowAVX2(dst *byte, src *byte, n int, stride int)
+func DecodeBC3RowAVX2(dst *byte, src *byte, n int, stride int)
 
 // DecodeBC4RowAVX2 decodes n consecutive interior BC4 blocks (8 bytes each)
 // into dst as 4 gray NRGBA rows spaced stride bytes apart. Requires BMI2.
@@ -40,20 +40,20 @@ func DecodeBC4RowAVX2(dst *byte, src *byte, n int, stride int)
 //go:noescape
 func DecodeBC5RowAVX2(dst *byte, src *byte, n int, stride int)
 
-// PackDXT1IndicesAVX2 maps 16 NRGBA pixels to weighted-SSE-nearest palette entries
+// PackBC1IndicesAVX2 maps 16 NRGBA pixels to weighted-SSE-nearest palette entries
 // and packs the 2-bit indices. Alpha mode is driven by the params block:
 // a sub-threshold pixel is forced to index 3 and the entry-3 penalty keeps that entry from winning the argmin.
 // Ties keep the lowest index.
 //
 //go:noescape
-func PackDXT1IndicesAVX2(block *[64]byte, params *[20]int32) uint32
+func PackBC1IndicesAVX2(block *[64]byte, params *[20]int32) uint32
 
-// ScoreDXT1PaletteAVX2 returns the total weighted block error of one BC1 endpoint pair
+// ScoreBC1PaletteAVX2 returns the total weighted block error of one BC1 endpoint pair
 // (cc = c0 | c1<<16) over 16 pixels, palette built like the Go encoder.
 // Used to drive endpoint refinement.
 //
 //go:noescape
-func ScoreDXT1PaletteAVX2(block *[64]byte, cc uint32, weights *[4]int32) uint32
+func ScoreBC1PaletteAVX2(block *[64]byte, cc uint32, weights *[4]int32) uint32
 
 // BC7Mode6IndicesAVX2 assigns 16 RGBA pixels to the nearest mode 6 palette entry.
 // params stores palette channels as 16 R, 16 G, 16 B, 16 A int32 values.

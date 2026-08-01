@@ -21,7 +21,7 @@ var (
 	Enabled = os.Getenv("BCN_PUREGO") == ""
 	// HasAVX2 enables AVX2 kernels; x/sys/cpu verifies OS support (XGETBV).
 	HasAVX2 = Enabled && cpu.X86.HasAVX2
-	// HasAVX2BMI2 additionally requires BMI2 (PDEP) for alpha and DXT3/DXT5
+	// HasAVX2BMI2 additionally requires BMI2 (PDEP) for alpha and BC2/BC3
 	// index unpacking.
 	HasAVX2BMI2 = HasAVX2 && cpu.X86.HasBMI2
 )

@@ -50,12 +50,12 @@ func lsqColorRefine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshol
 			break
 		}
 
-		nc0, nc1 = orderDXT1(nc0, nc1, hasAlpha)
+		nc0, nc1 = orderBC1(nc0, nc1, hasAlpha)
 		if nc0 == bestC0 && nc1 == bestC1 {
 			break
 		}
 
-		err := dxt1BlockError(block, nc0, nc1, hasAlpha, alphaThreshold, w, bestErr)
+		err := bc1BlockError(block, nc0, nc1, hasAlpha, alphaThreshold, w, bestErr)
 		if err >= bestErr {
 			break
 		}
@@ -76,7 +76,7 @@ func lsqColorRefine(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshol
 // ok is false when the index distribution is degenerate (no usable span),
 // in which case the caller keeps the previous endpoints.
 func lsqColorSolve(block [16]rgba8, c0, c1 uint16, hasAlpha bool, alphaThreshold uint8, w rgbWeightsFP) (uint16, uint16, bool) {
-	palette := dxt1Palette(c0, c1)
+	palette := bc1Palette(c0, c1)
 
 	d := 3
 	betaNum := &colorBetaNum4
@@ -210,7 +210,7 @@ const maxAlphaErr = 1 << 30
 // lsqAlphaSolve assigns each sample to its nearest entry of the 8-value palette for (a0, a1)
 // and returns the least-squares-optimal endpoints. ok is false on a degenerate distribution.
 func lsqAlphaSolve(alpha [16]uint8, a0, a1 uint8) (uint8, uint8, bool) {
-	palette := dxt5AlphaPalette(a0, a1)
+	palette := bc3AlphaPalette(a0, a1)
 
 	sums, ok := lsqAlphaAccumulateASM(&alpha, a0, a1)
 	if !ok {

@@ -10,21 +10,21 @@ import (
 	. "github.com/mmcloughlin/avo/reg"     //nolint:revive,staticcheck // avo DSL convention
 )
 
-// genScoreDXT1Palette emits the AVX2 kernel computing the total weighted block
+// genScoreBC1Palette emits the AVX2 kernel computing the total weighted block
 // error for one candidate BC1 endpoint pair: the sum over 16 pixels of the
 // minimum weighted RGB SSE across the 4 palette entries (limit 4, no alpha
-// skip). This matches the scalar opaque-mode dxt1BlockError, and the kernel
+// skip). This matches the scalar opaque-mode bc1BlockError, and the kernel
 // evaluates all pixels exactly (no cutoff): callers compare totals with a
 // strict <, so dropping the cutoff cannot change which candidate wins.
 //
 // The block is the 16 NRGBA pixels ([64]byte). cc packs c0 (low 16) and c1
 // (high 16). weights points to {wr, wg, wb, _} int32. Returns the total
 // (always < 16*66.6M < 2^31, fits uint32).
-func genScoreDXT1Palette() {
-	TEXT("ScoreDXT1PaletteAVX2", NOSPLIT, "func(block *[64]byte, cc uint32, weights *[4]int32) uint32")
+func genScoreBC1Palette() {
+	TEXT("ScoreBC1PaletteAVX2", NOSPLIT, "func(block *[64]byte, cc uint32, weights *[4]int32) uint32")
 	Pragma("noescape")
 	Doc(
-		"ScoreDXT1PaletteAVX2 returns the total weighted block error of one BC1 endpoint pair",
+		"ScoreBC1PaletteAVX2 returns the total weighted block error of one BC1 endpoint pair",
 		"(cc = c0 | c1<<16) over 16 pixels, palette built like the Go encoder.",
 		"Used to drive endpoint refinement.",
 	)

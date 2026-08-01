@@ -370,16 +370,16 @@ func TestBC7EncodeTwoRegions(t *testing.T) {
 	}
 }
 
-// TestBC7EncodeBeatsDXT5 asserts BC7 is at least as good as DXT5 on the same content
+// TestBC7EncodeBeatsBC3 asserts BC7 is at least as good as BC3 on the same content
 // (BC7 mode 6 has 8-bit endpoints and 4-bit indices vs BC1-style color).
-func TestBC7EncodeBeatsDXT5(t *testing.T) {
+func TestBC7EncodeBeatsBC3(t *testing.T) {
 	const w, h = 64, 64
 	for _, scenario := range []string{"opaque", "translucent"} {
 		rgba := goldenImage(scenario)
 		bc7 := roundTripPSNR(t, rgba, w, h, FormatBC7)
-		dxt5 := roundTripPSNR(t, rgba, w, h, FormatDXT5)
-		if bc7 < dxt5-0.25 {
-			t.Errorf("%s: BC7 PSNR %.2f dB below DXT5 %.2f dB", scenario, bc7, dxt5)
+		bc3 := roundTripPSNR(t, rgba, w, h, FormatBC3)
+		if bc7 < bc3-0.25 {
+			t.Errorf("%s: BC7 PSNR %.2f dB below BC3 %.2f dB", scenario, bc7, bc3)
 		}
 	}
 }

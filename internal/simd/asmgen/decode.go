@@ -107,14 +107,14 @@ func packRGB(r, g, b GPVirtual, alpha uint32) GPVirtual {
 	return p
 }
 
-// emitDXT1Palette emits scalar BC1 palette construction for endpoints c0, c1
+// emitBC1Palette emits scalar BC1 palette construction for endpoints c0, c1
 // (zero-extended 16-bit) and returns the palette in the low XMM lanes of a YMM register
 // (entries 0..3 as little-endian RGBA dwords, upper lanes zero).
 // Entries are inserted into the vector as soon as they are packed to keep GP register pressure low;
 // channel pairs are interpolated together so their source registers die early.
 // opaque selects BC2/BC3's mandatory four-color mode,
 // including c0 <= c1; BC1 passes false for its 1-bit alpha mode.
-func emitDXT1Palette(c0, c1 GPVirtual, opaque bool) VecVirtual {
+func emitBC1Palette(c0, c1 GPVirtual, opaque bool) VecVirtual {
 	pal := YMM()
 
 	p0, r0, g0, b0 := expand565(c0)
@@ -265,12 +265,12 @@ func emitStore4Rows(px0, px1 VecVirtual, dst, stride Register) {
 	VEXTRACTI128(Imm(1), px1, Mem{Base: row2, Index: stride, Scale: 1})
 }
 
-// genDecodeDXT5Row emits the AVX2+BMI2 kernel decoding n interior DXT5 blocks.
-func genDecodeDXT5Row(c decodeConsts, ac Mem) {
-	TEXT("DecodeDXT5RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
+// genDecodeBC3Row emits the AVX2+BMI2 kernel decoding n interior BC3 blocks.
+func genDecodeBC3Row(c decodeConsts, ac Mem) {
+	TEXT("DecodeBC3RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
 	Pragma("noescape")
 	Doc(
-		"DecodeDXT5RowAVX2 decodes n consecutive interior DXT5 blocks (16 bytes each)",
+		"DecodeBC3RowAVX2 decodes n consecutive interior BC3 blocks (16 bytes each)",
 		"into dst as 4 NRGBA rows of 16 bytes spaced stride bytes apart. Requires BMI2.",
 	)
 
@@ -298,7 +298,7 @@ func genDecodeDXT5Row(c decodeConsts, ac Mem) {
 	MOVWLZX(Mem{Base: src, Disp: 8}, c0)
 	c1 := GP32()
 	MOVWLZX(Mem{Base: src, Disp: 10}, c1)
-	pal := emitDXT1Palette(c0, c1, true)
+	pal := emitBC1Palette(c0, c1, true)
 
 	yIdx := YMM()
 	VPBROADCASTD(Mem{Base: src, Disp: 12}, yIdx)
@@ -337,11 +337,11 @@ func genDecodeDXT5Row(c decodeConsts, ac Mem) {
 	RET()
 }
 
-// emitDXT3Nibbles expands the 16 explicit 4-bit alpha values
+// emitBC2Nibbles expands the 16 explicit 4-bit alpha values
 // at src[0:8] into 16 bytes (values 0..15) in an XMM, in pixel order.
 // Two PDEPs spread each 32-bit nibble group (pixels 0-7 and 8-15)
 // into one byte per nibble.
-func emitDXT3Nibbles(src Register) VecVirtual {
+func emitBC2Nibbles(src Register) VecVirtual {
 	mask := GP64()
 	MOVQ(Imm(0x0F0F0F0F0F0F0F0F), mask)
 
@@ -361,9 +361,9 @@ func emitDXT3Nibbles(src Register) VecVirtual {
 	return out
 }
 
-// emitDXT3AlphaInto expands 8 nibble bytes to dword alpha (value*17),
+// emitBC2AlphaInto expands 8 nibble bytes to dword alpha (value*17),
 // shifts to the high byte and ORs them into the masked color pixels.
-func emitDXT3AlphaInto(nib VecVirtual, px VecVirtual) {
+func emitBC2AlphaInto(nib VecVirtual, px VecVirtual) {
 	ad := YMM()
 	VPMOVZXBD(nib, ad)
 	// value * 17 = (value << 4) + value, exact for nibbles (max 255).
@@ -374,13 +374,13 @@ func emitDXT3AlphaInto(nib VecVirtual, px VecVirtual) {
 	VPOR(ad, px, px)
 }
 
-// genDecodeDXT3Row emits the AVX2+BMI2 kernel decoding n interior DXT3 blocks.
-// Color decoding mirrors DXT1; alpha is the explicit 4-bit field expanded *17.
-func genDecodeDXT3Row(c decodeConsts) {
-	TEXT("DecodeDXT3RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
+// genDecodeBC2Row emits the AVX2+BMI2 kernel decoding n interior BC2 blocks.
+// Color decoding mirrors BC1; alpha is the explicit 4-bit field expanded *17.
+func genDecodeBC2Row(c decodeConsts) {
+	TEXT("DecodeBC2RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
 	Pragma("noescape")
 	Doc(
-		"DecodeDXT3RowAVX2 decodes n consecutive interior DXT3 blocks (16 bytes each)",
+		"DecodeBC2RowAVX2 decodes n consecutive interior BC2 blocks (16 bytes each)",
 		"into dst as 4 NRGBA rows of 16 bytes spaced stride bytes apart. Requires BMI2.",
 	)
 
@@ -402,13 +402,13 @@ func genDecodeDXT3Row(c decodeConsts) {
 
 	Label("loop")
 
-	nib := emitDXT3Nibbles(src)
+	nib := emitBC2Nibbles(src)
 
 	c0 := GP32()
 	MOVWLZX(Mem{Base: src, Disp: 8}, c0)
 	c1 := GP32()
 	MOVWLZX(Mem{Base: src, Disp: 10}, c1)
-	pal := emitDXT1Palette(c0, c1, true)
+	pal := emitBC1Palette(c0, c1, true)
 
 	yIdx := YMM()
 	VPBROADCASTD(Mem{Base: src, Disp: 12}, yIdx)
@@ -426,10 +426,10 @@ func genDecodeDXT3Row(c decodeConsts) {
 	VPAND(maskRGB, px0, px0)
 	VPAND(maskRGB, px1, px1)
 
-	emitDXT3AlphaInto(nib, px0)
+	emitBC2AlphaInto(nib, px0)
 	nibHi := XMM()
 	VPSRLDQ(Imm(8), nib, nibHi)
-	emitDXT3AlphaInto(nibHi, px1)
+	emitBC2AlphaInto(nibHi, px1)
 
 	emitStore4Rows(px0, px1, dst, stride)
 
@@ -546,13 +546,13 @@ func genMiscConsts() {
 	DATA(0, U32(0x00010101))
 }
 
-// genDecodeDXT1Row emits the AVX2 kernel decoding n consecutive interior
-// DXT1 blocks straight into the destination image rows.
-func genDecodeDXT1Row(c decodeConsts) {
-	TEXT("DecodeDXT1RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
+// genDecodeBC1Row emits the AVX2 kernel decoding n consecutive interior
+// BC1 blocks straight into the destination image rows.
+func genDecodeBC1Row(c decodeConsts) {
+	TEXT("DecodeBC1RowAVX2", NOSPLIT, "func(dst *byte, src *byte, n int, stride int)")
 	Pragma("noescape")
 	Doc(
-		"DecodeDXT1RowAVX2 decodes n consecutive interior DXT1 blocks (8 bytes each)",
+		"DecodeBC1RowAVX2 decodes n consecutive interior BC1 blocks (8 bytes each)",
 		"into dst as 4 NRGBA rows of 16 bytes spaced stride bytes apart.",
 	)
 
@@ -575,7 +575,7 @@ func genDecodeDXT1Row(c decodeConsts) {
 	MOVWLZX(Mem{Base: src}, c0)
 	c1 := GP32()
 	MOVWLZX(Mem{Base: src, Disp: 2}, c1)
-	pal := emitDXT1Palette(c0, c1, false)
+	pal := emitBC1Palette(c0, c1, false)
 
 	yIdx := YMM()
 	VPBROADCASTD(Mem{Base: src, Disp: 4}, yIdx)

@@ -4,12 +4,12 @@
 
 package bcn
 
-// Format identifies a BCn/DXT compression format.
+// Format identifies a BCn compression format.
 //
 // The format controls block size and how channels are interpreted:
-// - DXT1: RGB (optionally 1-bit alpha via 3-color mode)
-// - DXT3: RGBA with explicit 4-bit alpha
-// - DXT5: RGBA with interpolated alpha
+// - BC1: RGB (optionally 1-bit alpha via 3-color mode)
+// - BC2: RGBA with explicit 4-bit alpha
+// - BC3: RGBA with interpolated alpha
 // - BC4: single channel (stored in red, replicated on decode)
 // - BC5: two channels (stored in red/green, blue=0 on decode)
 type Format int
@@ -17,12 +17,12 @@ type Format int
 const (
 	// FormatUnknown is a sentinel for unsupported/unknown formats.
 	FormatUnknown Format = iota
-	// FormatDXT1 is BC1/DXT1 (8 bytes per 4x4 block).
-	FormatDXT1
-	// FormatDXT3 is BC2/DXT3 (16 bytes per 4x4 block).
-	FormatDXT3
-	// FormatDXT5 is BC3/DXT5 (16 bytes per 4x4 block).
-	FormatDXT5
+	// FormatBC1 is BC1 (formerly DXT1; 8 bytes per 4x4 block).
+	FormatBC1
+	// FormatBC2 is BC2 (formerly DXT3; 16 bytes per 4x4 block).
+	FormatBC2
+	// FormatBC3 is BC3 (formerly DXT5; 16 bytes per 4x4 block).
+	FormatBC3
 	// FormatBC4 is BC4/ATI1 (8 bytes per 4x4 block, single channel).
 	FormatBC4
 	// FormatBC5 is BC5/ATI2 (16 bytes per 4x4 block, two channels).
@@ -41,14 +41,23 @@ const (
 	FormatBC6HS
 )
 
+const (
+	// FormatDXT1 is a compatibility alias for FormatBC1.
+	FormatDXT1 = FormatBC1
+	// FormatDXT3 is a compatibility alias for FormatBC2.
+	FormatDXT3 = FormatBC2
+	// FormatDXT5 is a compatibility alias for FormatBC3.
+	FormatDXT5 = FormatBC3
+)
+
 func (f Format) String() string {
 	switch f {
-	case FormatDXT1:
-		return "DXT1"
-	case FormatDXT3:
-		return "DXT3"
-	case FormatDXT5:
-		return "DXT5"
+	case FormatBC1:
+		return "BC1"
+	case FormatBC2:
+		return "BC2"
+	case FormatBC3:
+		return "BC3"
 	case FormatBC4:
 		return "BC4"
 	case FormatBC5:
@@ -71,9 +80,9 @@ func (f Format) String() string {
 // blockSize returns bytes per block (compressed) or per pixel (uncompressed).
 func (f Format) blockSize() int {
 	switch f {
-	case FormatDXT1:
+	case FormatBC1:
 		return 8
-	case FormatDXT3, FormatDXT5:
+	case FormatBC2, FormatBC3:
 		return 16
 	case FormatBC4:
 		return 8
@@ -91,7 +100,7 @@ func (f Format) blockSize() int {
 // isCompressed reports whether the format uses BCn block compression.
 func (f Format) isCompressed() bool {
 	switch f {
-	case FormatDXT1, FormatDXT3, FormatDXT5, FormatBC4, FormatBC5, FormatBC7, FormatBC6HU, FormatBC6HS:
+	case FormatBC1, FormatBC2, FormatBC3, FormatBC4, FormatBC5, FormatBC7, FormatBC6HU, FormatBC6HS:
 		return true
 	default:
 		return false

@@ -34,9 +34,9 @@ func rgba8FromPacked(v uint32) rgba8 {
 // leaving headroom against int32 overflow when added to a real error.
 const pack3Penalty = int32(1) << 30
 
-// packDXT1IndicesASM assigns palette indices with the AVX2 kernel.
+// packBC1IndicesASM assigns palette indices with the AVX2 kernel.
 // Returns ok=false when AVX2 is unavailable and the caller must fall back.
-func packDXT1IndicesASM(block *[16]rgba8, palette *[4]rgba8, hasAlpha bool, alphaThreshold uint8, w rgbWeightsFP) (uint32, bool) {
+func packBC1IndicesASM(block *[16]rgba8, palette *[4]rgba8, hasAlpha bool, alphaThreshold uint8, w rgbWeightsFP) (uint32, bool) {
 	if !simd.HasAVX2 {
 		return 0, false
 	}
@@ -59,21 +59,21 @@ func packDXT1IndicesASM(block *[16]rgba8, palette *[4]rgba8, hasAlpha bool, alph
 	// Opaque mode leaves threshold and penalty zero: entry 3 competes (limit 4)
 	// and no pixel is forced (alpha is always >= 0).
 
-	idx := simd.PackDXT1IndicesAVX2((*[64]byte)(unsafe.Pointer(block)), &params)
+	idx := simd.PackBC1IndicesAVX2((*[64]byte)(unsafe.Pointer(block)), &params)
 	return idx, true
 }
 
-// scoreDXT1PaletteASM returns the total weighted block error of one opaque-mode
+// scoreBC1PaletteASM returns the total weighted block error of one opaque-mode
 // BC1 endpoint pair via the AVX2 kernel. Returns ok=false when AVX2 is
 // unavailable and the caller must use the scalar path.
-func scoreDXT1PaletteASM(block *[16]rgba8, c0, c1 uint16, w rgbWeightsFP) (int64, bool) {
+func scoreBC1PaletteASM(block *[16]rgba8, c0, c1 uint16, w rgbWeightsFP) (int64, bool) {
 	if !simd.HasAVX2 {
 		return 0, false
 	}
 
 	weights := [4]int32{w.r, w.g, w.b, 0}
 	cc := uint32(c0) | uint32(c1)<<16
-	e := simd.ScoreDXT1PaletteAVX2((*[64]byte)(unsafe.Pointer(block)), cc, &weights)
+	e := simd.ScoreBC1PaletteAVX2((*[64]byte)(unsafe.Pointer(block)), cc, &weights)
 	return int64(e), true
 }
 
@@ -312,35 +312,35 @@ func decodeRangeASMAvailable(enabled bool, width, height, start, end int) bool {
 	return enabled && width%4 == 0 && height%4 == 0 && start < end
 }
 
-// decodeRangeDXT1ASM decodes blocks [start, end) with the AVX2 row kernel.
+// decodeRangeBC1ASM decodes blocks [start, end) with the AVX2 row kernel.
 // Returns false when the kernel cannot be used and the caller must take the
 // generic path.
-func decodeRangeDXT1ASM(data, out []byte, width, height, bx, start, end int) bool {
+func decodeRangeBC1ASM(data, out []byte, width, height, bx, start, end int) bool {
 	if !decodeRangeASMAvailable(simd.HasAVX2, width, height, start, end) {
 		return false
 	}
 
-	decodeRangeRows(simd.DecodeDXT1RowAVX2, data, out, width, bx, start, end, 8)
+	decodeRangeRows(simd.DecodeBC1RowAVX2, data, out, width, bx, start, end, 8)
 	return true
 }
 
-// decodeRangeDXT3ASM decodes blocks [start, end) with the AVX2+BMI2 row kernel.
-func decodeRangeDXT3ASM(data, out []byte, width, height, bx, start, end int) bool {
+// decodeRangeBC2ASM decodes blocks [start, end) with the AVX2+BMI2 row kernel.
+func decodeRangeBC2ASM(data, out []byte, width, height, bx, start, end int) bool {
 	if !decodeRangeASMAvailable(simd.HasAVX2BMI2, width, height, start, end) {
 		return false
 	}
 
-	decodeRangeRows(simd.DecodeDXT3RowAVX2, data, out, width, bx, start, end, 16)
+	decodeRangeRows(simd.DecodeBC2RowAVX2, data, out, width, bx, start, end, 16)
 	return true
 }
 
-// decodeRangeDXT5ASM decodes blocks [start, end) with the AVX2+BMI2 row kernel.
-func decodeRangeDXT5ASM(data, out []byte, width, height, bx, start, end int) bool {
+// decodeRangeBC3ASM decodes blocks [start, end) with the AVX2+BMI2 row kernel.
+func decodeRangeBC3ASM(data, out []byte, width, height, bx, start, end int) bool {
 	if !decodeRangeASMAvailable(simd.HasAVX2BMI2, width, height, start, end) {
 		return false
 	}
 
-	decodeRangeRows(simd.DecodeDXT5RowAVX2, data, out, width, bx, start, end, 16)
+	decodeRangeRows(simd.DecodeBC3RowAVX2, data, out, width, bx, start, end, 16)
 	return true
 }
 

@@ -18,14 +18,14 @@ const (
 	qualityLevelMax = 10
 )
 
-// RGBWeights are used when choosing DXT1 palette indices (and in refinement).
+// RGBWeights are used when choosing BC1 palette indices (and in refinement).
 // R, G, B are relative weights; they are normalized when used.
 // Used to preserve channels that matter (e.g. blue in normal maps).
 type RGBWeights struct {
 	R, G, B float64
 }
 
-// Presets for RGBWeights when encoding DXT1/DXT5 RGB block.
+// Presets for RGBWeights when encoding BC1/BC3 RGB block.
 var (
 	// DefaultRGBWeights is luminance-oriented (green dominant). Use for typical photos/UI.
 	DefaultRGBWeights = RGBWeights{R: 0.3, G: 0.6, B: 0.1}
@@ -68,8 +68,8 @@ func fixedRGBWeights(rw, gw, bw float64) rgbWeightsFP {
 
 // EncodeOptions configures block encoding and mipmap generation.
 type EncodeOptions struct {
-	// RGBWeights overrides weights for DXT1 palette index selection (R, G, B). Nil = default;
-	// for DXT5, if nil and block has constant R (e.g. nohq), Balanced is used automatically.
+	// RGBWeights overrides weights for BC1 palette index selection (R, G, B). Nil = default;
+	// for BC3, if nil and block has constant R (e.g. nohq), Balanced is used automatically.
 	RGBWeights *RGBWeights
 	// Refinement overrides quality behavior when non-nil (applied on top of QualityLevel).
 	Refinement *RefinementOptions
@@ -91,7 +91,7 @@ type EncodeOptions struct {
 	GenerateMipmaps bool
 	// UseSRGB enables sRGB-aware downscale for mip generation.
 	UseSRGB bool
-	// AlphaThreshold controls DXT1 1-bit alpha cutout (0..255). Default 128.
+	// AlphaThreshold controls BC1 1-bit alpha cutout (0..255). Default 128.
 	AlphaThreshold uint8
 }
 
@@ -267,7 +267,7 @@ func clampNonNegative(v int) int {
 
 // getRGBWeightsFP returns fixed-point weights for index selection.
 // If opts.RGBWeights is set, uses it;
-// else when blockConstantR (e.g. DXT5 nohq with R=0) returns Balanced;
+// else when blockConstantR (e.g. BC3 nohq with R=0) returns Balanced;
 // else Default.
 func getRGBWeightsFP(opts *EncodeOptions, blockConstantR bool) rgbWeightsFP {
 	if opts != nil {

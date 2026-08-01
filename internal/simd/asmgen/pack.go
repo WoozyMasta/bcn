@@ -24,14 +24,14 @@ const (
 	ppPenalty = 64
 )
 
-// genPackDXT1Indices emits the AVX2 kernel assigning the best palette index
+// genPackBC1Indices emits the AVX2 kernel assigning the best palette index
 // to each of 16 pixels under the fixed-point weighted SSE metric and packing
 // the 2-bit indices into a uint32 (same bit layout as the Go encoder).
-func genPackDXT1Indices(c decodeConsts) {
-	TEXT("PackDXT1IndicesAVX2", NOSPLIT, "func(block *[64]byte, params *[20]int32) uint32")
+func genPackBC1Indices(c decodeConsts) {
+	TEXT("PackBC1IndicesAVX2", NOSPLIT, "func(block *[64]byte, params *[20]int32) uint32")
 	Pragma("noescape")
 	Doc(
-		"PackDXT1IndicesAVX2 maps 16 NRGBA pixels to weighted-SSE-nearest palette entries",
+		"PackBC1IndicesAVX2 maps 16 NRGBA pixels to weighted-SSE-nearest palette entries",
 		"and packs the 2-bit indices. Alpha mode is driven by the params block:",
 		"a sub-threshold pixel is forced to index 3 and the entry-3 penalty keeps that entry from winning the argmin.",
 		"Ties keep the lowest index.",

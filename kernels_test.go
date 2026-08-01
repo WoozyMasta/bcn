@@ -53,9 +53,9 @@ func TestFindMinMaxEquivalence(t *testing.T) {
 	}
 }
 
-// decodePayloadDXT1 builds a deterministic payload covering endpoint orderings,
+// decodePayloadBC1 builds a deterministic payload covering endpoint orderings,
 // per-channel endpoint sweeps and pseudo-random blocks.
-func decodePayloadDXT1(blocks int) []byte {
+func decodePayloadBC1(blocks int) []byte {
 	data := make([]byte, blocks*8)
 	state := uint32(0xDEC0DE01)
 	next := func() byte {
@@ -90,24 +90,24 @@ func decodePayloadDXT1(blocks int) []byte {
 	return data
 }
 
-// TestDecodeRangeDXT1Equivalence verifies the AVX2 row kernel against the
+// TestDecodeRangeBC1Equivalence verifies the AVX2 row kernel against the
 // scalar block decoder byte-exactly, including partial start/end ranges.
-func TestDecodeRangeDXT1Equivalence(t *testing.T) {
+func TestDecodeRangeBC1Equivalence(t *testing.T) {
 	const width, height = 64, 64 // 16x16 blocks, all interior
 	bx := width / 4
 	blocks := bx * (height / 4)
-	data := decodePayloadDXT1(blocks)
+	data := decodePayloadBC1(blocks)
 
 	want := make([]byte, width*height*4)
 	for idx := range blocks {
-		block := decodeBlockDXT1(data[idx*8 : idx*8+8])
+		block := decodeBlockBC1(data[idx*8 : idx*8+8])
 		storeBlock(want, width, height, idx%bx, idx/bx, &block)
 	}
 
 	ranges := [][2]int{{0, blocks}, {3, blocks - 5}, {bx - 1, bx + 1}, {7, 9}}
 	for _, r := range ranges {
 		got := make([]byte, width*height*4)
-		if !decodeRangeDXT1ASM(data, got, width, height, bx, r[0], r[1]) {
+		if !decodeRangeBC1ASM(data, got, width, height, bx, r[0], r[1]) {
 			t.Skip("ASM decode kernel unavailable on this platform")
 		}
 
@@ -176,9 +176,9 @@ func alphaPayload(blocks, seed int) []byte {
 	return data
 }
 
-// TestDecodeRangeDXT3Equivalence sweeps explicit 4-bit alpha and color blocks
-// (both palette modes) through the DXT3 kernel.
-func TestDecodeRangeDXT3Equivalence(t *testing.T) {
+// TestDecodeRangeBC2Equivalence sweeps explicit 4-bit alpha and color blocks
+// (both palette modes) through the BC2 kernel.
+func TestDecodeRangeBC2Equivalence(t *testing.T) {
 	const blocks = 256
 	state := uint32(0xD37C0DE3)
 	next := func() byte {
@@ -186,33 +186,33 @@ func TestDecodeRangeDXT3Equivalence(t *testing.T) {
 		return byte(state >> 24)
 	}
 	for round := range 256 {
-		color := decodePayloadDXT1(blocks)
+		color := decodePayloadBC1(blocks)
 		payload := make([]byte, blocks*16)
 		for b := range blocks {
 			// 8 bytes explicit alpha (all 16 nibble values covered across rounds).
 			for i := range 8 {
 				payload[b*16+i] = byte(round) + next()
 			}
-			// Reuse DXT1 color sub-block (c0,c1,indices) at offset 8.
+			// Reuse BC1 color sub-block (c0,c1,indices) at offset 8.
 			copy(payload[b*16+8:b*16+16], color[b*8:(b+1)*8])
 		}
-		checkDecodeRangeASM(t, "DXT3", payload, 16, decodeRangeDXT3ASM, decodeBlockDXT3)
+		checkDecodeRangeASM(t, "BC2", payload, 16, decodeRangeBC2ASM, decodeBlockBC2)
 	}
 }
 
-// TestDecodeRangeDXT5Equivalence sweeps all 65536 alpha endpoint pairs plus
-// random color blocks through the DXT5 kernel.
-func TestDecodeRangeDXT5Equivalence(t *testing.T) {
+// TestDecodeRangeBC3Equivalence sweeps all 65536 alpha endpoint pairs plus
+// random color blocks through the BC3 kernel.
+func TestDecodeRangeBC3Equivalence(t *testing.T) {
 	const blocks = 256
 	for round := range 256 {
 		alpha := alphaPayload(blocks, round)
-		color := decodePayloadDXT1(blocks)
+		color := decodePayloadBC1(blocks)
 		payload := make([]byte, blocks*16)
 		for b := range blocks {
 			copy(payload[b*16:b*16+8], alpha[b*8:(b+1)*8])
 			copy(payload[b*16+8:b*16+16], color[b*8:(b+1)*8])
 		}
-		checkDecodeRangeASM(t, "DXT5", payload, 16, decodeRangeDXT5ASM, decodeBlockDXT5)
+		checkDecodeRangeASM(t, "BC3", payload, 16, decodeRangeBC3ASM, decodeBlockBC3)
 	}
 }
 
@@ -245,10 +245,10 @@ func TestDecodeRangeBC5Equivalence(t *testing.T) {
 	}
 }
 
-// TestPackDXT1IndicesEquivalence verifies the AVX2 index-assignment kernel
+// TestPackBC1IndicesEquivalence verifies the AVX2 index-assignment kernel
 // against the scalar reference across opaque and alpha modes, random palettes,
 // weights and blocks (including sub-threshold alpha pixels and ties).
-func TestPackDXT1IndicesEquivalence(t *testing.T) {
+func TestPackBC1IndicesEquivalence(t *testing.T) {
 	state := uint32(0x9E3779B1)
 	next := func() uint32 {
 		state = state*1664525 + 1013904223
@@ -278,11 +278,11 @@ func TestPackDXT1IndicesEquivalence(t *testing.T) {
 		hasAlpha := next()&1 == 0
 		threshold := uint8(next() % 256)
 
-		got, ok := packDXT1IndicesASM(&block, &palette, hasAlpha, threshold, w)
+		got, ok := packBC1IndicesASM(&block, &palette, hasAlpha, threshold, w)
 		if !ok {
 			t.Skip("pack kernel unavailable on this platform")
 		}
-		want := packDXT1IndicesGeneric(block, palette, hasAlpha, threshold, w)
+		want := packBC1IndicesGeneric(block, palette, hasAlpha, threshold, w)
 		if got != want {
 			t.Fatalf("iter %d hasAlpha=%v thr=%d w=%v: got %#08x, want %#08x\nblock=%v\npalette=%v",
 				iter, hasAlpha, threshold, w, got, want, block, palette)
@@ -290,10 +290,10 @@ func TestPackDXT1IndicesEquivalence(t *testing.T) {
 	}
 }
 
-// TestScoreDXT1PaletteEquivalence verifies the AVX2 block-error kernel against
+// TestScoreBC1PaletteEquivalence verifies the AVX2 block-error kernel against
 // the scalar opaque-mode reference over random blocks, endpoint pairs (both
 // 3-color and 4-color palette modes) and weights.
-func TestScoreDXT1PaletteEquivalence(t *testing.T) {
+func TestScoreBC1PaletteEquivalence(t *testing.T) {
 	state := uint32(0x5DEECE66)
 	next := func() uint32 {
 		state = state*1664525 + 1013904223
@@ -323,11 +323,11 @@ func TestScoreDXT1PaletteEquivalence(t *testing.T) {
 		}
 		w := weights[next()%uint32(len(weights))]
 
-		got, ok := scoreDXT1PaletteASM(&block, c0, c1, w)
+		got, ok := scoreBC1PaletteASM(&block, c0, c1, w)
 		if !ok {
 			t.Skip("score kernel unavailable on this platform")
 		}
-		want := dxt1BlockErrorScalar(block, c0, c1, false, 0, w, maxBlockErr)
+		want := bc1BlockErrorScalar(block, c0, c1, false, 0, w, maxBlockErr)
 		if got != want {
 			t.Fatalf("iter %d c0=%#04x c1=%#04x w=%v: got %d, want %d\nblock=%v",
 				iter, c0, c1, w, got, want, block)
@@ -352,7 +352,7 @@ func TestAlphaBlockErrorEquivalence(t *testing.T) {
 		}
 		a0 := uint8(next() >> 24)
 		a1 := uint8(next() >> 24)
-		palette := dxt5AlphaPalette(a0, a1)
+		palette := bc3AlphaPalette(a0, a1)
 
 		got, ok := alphaBlockErrorASM(&alpha, a0, a1)
 		if !ok {
@@ -398,7 +398,7 @@ func TestBestAlphaIndicesEquivalence(t *testing.T) {
 		if next()&3 != 0 {
 			a1 = uint8(next() >> 24)
 		}
-		palette := dxt5AlphaPalette(a0, a1)
+		palette := bc3AlphaPalette(a0, a1)
 
 		got, ok := bestAlphaIndices16ASM(&alpha, a0, a1)
 		if !ok {
@@ -436,7 +436,7 @@ func TestLSQColorAccumulateEquivalence(t *testing.T) {
 		}
 
 		c0, c1 := uint16(next()), uint16(next())
-		palette := dxt1Palette(c0, c1)
+		palette := bc1Palette(c0, c1)
 		hasAlpha := next()&1 == 0
 		threshold := uint8(next() >> 24)
 		w := weights[next()%uint32(len(weights))]
@@ -477,7 +477,7 @@ func TestLSQAlphaAccumulateEquivalence(t *testing.T) {
 		}
 		a0 := uint8(next() >> 24)
 		a1 := uint8(next() >> 24)
-		palette := dxt5AlphaPalette(a0, a1)
+		palette := bc3AlphaPalette(a0, a1)
 
 		got, ok := lsqAlphaAccumulateASM(&alpha, a0, a1)
 		if !ok {

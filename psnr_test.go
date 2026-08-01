@@ -13,33 +13,33 @@ import (
 // below these floors minus psnrToleranceDB.
 // Regenerate with BCN_PSNR_PRINT=1 when the metric changes deliberately.
 var psnrFloorsDB = map[string]float64{
-	"DXT1/opaque/q1":      17.8834,
-	"DXT1/opaque/q6":      20.4653,
-	"DXT1/opaque/q8":      20.6061,
-	"DXT1/translucent/q1": 7.4972,
-	"DXT1/translucent/q6": 7.5854,
-	"DXT1/translucent/q8": 7.5890,
-	"DXT3/translucent/q1": 17.8834,
-	"DXT3/translucent/q6": 20.4653,
-	"DXT3/translucent/q8": 20.6061,
-	"DXT5/translucent/q1": 17.8834,
-	"DXT5/translucent/q6": 20.4653,
-	"DXT5/translucent/q8": 20.6061,
-	"DXT5/nohq/q1":        23.1445,
-	"DXT5/nohq/q6":        25.4902,
-	"DXT5/nohq/q8":        25.7045,
-	"BC7/opaque/q1":       23.6610,
-	"BC7/opaque/q6":       34.6708,
-	"BC7/opaque/q8":       35.2756,
-	"BC7/translucent/q1":  22.6344,
-	"BC7/translucent/q6":  30.5639,
-	"BC7/translucent/q8":  30.4949,
-	"BC6HU/UF16/q1":       43.0175,
-	"BC6HU/UF16/q6":       55.6059,
-	"BC6HU/UF16/q8":       55.9995,
-	"BC6HS/SF16/q1":       42.9792,
-	"BC6HS/SF16/q6":       56.3256,
-	"BC6HS/SF16/q8":       56.7639,
+	"BC1/opaque/q1":      17.8834,
+	"BC1/opaque/q6":      20.4653,
+	"BC1/opaque/q8":      20.6061,
+	"BC1/translucent/q1": 7.4972,
+	"BC1/translucent/q6": 7.5854,
+	"BC1/translucent/q8": 7.5890,
+	"BC2/translucent/q1": 17.8834,
+	"BC2/translucent/q6": 20.4653,
+	"BC2/translucent/q8": 20.6061,
+	"BC3/translucent/q1": 17.8834,
+	"BC3/translucent/q6": 20.4653,
+	"BC3/translucent/q8": 20.6061,
+	"BC3/nohq/q1":        23.1445,
+	"BC3/nohq/q6":        25.4902,
+	"BC3/nohq/q8":        25.7045,
+	"BC7/opaque/q1":      23.6610,
+	"BC7/opaque/q6":      34.6708,
+	"BC7/opaque/q8":      35.2756,
+	"BC7/translucent/q1": 22.6344,
+	"BC7/translucent/q6": 30.5639,
+	"BC7/translucent/q8": 30.4949,
+	"BC6HU/UF16/q1":      43.0175,
+	"BC6HU/UF16/q6":      55.6059,
+	"BC6HU/UF16/q8":      55.9995,
+	"BC6HS/SF16/q1":      42.9792,
+	"BC6HS/SF16/q6":      56.3256,
+	"BC6HS/SF16/q8":      56.7639,
 }
 
 const psnrToleranceDB = 0.05
@@ -65,11 +65,11 @@ func psnrCases() []struct {
 		}
 	}
 
-	add(FormatDXT1, "opaque")
-	add(FormatDXT1, "translucent")
-	add(FormatDXT3, "translucent")
-	add(FormatDXT5, "translucent")
-	add(FormatDXT5, "nohq")
+	add(FormatBC1, "opaque")
+	add(FormatBC1, "translucent")
+	add(FormatBC2, "translucent")
+	add(FormatBC3, "translucent")
+	add(FormatBC3, "nohq")
 	add(FormatBC7, "opaque")
 	add(FormatBC7, "translucent")
 	add(FormatBC6HU, "UF16")

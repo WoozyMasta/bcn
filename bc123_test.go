@@ -7,14 +7,14 @@ import (
 	"testing"
 )
 
-func TestDXT1SolidBlock(t *testing.T) {
+func TestBC1SolidBlock(t *testing.T) {
 	c := color.NRGBA{R: 248, G: 252, B: 248, A: 255}
 	img := SolidImage(4, 4, c)
-	data, _, _, err := EncodeImage(img, FormatDXT1)
+	data, _, _, err := EncodeImage(img, FormatBC1)
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
-	decoded, err := DecodeImage(data, 4, 4, FormatDXT1)
+	decoded, err := DecodeImage(data, 4, 4, FormatBC1)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -27,16 +27,16 @@ func TestDXT1SolidBlock(t *testing.T) {
 	}
 }
 
-func TestDXT3AlphaQuantization(t *testing.T) {
+func TestBC2AlphaQuantization(t *testing.T) {
 	img := SolidImage(4, 4, color.NRGBA{R: 100, G: 150, B: 200, A: 0})
 	for i := 0; i < 16; i++ {
 		img.Pix[i*4+3] = uint8(i * 17)
 	}
-	data, _, _, err := EncodeImage(img, FormatDXT3)
+	data, _, _, err := EncodeImage(img, FormatBC2)
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
-	decoded, err := DecodeImage(data, 4, 4, FormatDXT3)
+	decoded, err := DecodeImage(data, 4, 4, FormatBC2)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -50,13 +50,13 @@ func TestDXT3AlphaQuantization(t *testing.T) {
 	}
 }
 
-func TestDXT5AlphaConstant(t *testing.T) {
+func TestBC3AlphaConstant(t *testing.T) {
 	img := SolidImage(4, 4, color.NRGBA{R: 10, G: 20, B: 30, A: 200})
-	data, _, _, err := EncodeImage(img, FormatDXT5)
+	data, _, _, err := EncodeImage(img, FormatBC3)
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
-	decoded, err := DecodeImage(data, 4, 4, FormatDXT5)
+	decoded, err := DecodeImage(data, 4, 4, FormatBC3)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -68,8 +68,8 @@ func TestDXT5AlphaConstant(t *testing.T) {
 	}
 }
 
-// TestDXT5NohqStyle verifies that DXT5 preserves B when R is constant (nohq normal map case).
-func TestDXT5NohqStyle(t *testing.T) {
+// TestBC3NohqStyle verifies that BC3 preserves B when R is constant (nohq normal map case).
+func TestBC3NohqStyle(t *testing.T) {
 	// One block: R=0, G and B varying so min/max B should be in the palette.
 	img := image.NewNRGBA(image.Rect(0, 0, 4, 4))
 	for i := 0; i < 16; i++ {
@@ -79,11 +79,11 @@ func TestDXT5NohqStyle(t *testing.T) {
 		img.Pix[i*4+3] = 255
 	}
 	opts := &EncodeOptions{QualityLevel: QualityLevelFast}
-	data, _, _, err := EncodeImageWithOptions(img, FormatDXT5, opts)
+	data, _, _, err := EncodeImageWithOptions(img, FormatBC3, opts)
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
-	decoded, err := DecodeImage(data, 4, 4, FormatDXT5)
+	decoded, err := DecodeImage(data, 4, 4, FormatBC3)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -96,12 +96,12 @@ func TestDXT5NohqStyle(t *testing.T) {
 		}
 	}
 	if maxB == 0 {
-		t.Fatalf("DXT5 nohq-style roundtrip: B channel is all zero after decode (input had varying B)")
+		t.Fatalf("BC3 nohq-style roundtrip: B channel is all zero after decode (input had varying B)")
 	}
 }
 
-// TestDXT5NohqStyleMultiBlock verifies that DXT5 with QualityLevelBest preserves B for multi-block nohq-style (R=0).
-func TestDXT5NohqStyleMultiBlock(t *testing.T) {
+// TestBC3NohqStyleMultiBlock verifies that BC3 with QualityLevelBest preserves B for multi-block nohq-style (R=0).
+func TestBC3NohqStyleMultiBlock(t *testing.T) {
 	const size = 16
 	img := image.NewNRGBA(image.Rect(0, 0, size, size))
 	for y := 0; y < size; y++ {
@@ -114,14 +114,14 @@ func TestDXT5NohqStyleMultiBlock(t *testing.T) {
 		}
 	}
 	opts := &EncodeOptions{QualityLevel: QualityLevelBest}
-	data, w, h, err := EncodeImageWithOptions(img, FormatDXT5, opts)
+	data, w, h, err := EncodeImageWithOptions(img, FormatBC3, opts)
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
 	if w != size || h != size {
 		t.Fatalf("encode size: got %dx%d", w, h)
 	}
-	decoded, err := DecodeImage(data, size, size, FormatDXT5)
+	decoded, err := DecodeImage(data, size, size, FormatBC3)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -132,13 +132,13 @@ func TestDXT5NohqStyleMultiBlock(t *testing.T) {
 		}
 	}
 	if maxB == 0 {
-		t.Fatalf("DXT5 nohq-style multi-block (QualityLevelBest): B channel is all zero after decode")
+		t.Fatalf("BC3 nohq-style multi-block (QualityLevelBest): B channel is all zero after decode")
 	}
 }
 
 func TestDDSRoundTrip(t *testing.T) {
 	img := SolidImage(8, 8, color.NRGBA{R: 180, G: 60, B: 220, A: 255})
-	ds, err := EncodeDDS(img, FormatDXT1)
+	ds, err := EncodeDDS(img, FormatBC1)
 	if err != nil {
 		t.Fatalf("encode dds: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestDDSRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read dds: %v", err)
 	}
-	if read.Width != 8 || read.Height != 8 || read.Format != FormatDXT1 {
+	if read.Width != 8 || read.Height != 8 || read.Format != FormatBC1 {
 		t.Fatalf("dds header mismatch")
 	}
 	if len(read.Faces) != 1 || len(read.Faces[0].Mipmaps) != 1 {
@@ -171,7 +171,7 @@ func TestDDSCubemapMipmaps(t *testing.T) {
 		SolidImage(8, 8, color.NRGBA{R: 0, G: 255, B: 255, A: 255}),
 	}
 	opts := &EncodeOptions{GenerateMipmaps: true, QualityLevel: QualityLevelFast}
-	ds, err := EncodeDDSWithOptions(images, FormatDXT1, opts)
+	ds, err := EncodeDDSWithOptions(images, FormatBC1, opts)
 	if err != nil {
 		t.Fatalf("encode cubemap: %v", err)
 	}

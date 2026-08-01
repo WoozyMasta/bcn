@@ -24,8 +24,8 @@ func fuzzWeights(b byte) rgbWeightsFP {
 	}
 }
 
-// FuzzScoreDXT1Palette compares the score kernel with the scalar reference.
-func FuzzScoreDXT1Palette(f *testing.F) {
+// FuzzScoreBC1Palette compares the score kernel with the scalar reference.
+func FuzzScoreBC1Palette(f *testing.F) {
 	f.Add(make([]byte, 67))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) < 67 {
@@ -39,19 +39,19 @@ func FuzzScoreDXT1Palette(f *testing.F) {
 		c1 := uint16(data[65]) | uint16(data[66])<<8
 		w := fuzzWeights(data[66])
 
-		got, ok := scoreDXT1PaletteASM(&block, c0, c1, w)
+		got, ok := scoreBC1PaletteASM(&block, c0, c1, w)
 		if !ok {
 			t.Skip("score kernel unavailable")
 		}
-		want := dxt1BlockErrorScalar(block, c0, c1, false, 0, w, maxBlockErr)
+		want := bc1BlockErrorScalar(block, c0, c1, false, 0, w, maxBlockErr)
 		if got != want {
 			t.Fatalf("score c0=%#04x c1=%#04x: got %d want %d", c0, c1, got, want)
 		}
 	})
 }
 
-// FuzzPackDXT1Indices compares the index-assignment kernel with the reference.
-func FuzzPackDXT1Indices(f *testing.F) {
+// FuzzPackBC1Indices compares the index-assignment kernel with the reference.
+func FuzzPackBC1Indices(f *testing.F) {
 	f.Add(make([]byte, 82))
 	f.Fuzz(func(t *testing.T, data []byte) {
 		if len(data) < 82 {
@@ -70,11 +70,11 @@ func FuzzPackDXT1Indices(f *testing.F) {
 		hasAlpha := data[81]&1 == 0
 		threshold := data[81]
 
-		got, ok := packDXT1IndicesASM(&block, &palette, hasAlpha, threshold, w)
+		got, ok := packBC1IndicesASM(&block, &palette, hasAlpha, threshold, w)
 		if !ok {
 			t.Skip("pack kernel unavailable")
 		}
-		want := packDXT1IndicesGeneric(block, palette, hasAlpha, threshold, w)
+		want := packBC1IndicesGeneric(block, palette, hasAlpha, threshold, w)
 		if got != want {
 			t.Fatalf("pack: got %#08x want %#08x", got, want)
 		}
@@ -91,7 +91,7 @@ func FuzzAlphaKernels(f *testing.F) {
 		var alpha [16]uint8
 		copy(alpha[:], data)
 		a0, a1 := data[16], data[17]
-		palette := dxt5AlphaPalette(a0, a1)
+		palette := bc3AlphaPalette(a0, a1)
 
 		errGot, ok := alphaBlockErrorASM(&alpha, a0, a1)
 		if !ok {
@@ -120,7 +120,7 @@ func FuzzAlphaKernels(f *testing.F) {
 // public entry points never panic and produce the expected output length.
 func FuzzDecodeNoPanic(f *testing.F) {
 	f.Add([]byte{0, 0, 0, 0, 0, 0, 0, 0}, uint8(4), uint8(4), uint8(0))
-	formats := []Format{FormatDXT1, FormatDXT3, FormatDXT5, FormatBC4, FormatBC5, FormatBC7}
+	formats := []Format{FormatBC1, FormatBC2, FormatBC3, FormatBC4, FormatBC5, FormatBC7}
 	f.Fuzz(func(t *testing.T, data []byte, w, h, fsel uint8) {
 		width := int(w%64) + 1
 		height := int(h%64) + 1

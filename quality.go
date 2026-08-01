@@ -6,20 +6,20 @@ package bcn
 
 import "math"
 
-// dxt1ColorEndpoints chooses initial endpoints using quality settings and optional refinement.
-func dxt1ColorEndpoints(block [16]rgba8, opts EncodeOptions) (uint16, uint16) {
+// bc1ColorEndpoints chooses initial endpoints using quality settings and optional refinement.
+func bc1ColorEndpoints(block [16]rgba8, opts EncodeOptions) (uint16, uint16) {
 	w := getRGBWeightsFP(&opts, blockConstantR(block))
 	settings := qualitySettingsForOpts(opts)
 
 	var c0, c1 uint16
 	if settings.usePCA {
-		c0, c1 = dxt1EndpointsPCA(block)
+		c0, c1 = bc1EndpointsPCA(block)
 	} else {
-		c0, c1 = dxt1EndpointsFast(block)
+		c0, c1 = bc1EndpointsFast(block)
 	}
 
 	if settings.colorTries > 0 || settings.lsqIters > 0 {
-		c0, c1 = dxt1Refine(block, c0, c1, false, opts.AlphaThreshold, settings.colorStep, settings.colorTries, settings.lsqIters, w)
+		c0, c1 = bc1Refine(block, c0, c1, false, opts.AlphaThreshold, settings.colorStep, settings.colorTries, settings.lsqIters, w)
 	}
 
 	return c0, c1

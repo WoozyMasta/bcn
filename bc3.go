@@ -6,29 +6,29 @@ package bcn
 
 import "encoding/binary"
 
-// EncodeDXT5 encodes an RGBA image (NRGBA layout) into DXT5 blocks.
-func EncodeDXT5(rgba []byte, width, height int) ([]byte, error) {
-	return encodeBlocksWithOptions(rgba, width, height, FormatDXT5, nil)
+// EncodeBC3 encodes an RGBA image (NRGBA layout) into BC3 blocks.
+func EncodeBC3(rgba []byte, width, height int) ([]byte, error) {
+	return encodeBlocksWithOptions(rgba, width, height, FormatBC3, nil)
 }
 
-// DecodeDXT5 decodes DXT5 blocks into an RGBA image (NRGBA layout).
-func DecodeDXT5(data []byte, width, height int) ([]byte, error) {
-	return decodeBlocks(data, width, height, FormatDXT5)
+// DecodeBC3 decodes BC3 blocks into an RGBA image (NRGBA layout).
+func DecodeBC3(data []byte, width, height int) ([]byte, error) {
+	return decodeBlocks(data, width, height, FormatBC3)
 }
 
-// DecodeDXT5WithOptions decodes DXT5 blocks with explicit options.
-func DecodeDXT5WithOptions(data []byte, width, height int, opts *DecodeOptions) ([]byte, error) {
-	return decodeBlocksWithOptions(data, width, height, FormatDXT5, opts)
+// DecodeBC3WithOptions decodes BC3 blocks with explicit options.
+func DecodeBC3WithOptions(data []byte, width, height int, opts *DecodeOptions) ([]byte, error) {
+	return decodeBlocksWithOptions(data, width, height, FormatBC3, opts)
 }
 
-// EncodeDXT5WithOptions encodes with explicit options.
+// EncodeBC3WithOptions encodes with explicit options.
 // QualityLevel affects color endpoint selection; alpha is interpolated (BC3).
-func EncodeDXT5WithOptions(rgba []byte, width, height int, opts *EncodeOptions) ([]byte, error) {
-	return encodeBlocksWithOptions(rgba, width, height, FormatDXT5, opts)
+func EncodeBC3WithOptions(rgba []byte, width, height int, opts *EncodeOptions) ([]byte, error) {
+	return encodeBlocksWithOptions(rgba, width, height, FormatBC3, opts)
 }
 
-// encodeBlockDXT5WithOptions encodes one BC3/DXT5 block with interpolated alpha.
-func encodeBlockDXT5WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
+// encodeBlockBC3WithOptions encodes one BC3 block with interpolated alpha.
+func encodeBlockBC3WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	minC, maxC := findMinMax(block)
 	settings := qualitySettingsForOpts(opts)
 
@@ -46,10 +46,10 @@ func encodeBlockDXT5WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 		alphaIdx = packAlphaIndices(a0, a1, &alpha)
 	}
 
-	c0, c1 := dxt1ColorEndpoints(block, opts)
-	palette := dxt1Palette(c0, c1)
+	c0, c1 := bc1ColorEndpoints(block, opts)
+	palette := bc1Palette(c0, c1)
 	w := getRGBWeightsFP(&opts, minC.r == maxC.r)
-	indices := packDXT1IndicesWeighted(block, palette, false, opts.AlphaThreshold, w)
+	indices := packBC1IndicesWeighted(block, palette, false, opts.AlphaThreshold, w)
 
 	var out [16]byte
 	out[0] = a0
@@ -63,16 +63,16 @@ func encodeBlockDXT5WithOptions(block [16]rgba8, opts EncodeOptions) [16]byte {
 	return out
 }
 
-// decodeBlockDXT5 decodes one BC3/DXT5 block into 16 NRGBA pixels
+// decodeBlockBC3 decodes one BC3/BC3 block into 16 NRGBA pixels
 // laid out as 4 rows of 16 bytes.
-func decodeBlockDXT5(data []byte) [64]byte {
+func decodeBlockBC3(data []byte) [64]byte {
 	a0 := data[0]
 	a1 := data[1]
-	alphaPalette := dxt5AlphaPalette(a0, a1)
+	alphaPalette := bc3AlphaPalette(a0, a1)
 	alphaIdx := uint64(data[2]) | uint64(data[3])<<8 | uint64(data[4])<<16 | uint64(data[5])<<24 | uint64(data[6])<<32 | uint64(data[7])<<40
 	c0 := binary.LittleEndian.Uint16(data[8:10])
 	c1 := binary.LittleEndian.Uint16(data[10:12])
-	pal := dxt1OpaquePaletteLE(c0, c1)
+	pal := bc1OpaquePaletteLE(c0, c1)
 	idx := binary.LittleEndian.Uint32(data[12:16])
 
 	var out [64]byte
@@ -86,8 +86,8 @@ func decodeBlockDXT5(data []byte) [64]byte {
 	return out
 }
 
-// dxt5AlphaPalette builds the 8-entry alpha palette defined by BC3 rules.
-func dxt5AlphaPalette(a0, a1 uint8) [8]uint8 {
+// bc3AlphaPalette builds the 8-entry alpha palette defined by BC3 rules.
+func bc3AlphaPalette(a0, a1 uint8) [8]uint8 {
 	var p [8]uint8
 	p[0] = a0
 	p[1] = a1

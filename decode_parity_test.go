@@ -22,9 +22,9 @@ type parityPublicCase struct {
 }
 
 var parityPublicCases = []parityPublicCase{
-	{"BC1", FormatDXT1, 8, 1},
-	{"BC2", FormatDXT3, 16, 1},
-	{"BC3", FormatDXT5, 16, 1},
+	{"BC1", FormatBC1, 8, 1},
+	{"BC2", FormatBC2, 16, 1},
+	{"BC3", FormatBC3, 16, 1},
 	{"BC4", FormatBC4, 8, 1},
 	{"BC5", FormatBC5, 16, 1},
 	{"BC7", FormatBC7, 16, 0},
@@ -77,9 +77,9 @@ func parityRGBA(t *testing.T, format string, blockSize int, maxDelta byte, decod
 }
 
 func TestDecodeParityFixtures(t *testing.T) {
-	t.Run("BC1", func(t *testing.T) { parityRGBA(t, "bc1", 8, 1, decodeBlockDXT1) })
-	t.Run("BC2", func(t *testing.T) { parityRGBA(t, "bc2", 16, 1, decodeBlockDXT3) })
-	t.Run("BC3", func(t *testing.T) { parityRGBA(t, "bc3", 16, 1, decodeBlockDXT5) })
+	t.Run("BC1", func(t *testing.T) { parityRGBA(t, "bc1", 8, 1, decodeBlockBC1) })
+	t.Run("BC2", func(t *testing.T) { parityRGBA(t, "bc2", 16, 1, decodeBlockBC2) })
+	t.Run("BC3", func(t *testing.T) { parityRGBA(t, "bc3", 16, 1, decodeBlockBC3) })
 	t.Run("BC4", parityBC4)
 	t.Run("BC5", parityBC5)
 	t.Run("BC6H_UF16", func(t *testing.T) { parityBC6H(t, "bc6hu.rgb16le", false) })

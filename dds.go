@@ -172,17 +172,17 @@ func (d *DDS) Write(w io.Writer) error {
 	// for formats with no legacy FourCC (0 means classic header only).
 	var dx10Format uint32
 	switch d.Format {
-	case FormatDXT1:
+	case FormatBC1:
 		hdr.Flags |= DDSFlagLinearSize
 		hdr.PixelFormat.Flags = DDSPFFourCC
 		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', 'T', '1')
 
-	case FormatDXT3:
+	case FormatBC2:
 		hdr.Flags |= DDSFlagLinearSize
 		hdr.PixelFormat.Flags = DDSPFFourCC
 		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', 'T', '3')
 
-	case FormatDXT5:
+	case FormatBC3:
 		hdr.Flags |= DDSFlagLinearSize
 		hdr.PixelFormat.Flags = DDSPFFourCC
 		hdr.PixelFormat.FourCC = makeFourCC('D', 'X', 'T', '5')
@@ -296,11 +296,11 @@ func ddsFormatFromHeader(r io.Reader, header *DDSHeader) (Format, *DDSHeaderDX10
 
 		switch dx10.DXGIFormat {
 		case 71:
-			return FormatDXT1, &dx10, nil
+			return FormatBC1, &dx10, nil
 		case 74:
-			return FormatDXT3, &dx10, nil
+			return FormatBC2, &dx10, nil
 		case 77:
-			return FormatDXT5, &dx10, nil
+			return FormatBC3, &dx10, nil
 		case 80:
 			return FormatBC4, &dx10, nil
 		case 83:
@@ -318,11 +318,11 @@ func ddsFormatFromHeader(r io.Reader, header *DDSHeader) (Format, *DDSHeaderDX10
 
 	switch pf.FourCC {
 	case makeFourCC('D', 'X', 'T', '1'):
-		return FormatDXT1, nil, nil
+		return FormatBC1, nil, nil
 	case makeFourCC('D', 'X', 'T', '3'):
-		return FormatDXT3, nil, nil
+		return FormatBC2, nil, nil
 	case makeFourCC('D', 'X', 'T', '5'):
-		return FormatDXT5, nil, nil
+		return FormatBC3, nil, nil
 	case makeFourCC('A', 'T', 'I', '1'):
 		return FormatBC4, nil, nil
 	case makeFourCC('A', 'T', 'I', '2'):

@@ -302,12 +302,12 @@ func EncodeKTXWithOptions(images []image.Image, format Format, opts *EncodeOptio
 // ktxHeaderFormats returns GlType, GlTypeSize, GlFormat, GlInternalFormat, GlBaseInternalFormat for the KTX header.
 func ktxHeaderFormats(format Format) (glType, glTypeSize, glFormat, glInternalFormat, glBaseInternalFormat uint32, err error) {
 	switch format {
-	case FormatDXT1:
-		return 0, 1, 0, KTXGLCompressedRGBAS3TCDXT1, KTXGLRGBA, nil
-	case FormatDXT3:
-		return 0, 1, 0, KTXGLCompressedRGBAS3TCDXT3, KTXGLRGBA, nil
-	case FormatDXT5:
-		return 0, 1, 0, KTXGLCompressedRGBAS3TCDXT5, KTXGLRGBA, nil
+	case FormatBC1:
+		return 0, 1, 0, KTXGLCompressedRGBAS3TCBC1, KTXGLRGBA, nil
+	case FormatBC2:
+		return 0, 1, 0, KTXGLCompressedRGBAS3TCBC2, KTXGLRGBA, nil
+	case FormatBC3:
+		return 0, 1, 0, KTXGLCompressedRGBAS3TCBC3, KTXGLRGBA, nil
 	case FormatBC4:
 		return 0, 1, 0, KTXGLCompressedRedRGTC1, KTXGLRed, nil
 	case FormatBC5:
@@ -345,12 +345,12 @@ func ktxFormatFromHeader(header *KTXHeader) (Format, error) {
 	}
 
 	switch header.GlInternalFormat {
-	case KTXGLCompressedRGBS3TCDXT1, KTXGLCompressedRGBAS3TCDXT1:
-		return FormatDXT1, nil
-	case KTXGLCompressedRGBAS3TCDXT3:
-		return FormatDXT3, nil
-	case KTXGLCompressedRGBAS3TCDXT5:
-		return FormatDXT5, nil
+	case KTXGLCompressedRGBS3TCBC1, KTXGLCompressedRGBAS3TCBC1:
+		return FormatBC1, nil
+	case KTXGLCompressedRGBAS3TCBC2:
+		return FormatBC2, nil
+	case KTXGLCompressedRGBAS3TCBC3:
+		return FormatBC3, nil
 	case KTXGLCompressedRedRGTC1:
 		return FormatBC4, nil
 	case KTXGLCompressedRGRGTC2:

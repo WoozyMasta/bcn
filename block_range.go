@@ -11,14 +11,14 @@ package bcn
 // decodeBlockRange decodes blocks [start, end) of a tightly packed payload.
 func decodeBlockRange(format Format, data, out []byte, width, height, bx, start, end int) error {
 	switch format {
-	case FormatDXT1:
-		decodeRangeDXT1(data, out, width, height, bx, start, end)
+	case FormatBC1:
+		decodeRangeBC1(data, out, width, height, bx, start, end)
 
-	case FormatDXT3:
-		decodeRangeDXT3(data, out, width, height, bx, start, end)
+	case FormatBC2:
+		decodeRangeBC2(data, out, width, height, bx, start, end)
 
-	case FormatDXT5:
-		decodeRangeDXT5(data, out, width, height, bx, start, end)
+	case FormatBC3:
+		decodeRangeBC3(data, out, width, height, bx, start, end)
 
 	case FormatBC4:
 		decodeRangeBC4(data, out, width, height, bx, start, end)
@@ -42,14 +42,14 @@ func decodeBlockRange(format Format, data, out []byte, width, height, bx, start,
 // encodeBlockRange encodes blocks [start, end) into a tightly packed payload.
 func encodeBlockRange(format Format, rgba, out []byte, width, height, bx, start, end int, options EncodeOptions) error {
 	switch format {
-	case FormatDXT1:
-		encodeRangeDXT1(rgba, out, width, height, bx, start, end, options)
+	case FormatBC1:
+		encodeRangeBC1(rgba, out, width, height, bx, start, end, options)
 
-	case FormatDXT3:
-		encodeRangeDXT3(rgba, out, width, height, bx, start, end, options)
+	case FormatBC2:
+		encodeRangeBC2(rgba, out, width, height, bx, start, end, options)
 
-	case FormatDXT5:
-		encodeRangeDXT5(rgba, out, width, height, bx, start, end, options)
+	case FormatBC3:
+		encodeRangeBC3(rgba, out, width, height, bx, start, end, options)
 
 	case FormatBC4:
 		encodeRangeBC4(rgba, out, width, height, bx, start, end, options)
@@ -70,9 +70,9 @@ func encodeBlockRange(format Format, rgba, out []byte, width, height, bx, start,
 	return nil
 }
 
-// decodeRangeDXT1 decodes a DXT1 block range (8 bytes per block).
-func decodeRangeDXT1(data, out []byte, width, height, bx, start, end int) {
-	if decodeRangeDXT1ASM(data, out, width, height, bx, start, end) {
+// decodeRangeBC1 decodes a BC1 block range (8 bytes per block).
+func decodeRangeBC1(data, out []byte, width, height, bx, start, end int) {
+	if decodeRangeBC1ASM(data, out, width, height, bx, start, end) {
 		return
 	}
 
@@ -81,7 +81,7 @@ func decodeRangeDXT1(data, out []byte, width, height, bx, start, end int) {
 	pos := start * 8
 
 	for range end - start {
-		block := decodeBlockDXT1(data[pos : pos+8])
+		block := decodeBlockBC1(data[pos : pos+8])
 		storeBlock(out, width, height, x, y, &block)
 		pos += 8
 
@@ -93,9 +93,9 @@ func decodeRangeDXT1(data, out []byte, width, height, bx, start, end int) {
 	}
 }
 
-// decodeRangeDXT3 decodes a DXT3 block range (16 bytes per block).
-func decodeRangeDXT3(data, out []byte, width, height, bx, start, end int) {
-	if decodeRangeDXT3ASM(data, out, width, height, bx, start, end) {
+// decodeRangeBC2 decodes a BC2 block range (16 bytes per block).
+func decodeRangeBC2(data, out []byte, width, height, bx, start, end int) {
+	if decodeRangeBC2ASM(data, out, width, height, bx, start, end) {
 		return
 	}
 
@@ -104,7 +104,7 @@ func decodeRangeDXT3(data, out []byte, width, height, bx, start, end int) {
 	pos := start * 16
 
 	for range end - start {
-		block := decodeBlockDXT3(data[pos : pos+16])
+		block := decodeBlockBC2(data[pos : pos+16])
 		storeBlock(out, width, height, x, y, &block)
 		pos += 16
 
@@ -116,9 +116,9 @@ func decodeRangeDXT3(data, out []byte, width, height, bx, start, end int) {
 	}
 }
 
-// decodeRangeDXT5 decodes a DXT5 block range (16 bytes per block).
-func decodeRangeDXT5(data, out []byte, width, height, bx, start, end int) {
-	if decodeRangeDXT5ASM(data, out, width, height, bx, start, end) {
+// decodeRangeBC3 decodes a BC3 block range (16 bytes per block).
+func decodeRangeBC3(data, out []byte, width, height, bx, start, end int) {
+	if decodeRangeBC3ASM(data, out, width, height, bx, start, end) {
 		return
 	}
 
@@ -127,7 +127,7 @@ func decodeRangeDXT5(data, out []byte, width, height, bx, start, end int) {
 	pos := start * 16
 
 	for range end - start {
-		block := decodeBlockDXT5(data[pos : pos+16])
+		block := decodeBlockBC3(data[pos : pos+16])
 		storeBlock(out, width, height, x, y, &block)
 		pos += 16
 
@@ -226,15 +226,15 @@ func decodeRangeBC7(data, out []byte, width, height, bx, start, end int) {
 	}
 }
 
-// encodeRangeDXT1 encodes a DXT1 block range (8 bytes per block).
-func encodeRangeDXT1(rgba, out []byte, width, height, bx, start, end int, options EncodeOptions) {
+// encodeRangeBC1 encodes a BC1 block range (8 bytes per block).
+func encodeRangeBC1(rgba, out []byte, width, height, bx, start, end int, options EncodeOptions) {
 	x := start % bx
 	y := start / bx
 	pos := start * 8
 
 	for range end - start {
 		block := extractBlock(rgba, width, height, x, y)
-		b := encodeBlockDXT1WithOptions(block, options)
+		b := encodeBlockBC1WithOptions(block, options)
 		copy(out[pos:pos+8], b[:])
 		pos += 8
 
@@ -246,15 +246,15 @@ func encodeRangeDXT1(rgba, out []byte, width, height, bx, start, end int, option
 	}
 }
 
-// encodeRangeDXT3 encodes a DXT3 block range (16 bytes per block).
-func encodeRangeDXT3(rgba, out []byte, width, height, bx, start, end int, options EncodeOptions) {
+// encodeRangeBC2 encodes a BC2 block range (16 bytes per block).
+func encodeRangeBC2(rgba, out []byte, width, height, bx, start, end int, options EncodeOptions) {
 	x := start % bx
 	y := start / bx
 	pos := start * 16
 
 	for range end - start {
 		block := extractBlock(rgba, width, height, x, y)
-		b := encodeBlockDXT3WithOptions(block, options)
+		b := encodeBlockBC2WithOptions(block, options)
 		copy(out[pos:pos+16], b[:])
 		pos += 16
 
@@ -266,15 +266,15 @@ func encodeRangeDXT3(rgba, out []byte, width, height, bx, start, end int, option
 	}
 }
 
-// encodeRangeDXT5 encodes a DXT5 block range (16 bytes per block).
-func encodeRangeDXT5(rgba, out []byte, width, height, bx, start, end int, options EncodeOptions) {
+// encodeRangeBC3 encodes a BC3 block range (16 bytes per block).
+func encodeRangeBC3(rgba, out []byte, width, height, bx, start, end int, options EncodeOptions) {
 	x := start % bx
 	y := start / bx
 	pos := start * 16
 
 	for range end - start {
 		block := extractBlock(rgba, width, height, x, y)
-		b := encodeBlockDXT5WithOptions(block, options)
+		b := encodeBlockBC3WithOptions(block, options)
 		copy(out[pos:pos+16], b[:])
 		pos += 16
 

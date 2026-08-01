@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func BenchmarkEncodeImageDXT3(b *testing.B) {
+func BenchmarkEncodeImageBC2(b *testing.B) {
 	sizes := benchmarkSizes()
 	for _, size := range sizes {
 		rgba := benchmarkRGBATranslucent(size, size)
@@ -17,7 +17,7 @@ func BenchmarkEncodeImageDXT3(b *testing.B) {
 					b.ReportAllocs()
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
-						out, _ := encodeBlocksWithOptions(rgba, size, size, FormatDXT3, opts)
+						out, _ := encodeBlocksWithOptions(rgba, size, size, FormatBC2, opts)
 						benchSinkBytes = out
 					}
 				})
@@ -68,12 +68,12 @@ func BenchmarkEncodeImageBC5(b *testing.B) {
 	}
 }
 
-func BenchmarkDecodeImageDXT3(b *testing.B) {
+func BenchmarkDecodeImageBC2(b *testing.B) {
 	sizes := benchmarkSizes()
 	opts := &EncodeOptions{QualityLevel: QualityLevelFast, AlphaThreshold: 128}
 	for _, size := range sizes {
 		rgba := benchmarkRGBATranslucent(size, size)
-		data, err := encodeBlocksWithOptions(rgba, size, size, FormatDXT3, opts)
+		data, err := encodeBlocksWithOptions(rgba, size, size, FormatBC2, opts)
 		if err != nil {
 			b.Fatalf("encode setup: %v", err)
 		}
@@ -83,7 +83,7 @@ func BenchmarkDecodeImageDXT3(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				out, err := decodeBlocks(data, size, size, FormatDXT3)
+				out, err := decodeBlocks(data, size, size, FormatBC2)
 				if err != nil {
 					b.Fatalf("decode: %v", err)
 				}

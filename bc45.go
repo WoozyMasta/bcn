@@ -96,9 +96,9 @@ func decodeBlockBC5(data []byte) [64]byte {
 	return out
 }
 
-// encodeAlphaBlock packs 16 alpha samples into DXT5/BC4 alpha layout (8 bytes).
+// encodeAlphaBlock packs 16 alpha samples into BC3/BC4 alpha layout (8 bytes).
 func encodeAlphaBlock(alpha [16]uint8, alphaTries, lsqIters int) [8]byte {
-	// BC4/BC5 use the same 8-byte alpha block layout as DXT5 alpha.
+	// BC4/BC5 use the same 8-byte alpha block layout as BC3 alpha.
 	minA, maxA := alpha[0], alpha[0]
 	for i := 1; i < 16; i++ {
 		if alpha[i] < minA {
@@ -166,7 +166,7 @@ func packAlphaIndices(a0, a1 uint8, alpha *[16]uint8) uint64 {
 		return idx
 	}
 
-	palette := dxt5AlphaPalette(a0, a1)
+	palette := bc3AlphaPalette(a0, a1)
 	var idx uint64
 	for i := 15; i >= 0; i-- {
 		best := bestAlphaIndex(&palette, alpha[i])
@@ -179,11 +179,11 @@ func packAlphaIndices(a0, a1 uint8, alpha *[16]uint8) uint64 {
 	return idx
 }
 
-// decodeAlphaBlock unpacks one DXT5/BC4 alpha payload to 16 samples.
+// decodeAlphaBlock unpacks one BC3/BC4 alpha payload to 16 samples.
 func decodeAlphaBlock(data []byte) [16]uint8 {
 	a0 := data[0]
 	a1 := data[1]
-	palette := dxt5AlphaPalette(a0, a1)
+	palette := bc3AlphaPalette(a0, a1)
 	idx := uint64(data[2]) | uint64(data[3])<<8 | uint64(data[4])<<16 | uint64(data[5])<<24 | uint64(data[6])<<32 | uint64(data[7])<<40
 
 	var out [16]uint8
@@ -199,13 +199,13 @@ func decodeAlphaBlock(data []byte) [16]uint8 {
 
 // alphaBlockError computes total squared error for a candidate alpha endpoint pair.
 // The AVX2 path returns the exact total; the scalar path stops at cutoff.
-// As with dxt1BlockError, callers compare with strict <, so both select the same winner.
+// As with bc1BlockError, callers compare with strict <, so both select the same winner.
 func alphaBlockError(alpha [16]uint8, a0, a1 uint8, cutoff int) int {
 	if e, ok := alphaBlockErrorASM(&alpha, a0, a1); ok {
 		return e
 	}
 
-	palette := dxt5AlphaPalette(a0, a1)
+	palette := bc3AlphaPalette(a0, a1)
 	return alphaBlockErrorScalar(&palette, &alpha, cutoff)
 }
 

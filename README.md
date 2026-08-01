@@ -38,7 +38,7 @@ opts := &bcn.EncodeOptions{
   UseSRGB: true,
 }
 
-dds, err := bcn.EncodeDDSWithOptions([]image.Image{img}, bcn.FormatDXT5, opts)
+dds, err := bcn.EncodeDDSWithOptions([]image.Image{img}, bcn.FormatBC3, opts)
 if err != nil {
   /* handle */
 }
@@ -124,7 +124,7 @@ The two paths are byte-exact -
 validated by exhaustive, randomized and fuzz equivalence tests.
 
 * AVX2 kernels need AVX2
-  (decode of DXT1 needs AVX2; DXT3/DXT5/BC4/BC5 decode needs AVX2+BMI2).
+  (decode of BC1 needs AVX2; BC2/BC3/BC4/BC5 decode needs AVX2+BMI2).
   Without them the pure-Go path runs.
 * `BCN_PUREGO=1` in the environment forces the pure-Go path at runtime;
   building with `-tags purego` excludes the assembly entirely.
@@ -144,9 +144,9 @@ Single-thread, Ryzen 9 5950X, Go 1.26, 512x512, throughput over input bytes
 
 | Format    | fast, MB/s | balanced, MB/s | best, MB/s | decode, MB/s |
 | --------- | ---------: | -------------: | ---------: | -----------: |
-| **DXT1**  |       ~830 |            ~35 |        ~12 |         ~920 |
-| **DXT3**  |       ~635 |            ~33 |        ~12 |        ~1715 |
-| **DXT5**  |       ~370 |            ~31 |        ~11 |        ~1670 |
+| **BC1**   |       ~830 |            ~35 |        ~12 |         ~920 |
+| **BC2**   |       ~635 |            ~33 |        ~12 |        ~1715 |
+| **BC3**   |       ~370 |            ~31 |        ~11 |        ~1670 |
 | **BC4**   |       ~480 |            ~74 |        ~23 |        ~1530 |
 | **BC5**   |       ~255 |            ~38 |        ~12 |        ~2490 |
 | **BC6H**  |       ~150 |             ~8 |         ~2 |         ~150 |
@@ -157,8 +157,8 @@ encode throughput over input bytes (higher is better):
 
 | Format    | fast, MB/s | balanced, MB/s | best, MB/s |
 | --------- | ---------: | -------------: | ---------: |
-| **DXT1**  |     ~5,000 |           ~380 |       ~144 |
-| **DXT5**  |     ~2,620 |           ~370 |       ~130 |
+| **BC1**   |     ~5,000 |           ~380 |       ~144 |
+| **BC3**   |     ~2,620 |           ~370 |       ~130 |
 | **BC6H**  |     ~1,350 |            ~90 |        ~30 |
 | **BC7**   |       ~540 |            ~13 |         ~7 |
 

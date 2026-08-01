@@ -11,18 +11,18 @@ func findMinMax(block [16]rgba8) (rgba8, rgba8) {
 	return findMinMaxGeneric(block)
 }
 
-// decodeRangeDXT1ASM is unavailable without assembly support.
-func decodeRangeDXT1ASM(_, _ []byte, _, _, _, _, _ int) bool {
+// decodeRangeBC1ASM is unavailable without assembly support.
+func decodeRangeBC1ASM(_, _ []byte, _, _, _, _, _ int) bool {
 	return false
 }
 
-// decodeRangeDXT3ASM is unavailable without assembly support.
-func decodeRangeDXT3ASM(_, _ []byte, _, _, _, _, _ int) bool {
+// decodeRangeBC2ASM is unavailable without assembly support.
+func decodeRangeBC2ASM(_, _ []byte, _, _, _, _, _ int) bool {
 	return false
 }
 
-// decodeRangeDXT5ASM is unavailable without assembly support.
-func decodeRangeDXT5ASM(_, _ []byte, _, _, _, _, _ int) bool {
+// decodeRangeBC3ASM is unavailable without assembly support.
+func decodeRangeBC3ASM(_, _ []byte, _, _, _, _, _ int) bool {
 	return false
 }
 
@@ -36,13 +36,13 @@ func decodeRangeBC5ASM(_, _ []byte, _, _, _, _, _ int) bool {
 	return false
 }
 
-// packDXT1IndicesASM is unavailable without assembly support.
-func packDXT1IndicesASM(_ *[16]rgba8, _ *[4]rgba8, _ bool, _ uint8, _ rgbWeightsFP) (uint32, bool) {
+// packBC1IndicesASM is unavailable without assembly support.
+func packBC1IndicesASM(_ *[16]rgba8, _ *[4]rgba8, _ bool, _ uint8, _ rgbWeightsFP) (uint32, bool) {
 	return 0, false
 }
 
-// scoreDXT1PaletteASM is unavailable without assembly support.
-func scoreDXT1PaletteASM(_ *[16]rgba8, _, _ uint16, _ rgbWeightsFP) (int64, bool) {
+// scoreBC1PaletteASM is unavailable without assembly support.
+func scoreBC1PaletteASM(_ *[16]rgba8, _, _ uint16, _ rgbWeightsFP) (int64, bool) {
 	return 0, false
 }
 

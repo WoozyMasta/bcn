@@ -12,7 +12,7 @@ var (
 	benchSink16    [16]byte
 )
 
-func BenchmarkEncodeBlockDXT1(b *testing.B) {
+func BenchmarkEncodeBlockBC1(b *testing.B) {
 	block := benchmarkBlockOpaque()
 	for _, level := range benchmarkQualityLevels() {
 		level := level
@@ -22,13 +22,13 @@ func BenchmarkEncodeBlockDXT1(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				benchSink8 = encodeBlockDXT1WithOptions(block, opts)
+				benchSink8 = encodeBlockBC1WithOptions(block, opts)
 			}
 		})
 	}
 }
 
-func BenchmarkEncodeBlockDXT5(b *testing.B) {
+func BenchmarkEncodeBlockBC3(b *testing.B) {
 	block := benchmarkBlockAlpha()
 	for _, level := range benchmarkQualityLevels() {
 		level := level
@@ -38,13 +38,13 @@ func BenchmarkEncodeBlockDXT5(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				benchSink16 = encodeBlockDXT5WithOptions(block, opts)
+				benchSink16 = encodeBlockBC3WithOptions(block, opts)
 			}
 		})
 	}
 }
 
-func BenchmarkEncodeImageDXT1(b *testing.B) {
+func BenchmarkEncodeImageBC1(b *testing.B) {
 	sizes := benchmarkSizes()
 	for _, size := range sizes {
 		size := size
@@ -58,7 +58,7 @@ func BenchmarkEncodeImageDXT1(b *testing.B) {
 					b.ReportAllocs()
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
-						out, _ := encodeBlocksWithOptions(rgba, size, size, FormatDXT1, opts)
+						out, _ := encodeBlocksWithOptions(rgba, size, size, FormatBC1, opts)
 						benchSinkBytes = out
 					}
 				})
@@ -67,7 +67,7 @@ func BenchmarkEncodeImageDXT1(b *testing.B) {
 	}
 }
 
-func BenchmarkEncodeImageDXT5(b *testing.B) {
+func BenchmarkEncodeImageBC3(b *testing.B) {
 	sizes := benchmarkSizes()
 	for _, size := range sizes {
 		size := size
@@ -81,7 +81,7 @@ func BenchmarkEncodeImageDXT5(b *testing.B) {
 					b.ReportAllocs()
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
-						out, _ := encodeBlocksWithOptions(rgba, size, size, FormatDXT5, opts)
+						out, _ := encodeBlocksWithOptions(rgba, size, size, FormatBC3, opts)
 						benchSinkBytes = out
 					}
 				})

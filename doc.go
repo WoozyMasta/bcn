@@ -6,7 +6,7 @@
 Package bcn provides BCn/DXT block compression encode/decode and container I/O.
 
 The package focuses on practical texture workflows:
-  - Encode/decode BC1/DXT1, BC2/DXT3, BC3/DXT5, BC4, BC5, BC6H/BPTC-HDR, BC7/BPTC
+  - Encode/decode BC1/BC1, BC2/BC2, BC3/BC3, BC4, BC5, BC6H/BPTC-HDR, BC7/BPTC
   - Read/write DDS and KTX v1 containers
   - Optional mipmap generation with sRGB-aware downscaling
 
