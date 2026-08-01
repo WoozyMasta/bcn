@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning][].
 ### Removed
 -->
 
-## Unreleased
+## [0.7.0][] - 2026-08-02
 
 ### Added
 
@@ -24,9 +24,8 @@ and this project adheres to [Semantic Versioning][].
 * Signed normalized BC4 and BC5 (`BC4_SNORM`/`BC5_SNORM`) encode and decode,
   with DDS DX10 and KTX v1 I/O.
   AVX2/BMI2 decoding on amd64 with a pure-Go fallback.
-* Uncompressed `BGRX8`, `R8`, and `RG8` formats.
-  DDS DX10 supports all three; KTX v1 supports `R8` and `RG8`.
-  `BGRX8` normalizes its unused X channel to `255`.
+* Uncompressed `FormatR8` and `FormatRG8` encode/decode
+  with DDS DX10 and KTX v1 I/O support.
 * Uncompressed `FormatRGB10A2` encode/decode with DDS DX10
   (`R10G10B10A2_UNORM`) and KTX v1 I/O support.
 * Signed normalized `FormatR8S` and `FormatRG8S` encode/decode
@@ -37,6 +36,8 @@ and this project adheres to [Semantic Versioning][].
   encode/decode with DDS DX10 and KTX v1 I/O support.
 * Uncompressed `FormatRGB8` and `FormatBGR8` encode/decode
   with legacy 24-bit DDS and KTX v1 I/O support.
+
+[0.7.0]: https://github.com/WoozyMasta/bcn/compare/v0.6.0...v0.7.0
 
 ## [0.6.0][] - 2026-08-02
 
